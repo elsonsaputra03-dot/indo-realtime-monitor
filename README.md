@@ -199,6 +199,15 @@ make llm-eval          # uji 15 berita terbaru, cek topik & lokasi secara manual
 - Tabel `news_enriched`, DQ source `llm_enrich`, endpoint `/api/news/geo`, layer peta **Berita (lokasi)**, ringkasan LLM + chip lokasi di tab Berita.
 - Ganti model: ubah `LLM_MODEL` di `.env`, `make llm-pull`, `make llm-eval`, lalu `docker compose --profile batch up -d airflow`. Hasil per model disimpan terpisah (`ORDER BY (news_id, model)`), jadi bisa dibandingkan.
 
+### Tanya Data (AI menjawab dari data platform)
+
+Tab **Tanya AI** di peta dan endpoint `POST /api/ask {"question": "..."}`.
+
+- Pola **tool calling**, bukan text-to-SQL bebas: router LLM memilih 1–3 alat (`gempa`, `titik_panas`, `kualitas_udara`, `harga_pangan`, `berita`, `kesehatan_pipeline`) + parameter; backend menjalankan query ter-parameterisasi; LLM kedua menyusun jawaban **hanya** dari hasil alat. Tidak ada SQL dari LLM → aman dari injection & query liar.
+- Lokasi di-resolve dengan gazetteer yang sama (Kotim, Kalteng, Babel, gunung, ...). Filter wilayah memakai **poligon batas** (`reference/batas_*.geojson`, point-in-polygon via Shapely STRtree, ±50 ms untuk 20 ribu titik); gempa memakai buffer ±50 km supaya episentrum laut dekat pantai ikut.
+- Transparansi: UI menampilkan label "jawaban dibuat AI", alat yang dipakai, data mentah yang diberikan ke AI, dan link sumber berita. Peta otomatis zoom ke lokasi yang ditanyakan.
+- Batasan: rate limit 10 pertanyaan/menit per IP, pertanyaan ≤300 karakter, di luar cakupan → dijawab tidak tersedia.
+
 Rencana awal Fase 4 (referensi):
 
 1. Service `llm-worker`: consume `raw.news` & `raw.app_review` → produce `enriched.news` / `enriched.review`.

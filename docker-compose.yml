@@ -109,8 +109,11 @@ services:
     env_file: .env
     environment:
       CLICKHOUSE_HOST: clickhouse
+      GAZETTEER_CSV: /reference/wilayah_indonesia.csv
     volumes:
       - ./web:/web:ro
+      - ./airflow/dags/llm_lib.py:/app/llm_lib.py:ro
+      - ./reference:/reference:ro
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

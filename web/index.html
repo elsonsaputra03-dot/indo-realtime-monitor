@@ -26,7 +26,7 @@
   select{font:inherit;font-size:.9rem;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;background:#fff;color:var(--ink)}
   select:focus-visible,button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
   .tabs{display:flex;border-bottom:1px solid var(--rule)}
-  .tab{flex:1;padding:10px 8px;border:0;background:none;font:inherit;font-weight:600;font-size:.92rem;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
+  .tab{flex:1;padding:10px 4px;border:0;background:none;font:inherit;font-weight:600;font-size:.92rem;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
   .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
   .list{overflow-y:auto;flex:1;min-height:0}
   .row{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;width:100%;
@@ -56,6 +56,23 @@
   .news:hover{background:#F5F8F9}
   .news .title{font-weight:600}
   .chip{display:inline-block;font-size:.75rem;padding:1px 7px;border-radius:10px;background:#E6EDF1;color:var(--ink);margin:4px 4px 0 0}
+  .ask-box{padding:14px 20px;border-bottom:1px solid #EEF2F4}
+  .ask-label{display:block;font-weight:600;font-size:.92rem;margin-bottom:6px}
+  #ask-q{width:100%;font:inherit;font-size:.95rem;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;resize:vertical;color:var(--ink)}
+  #ask-q:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+  .ask-actions{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .ask-btn{font:inherit;font-weight:600;padding:7px 16px;border:0;border-radius:6px;background:var(--ink);color:#fff;cursor:pointer}
+  .ask-btn[disabled]{opacity:.5;cursor:wait}
+  .ask-examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .ask-ex{font:inherit;font-size:.8rem;padding:4px 9px;border:1px solid var(--rule);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;text-align:left}
+  .ask-ex:hover{background:#F5F8F9}
+  .ask-answer{padding:14px 20px;font-size:.95rem;line-height:1.5;white-space:pre-wrap}
+  .ask-badge{display:block;padding:8px 20px 0;font-size:.78rem;color:var(--muted)}
+  .ask-detail{padding:4px 20px 14px;font-size:.84rem}
+  .ask-detail summary{cursor:pointer;color:var(--muted)}
+  .ask-detail pre{white-space:pre-wrap;font-size:.75rem;background:#F5F8F9;padding:8px;border-radius:6px;max-height:240px;overflow:auto}
+  .ask-facts{margin:6px 0 0;padding-left:18px;line-height:1.45}
+  .ask-src a{display:block;color:#2E5E8C;margin-top:4px}
   .leaflet-popup-content{font-family:Barlow,sans-serif;font-size:.9rem}
   @media (max-width:760px){
     .app{grid-template-columns:1fr;grid-template-rows:55vh auto}
@@ -87,6 +104,7 @@
       <button class="tab" role="tab" aria-selected="false" data-tab="aq">Kualitas udara</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="news">Berita</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="food">Harga pangan</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="ask">Tanya AI</button>
     </div>
     <div class="list" id="list-quake" role="tabpanel"></div>
     <div class="list" id="list-aq" role="tabpanel" hidden></div>
@@ -114,6 +132,18 @@
       </div>
       <div id="food-items"></div>
       <div class="meta" style="padding:10px 20px">Sumber: PIHPS Nasional, Bank Indonesia (pasar tradisional).</div>
+    </div>
+    <div class="list" id="list-ask" role="tabpanel" hidden>
+      <div class="ask-box">
+        <label for="ask-q" class="ask-label">Tanya tentang data di platform ini</label>
+        <textarea id="ask-q" maxlength="300" rows="3" placeholder="Contoh: Berapa titik panas di Kalimantan Tengah 24 jam terakhir?"></textarea>
+        <div class="ask-actions">
+          <button id="ask-btn" class="ask-btn">Tanya</button>
+          <span class="meta">Ctrl+Enter untuk kirim</span>
+        </div>
+        <div class="ask-examples" id="ask-examples"></div>
+      </div>
+      <div id="ask-result" aria-live="polite"></div>
     </div>
     <section class="health" aria-live="polite">
       <h2>Kesehatan pipeline</h2>
@@ -329,11 +359,57 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   $('list-aq').hidden = t.dataset.tab !== 'aq';
   $('list-news').hidden = t.dataset.tab !== 'news';
   $('list-food').hidden = t.dataset.tab !== 'food';
+  $('list-ask').hidden = t.dataset.tab !== 'ask';
 });
 $('hours').onchange = () => { loadQuakes(); loadFires(); };
 $('minmag').onchange = loadQuakes;
 $('news-topic').onchange = loadNews;
 $('food-commodity').onchange = loadFood;
+
+// ---------- Tanya AI ----------
+const ASK_EXAMPLES = [
+  'Berapa titik panas di Kalimantan Tengah 24 jam terakhir?',
+  'Gempa terbesar dalam 3 hari terakhir di mana?',
+  'Provinsi mana yang harga cabai rawitnya paling mahal?',
+  'Bagaimana kualitas udara di Palembang sekarang?',
+  'Berita karhutla terbaru di Sumatera Selatan',
+  'Apakah ada masalah di pipeline data?',
+];
+const TOOL_LABEL = {gempa:'Gempa', titik_panas:'Titik panas', kualitas_udara:'Kualitas udara',
+  harga_pangan:'Harga pangan', berita:'Berita', kesehatan_pipeline:'Kesehatan pipeline'};
+$('ask-examples').innerHTML = ASK_EXAMPLES.map(q => `<button class="ask-ex">${esc(q)}</button>`).join('');
+document.querySelectorAll('.ask-ex').forEach(b => b.onclick = () => { $('ask-q').value = b.textContent; askAI(); });
+$('ask-btn').onclick = () => askAI();
+$('ask-q').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)) askAI(); });
+
+async function askAI(){
+  const q = $('ask-q').value.trim(), out = $('ask-result'), btn = $('ask-btn');
+  if(q.length < 3) return;
+  btn.disabled = true;
+  out.innerHTML = '<div class="empty">Mencari data dan menyusun jawaban…</div>';
+  try{
+    const r = await fetch('/api/ask', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                       body: JSON.stringify({question: q})});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail || r.status);
+    const tools = d.tools.map(t => TOOL_LABEL[t.nama] || t.nama).join(', ') || 'tidak ada';
+    out.innerHTML = `
+      <span class="ask-badge">Jawaban dibuat AI (${esc(d.model)}, model lokal) hanya dari data platform ini. Data dipakai: ${esc(tools)}. ${(d.ms / 1000).toFixed(1)} detik.</span>
+      <div class="ask-answer">${esc(d.answer)}</div>
+      ${(d.facts || []).length ? `<div class="ask-detail"><strong>Ringkasan data</strong>
+        <span class="meta">(dihitung langsung oleh sistem, bukan AI)</span>
+        <ul class="ask-facts">${d.facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div>` : ''}
+      ${d.sources.length ? `<div class="ask-detail ask-src"><strong>Sumber berita</strong>${d.sources.map(s =>
+        `<a href="${esc(s.link)}" target="_blank" rel="noopener noreferrer">${esc(s.judul)}</a>`).join('')}</div>` : ''}
+      <details class="ask-detail"><summary>Lihat data yang dipakai AI</summary>
+        <pre>${esc(JSON.stringify({alat: d.tools, data: d.data}, null, 2))}</pre></details>`;
+    if(d.focus) map.flyTo([d.focus.lat, d.focus.lng], d.focus.zoom, {duration: .8});
+  }catch(e){
+    out.innerHTML = `<div class="empty">AI belum bisa menjawab: ${esc(e.message)}</div>`;
+  }finally{
+    btn.disabled = false;
+  }
+}
 
 const refreshAll = () => { loadQuakes(); loadFires(); loadAQ(); loadNews(); loadNewsGeo(); loadFood(); loadHealth(); };
 refreshAll();

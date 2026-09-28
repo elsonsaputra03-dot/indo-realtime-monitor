@@ -54,6 +54,7 @@ SOURCES = {
     },
     "llm_enrich": {
         "table": "news_enriched", "filter": "1", "key": "concat(news_id, model)", "time_col": "published_at",
+        "ingest_col": "enriched_at",
         "validity": "status = 'ok' AND (summary_llm = '' OR length(topics_llm) = 0)",
         "freshness_min": (30, 60), "lag_window_h": 6, "event_lag_min": (180, 480),
     },
@@ -101,16 +102,16 @@ def check_source(ch, src: str, c: dict, now: datetime) -> list[list]:
     add("run_error_rate_pct", (errors / total * 100) if total else None, *ERROR_RATE,
         detail=f"{errors}/{total} runs" + (f"; last: {last_err[:150]}" if errors else ""))
 
-    tc = c["time_col"]
+    tc, ic = c["time_col"], c.get("ingest_col", "ingested_at")
     n, invalid, uniq, lag = ch.query(
         f"""
         SELECT count(),
                countIf({c['validity']}),
                uniqExact({c['key']}),
-               quantileExactIf(0.5)(dateDiff('second', {tc}, ingested_at) / 60.0,
-                                    {tc} >= now() - INTERVAL {int(c['lag_window_h'])} HOUR AND ingested_at >= now64(3) - INTERVAL 3 HOUR)
+               quantileExactIf(0.5)(dateDiff('second', {tc}, {ic}) / 60.0,
+                                    {tc} >= now() - INTERVAL {int(c['lag_window_h'])} HOUR AND {ic} >= now64(3) - INTERVAL 3 HOUR)
         FROM {c['table']}
-        WHERE {c['filter']} AND ingested_at >= now64(3) - INTERVAL 24 HOUR
+        WHERE {c['filter']} AND {ic} >= now64(3) - INTERVAL 24 HOUR
         """
     ).result_rows[0]
     add("volume_24h", float(n), status="pass" if n else "warn",

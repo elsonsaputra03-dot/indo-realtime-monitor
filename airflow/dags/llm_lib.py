@@ -63,7 +63,9 @@ ALIASES = {
     "sulut": "sulawesi utara", "sulteng": "sulawesi tengah", "sulsel": "sulawesi selatan",
     "sultra": "sulawesi tenggara", "sulbar": "sulawesi barat", "ntb": "nusa tenggara barat",
     "ntt": "nusa tenggara timur", "babel": "kepulauan bangka belitung", "bangka belitung": "kepulauan bangka belitung",
-    "kepri": "kepulauan riau", "malut": "maluku utara", "papua barat daya": "papua barat daya",
+    "kepri": "kepulauan riau", "kep riau": "kepulauan riau", "kep bangka belitung": "kepulauan bangka belitung",
+    "di yogyakarta": "daerah istimewa yogyakarta", "d i yogyakarta": "daerah istimewa yogyakarta",
+    "malut": "maluku utara", "papua barat daya": "papua barat daya",
     # kabupaten (singkatan populer)
     "palangka raya": "kota palangkaraya",
     "kotim": "kotawaringin timur", "kobar": "kotawaringin barat", "kukar": "kutai kartanegara",

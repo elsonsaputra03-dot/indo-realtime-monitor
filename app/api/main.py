@@ -3,7 +3,10 @@ import os
 import threading
 import time
 
-from fastapi import FastAPI, Query
+from collections import defaultdict, deque
+
+from fastapi import FastAPI, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -208,6 +211,33 @@ def food_prices_latest(commodity_id: int = Query(1, ge=1, le=10)):
         return [dict(zip(keys, r)) for r in res.result_rows]
 
     return cached(("food", commodity_id), q)
+
+
+class AskIn(BaseModel):
+    question: str = Field(..., min_length=3, max_length=300)
+
+
+_ask_hits: dict[str, deque] = defaultdict(deque)
+ASK_LIMIT_PER_MIN = int(os.getenv("ASK_LIMIT_PER_MIN", "10"))
+
+
+@app.post("/api/ask")
+def ask_data(body: AskIn, request: Request):
+    """Tanya Data: AI (model lokal) menjawab hanya dari data platform ini."""
+    ip = request.client.host if request.client else "?"
+    now, hits = time.time(), _ask_hits[ip]
+    while hits and now - hits[0] > 60:
+        hits.popleft()
+    if len(hits) >= ASK_LIMIT_PER_MIN:
+        raise HTTPException(429, "Terlalu banyak pertanyaan, coba lagi sebentar lagi.")
+    hits.append(now)
+    try:
+        from api.ask import ask
+        return ask(ch(), body.question.strip())
+    except ImportError as exc:
+        raise HTTPException(503, f"Modul AI belum terpasang: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(503, f"AI tidak tersedia ({type(exc).__name__}). Pastikan Ollama jalan: make llm-up") from exc
 
 
 # Static map page (mount terakhir supaya tidak menutupi /api)
