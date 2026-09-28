@@ -166,9 +166,24 @@ def boundaries(level: int) -> dict:
     from shapely import STRtree
     from shapely.geometry import shape
     name = "batas_provinsi.geojson" if level == 1 else "batas_kabkota.geojson"
+    from shapely.geometry import Point
     fc = json.load(open(os.path.join(REFERENCE_DIR, name), encoding="utf-8"))
     props = [f["properties"] for f in fc["features"]]
-    geoms = [shape(f["geometry"]) for f in fc["features"]]
+    gaz = _gaz_by_kode()
+    geoms = []
+    for p, f in zip(props, fc["features"]):
+        g, row = shape(f["geometry"]), gaz.get(p["kode"], {})
+        # QC poligon sumber (sama dengan scripts/risk.py): luas menyimpang >3x dari luas resmi -> lingkaran perkiraan
+        luas = float(row["luas_km2"]) if row.get("luas_km2") else None
+        if row.get("lat"):
+            area = g.area * 111.0 ** 2
+            cap = Point(float(row["lng"]), float(row["lat"]))
+            ratio_ok = True if not luas else 1 / 3 <= area / luas <= 3
+            if g.is_empty or not ratio_ok or g.distance(cap) * 111.0 > 40:
+                r_km = math.sqrt((luas or max(area, 100.0)) / math.pi)
+                g = cap.buffer(r_km / 111.0, 24)
+                p["batas_perkiraan"] = True
+        geoms.append(g)
     return {"props": props, "geoms": geoms, "tree": STRtree(geoms),
             "by_kode": {p["kode"]: g for p, g in zip(props, geoms)}}
 

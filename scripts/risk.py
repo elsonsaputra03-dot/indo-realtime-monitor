@@ -31,18 +31,20 @@ def clip01(x: float) -> float:
 
 
 def validate_geom(geom, luas_km2: float | None, lat: float | None, lng: float | None):
-    """DQ poligon sumber: 20 dari 514 batas kab/kota luasnya menyimpang >3x dari luas resmi
-    (tertukar dengan wilayah tetangga atau degenerate). Ganti dengan lingkaran seluas luas resmi
+    """DQ poligon sumber: batas kab/kota dianggap tidak valid bila luasnya menyimpang >3x dari luas resmi
+    (tertukar/degenerate) atau ibu kotanya >40 km dari poligon (poligon tergeser, umumnya kab. kepulauan).
+    Yang tidak valid diganti lingkaran seluas luas resmi (atau luas poligon bila luas resmi kosong)
     di koordinat ibu kota. Return (geom, valid)."""
     from shapely.geometry import Point
+    if lat is None or lng is None:
+        return geom, True
     area = geom.area * KM_PER_DEG ** 2
-    if not luas_km2 or lat is None:
+    ratio_ok = True if not luas_km2 else 1 / 3 <= area / luas_km2 <= 3
+    capital_km = geom.distance(Point(lng, lat)) * KM_PER_DEG if not geom.is_empty else 1e9
+    if ratio_ok and capital_km <= 40 and not geom.is_empty:
         return geom, True
-    ratio = area / luas_km2 if luas_km2 else 1
-    if 1 / 3 <= ratio <= 3 and not geom.is_empty:
-        return geom, True
-    radius_deg = math.sqrt(luas_km2 / math.pi) / KM_PER_DEG
-    return Point(lng, lat).buffer(radius_deg, 24), False
+    luas = luas_km2 or max(area, 100.0)
+    return Point(lng, lat).buffer(math.sqrt(luas / math.pi) / KM_PER_DEG, 24), False
 
 
 def load_regions(boundary_path: str, gazetteer_path: str) -> list[dict]:
