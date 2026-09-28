@@ -33,18 +33,16 @@ TOPICS = {
                "harga minyak goreng", "stok beras", "inflasi pangan"],
 }
 
-GNEWS = "https://news.google.com/rss/search?q={q}&hl=id&gl=ID&ceid=ID:id"
 FEEDS = [
-    {"name": "gnews_gempa", "url": GNEWS.format(q=quote("gempa bumi when:1d")), "topic": "gempa"},
-    {"name": "gnews_banjir", "url": GNEWS.format(q=quote("banjir OR longsor when:1d")), "topic": "banjir_longsor"},
-    {"name": "gnews_karhutla", "url": GNEWS.format(q=quote("karhutla OR \"kebakaran hutan\" when:1d")), "topic": "kebakaran"},
-    {"name": "gnews_erupsi", "url": GNEWS.format(q=quote("erupsi gunung when:1d")), "topic": "gunung_api"},
-    {"name": "gnews_cuaca", "url": GNEWS.format(q=quote("\"cuaca ekstrem\" BMKG when:1d")), "topic": "cuaca"},
-    {"name": "gnews_udara", "url": GNEWS.format(q=quote("\"kualitas udara\" OR \"kabut asap\" when:1d")), "topic": "kualitas_udara"},
-    {"name": "gnews_pangan", "url": GNEWS.format(q=quote("\"harga beras\" OR \"harga cabai\" when:1d")), "topic": "pangan"},
-    # Portal umum: hanya item yang cocok dengan salah satu topik yang disimpan
+    # Portal nasional; hanya item yang cocok dengan salah satu topik yang disimpan.
+    # Google News tidak dipakai: robots.txt tidak mengizinkan (diuji 2026-09-28).
     {"name": "antara_terkini", "url": "https://www.antaranews.com/rss/terkini.xml", "topic": None},
     {"name": "cnnindonesia_nasional", "url": "https://www.cnnindonesia.com/nasional/rss", "topic": None},
+    {"name": "detik_berita", "url": "https://news.detik.com/berita/rss", "topic": None},
+    {"name": "liputan6_news", "url": "https://feed.liputan6.com/rss/news", "topic": None},
+    {"name": "okezone", "url": "https://sindikasi.okezone.com/index.php/rss/0/RSS2.0", "topic": None},
+    {"name": "republika", "url": "https://www.republika.co.id/rss", "topic": None},
+    {"name": "sindonews_nasional", "url": "https://nasional.sindonews.com/rss", "topic": None},
     {"name": "tempo_nasional", "url": "https://rss.tempo.co/nasional", "topic": None},
 ]
 

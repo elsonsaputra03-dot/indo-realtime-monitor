@@ -19,7 +19,7 @@ smoke:     ## cek end-to-end
 	bash scripts/smoke_test.sh
 
 ch:        ## buka clickhouse-client
-	docker compose exec clickhouse clickhouse-client --user $(CH_USER) --password $(CH_PASS) -d irm
+	@docker compose exec clickhouse clickhouse-client --user $(CH_USER) --password $(CH_PASS) -d irm
 
 topics:    ## buat topic yang belum ada
 	docker compose run --rm topics-init
