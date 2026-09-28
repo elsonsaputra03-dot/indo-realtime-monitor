@@ -144,7 +144,14 @@ Urutan yang disarankan:
 
 ## Fase 3 — Scraper + orkestrasi batch (minggu 3–4)
 
-**Status 3a: Airflow + scraper berita sudah ada di repo.** 3b (harga pangan) menyusul setelah endpoint data diverifikasi.
+**Status: 3a (berita) dan 3b (harga pangan) sudah ada di repo.**
+
+3b: DAG `food_price_ingest` mengambil harga harian 10 kelompok komoditas per provinsi dari **PIHPS Nasional (Bank Indonesia)**, pasar tradisional.
+- Endpoint dipakai halaman publik PIHPS, dapat diakses tanpa login/cookie; robots.txt bi.go.id tidak melarang `/hargapangan`.
+- Sopan: 2 run/hari (14.00 & 18.00 WIB), maks 2 request paralel, jeda 3 detik, User-Agent menunjuk repo ini.
+- Backfill: Airflow → Trigger DAG w/ config `{"days_back": 30}`.
+- Tabel `food_prices` (ReplacingMergeTree, key komoditas+provinsi+tanggal), DQ source `pihps`, endpoint `/api/food-prices/latest`, tab **Harga pangan**.
+- Panel Harga Badan Pangan tidak dipakai: situs sedang pemeliharaan dan API-nya hanya untuk integrasi antar-instansi (SPLP).
 
 ```bash
 echo "AIRFLOW_DB_PASSWORD=ganti_password_airflow" >> .env

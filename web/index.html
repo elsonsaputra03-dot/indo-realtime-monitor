@@ -84,6 +84,7 @@
       <button class="tab" role="tab" aria-selected="true" data-tab="quake">Gempa</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="aq">Kualitas udara</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="news">Berita</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="food">Harga pangan</button>
     </div>
     <div class="list" id="list-quake" role="tabpanel"></div>
     <div class="list" id="list-aq" role="tabpanel" hidden></div>
@@ -98,6 +99,19 @@
         </select>
       </div>
       <div id="news-items"></div>
+    </div>
+    <div class="list" id="list-food" role="tabpanel" hidden>
+      <div class="news-filter">
+        <select id="food-commodity" aria-label="Komoditas">
+          <option value="1">Beras</option><option value="2">Daging ayam</option><option value="3">Daging sapi</option>
+          <option value="4">Telur ayam</option><option value="5">Bawang merah</option><option value="6">Bawang putih</option>
+          <option value="7">Cabai merah</option><option value="8">Cabai rawit</option><option value="9">Minyak goreng</option>
+          <option value="10">Gula pasir</option>
+        </select>
+        <div class="meta" id="food-meta"></div>
+      </div>
+      <div id="food-items"></div>
+      <div class="meta" style="padding:10px 20px">Sumber: PIHPS Nasional, Bank Indonesia (pasar tradisional).</div>
     </div>
     <section class="health" aria-live="polite">
       <h2>Kesehatan pipeline</h2>
@@ -121,7 +135,7 @@ const $ = id => document.getElementById(id);
 
 const map = L.map('map', {preferCanvas: true}).setView([-2.5, 118], 5);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors | Data: BMKG, USGS, NASA FIRMS, Open-Meteo'
+  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors | Data: BMKG, USGS, NASA FIRMS, Open-Meteo, PIHPS-BI'
 }).addTo(map);
 
 const layers = {
@@ -250,6 +264,33 @@ async function loadNews(){
   renderSummary();
 }
 
+const rupiah = v => 'Rp' + Math.round(v).toLocaleString('id-ID');
+async function loadFood(){
+  const box = $('food-items'), c = $('food-commodity').value;
+  try{
+    const rows = await getJSON(`/api/food-prices/latest?commodity_id=${c}`);
+    if(!rows.length){
+      $('food-meta').textContent = '';
+      box.innerHTML = '<div class="empty">Belum ada data harga. DAG food_price_ingest berjalan pukul 14.00 dan 18.00 WIB, atau trigger manual di Airflow.</div>';
+      return;
+    }
+    const nat = rows[0].national_avg, max = Math.max(...rows.map(r => r.price));
+    $('food-meta').textContent = `${rows[0].commodity}, ${new Date(rows[0].price_date).toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'})}. Rata-rata nasional ${rupiah(nat)}.`;
+    box.innerHTML = rows.map(r => {
+      const diff = (r.price - nat) / nat * 100, col = diff > 10 ? 'var(--fail)' : diff < -10 ? 'var(--ok)' : 'var(--muted)';
+      const chg = r.pct_change ? ` · ${r.pct_change > 0 ? '+' : ''}${r.pct_change.toFixed(1)}% vs ${new Date(r.prev_date).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}` : '';
+      return `<div class="row" style="cursor:default">
+        <div style="font-weight:700;font-variant-numeric:tabular-nums;font-size:.95rem">${rupiah(r.price)}</div>
+        <div><div class="title">${esc(r.province)}</div>
+          <div class="meta"><span style="color:${col}">${diff >= 0 ? '+' : ''}${diff.toFixed(1)}% dari nasional</span>${chg}</div>
+          <div style="height:4px;background:#EEF2F4;border-radius:2px;margin-top:4px"><div style="height:4px;width:${(r.price / max * 100).toFixed(1)}%;background:${col};border-radius:2px"></div></div>
+        </div></div>`;
+    }).join('');
+  }catch(e){
+    box.innerHTML = `<div class="empty">Harga pangan gagal dimuat (${esc(e.message)}).</div>`;
+  }
+}
+
 async function loadHealth(){
   try{
     const rows = await getJSON('/api/dq/latest');
@@ -266,12 +307,14 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   $('list-quake').hidden = t.dataset.tab !== 'quake';
   $('list-aq').hidden = t.dataset.tab !== 'aq';
   $('list-news').hidden = t.dataset.tab !== 'news';
+  $('list-food').hidden = t.dataset.tab !== 'food';
 });
 $('hours').onchange = () => { loadQuakes(); loadFires(); };
 $('minmag').onchange = loadQuakes;
 $('news-topic').onchange = loadNews;
+$('food-commodity').onchange = loadFood;
 
-const refreshAll = () => { loadQuakes(); loadFires(); loadAQ(); loadNews(); loadHealth(); };
+const refreshAll = () => { loadQuakes(); loadFires(); loadAQ(); loadNews(); loadFood(); loadHealth(); };
 refreshAll();
 setInterval(refreshAll, 60000);
 </script>

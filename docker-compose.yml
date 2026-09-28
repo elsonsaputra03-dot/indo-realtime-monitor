@@ -32,6 +32,7 @@ services:
         rpk -X brokers=redpanda:9092 topic create raw.hotspot -p 3 -r 1 || true
         rpk -X brokers=redpanda:9092 topic create raw.air_quality -p 1 -r 1 || true
         rpk -X brokers=redpanda:9092 topic create raw.news -p 1 -r 1 || true
+        rpk -X brokers=redpanda:9092 topic create raw.food_price -p 1 -r 1 || true
     restart: "no"
 
   console:

@@ -44,6 +44,14 @@ SOURCES = {
         "validity": "title = '' OR NOT startsWith(link, 'http') OR length(topics) = 0",
         "freshness_min": (30, 60), "lag_window_h": 6, "event_lag_min": (120, 360),
     },
+    "pihps": {
+        "table": "food_prices", "filter": "1", "time_col": "price_date",
+        "key": "concat(toString(commodity_id), '|', toString(prov_id), '|', toString(price_date))",
+        "validity": "price <= 0 OR price > 2000000 OR province = ''",
+        "freshness_min": (1260, 1560), "lag_window_h": 48, "event_lag_min": (900, 1440),
+        # 2 run/hari meng-upsert key yang sama -> duplikat pra-merge memang by design
+        "dup_ratio": (80.0, 95.0),
+    },
     "openmeteo_aq": {
         "table": "air_quality", "filter": "1", "key": "concat(city, toString(obs_time))", "time_col": "obs_time",
         "validity": "pm2_5 < 0 OR pm10 < 0 OR us_aqi < 0 OR us_aqi > 500",
@@ -104,7 +112,7 @@ def check_source(ch, src: str, c: dict, now: datetime) -> list[list]:
         detail="" if n else "tidak ada record baru 24 jam")
     if n:
         add("validity_invalid_pct", invalid / n * 100, *VALIDITY, detail=f"{invalid}/{n} rows")
-        add("duplicate_ratio_pct", (n - uniq) / n * 100, *DUP_RATIO, detail=f"{n - uniq} dup")
+        add("duplicate_ratio_pct", (n - uniq) / n * 100, *c.get("dup_ratio", DUP_RATIO), detail=f"{n - uniq} dup")
         if is_num(lag):
             add("event_lag_median_min", lag, *c["event_lag_min"])
         else:

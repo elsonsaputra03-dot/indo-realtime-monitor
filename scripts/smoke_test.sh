@@ -35,6 +35,8 @@ n=$(curl -fsS "$API/api/air-quality/latest" | jq_py 'len(d)')
 [ "$n" -gt 0 ] && ok "kota kualitas udara: $n" || fail "belum ada data kualitas udara"
 n=$(curl -fsS "$API/api/news?hours=48" | jq_py 'len(d)')
 [ "$n" -gt 0 ] && ok "berita 48 jam: $n" || warn "berita 48 jam: 0 (Airflow sudah jalan? make batch-up)"
+n=$(curl -fsS "$API/api/food-prices/latest?commodity_id=1" | jq_py 'len(d)')
+[ "$n" -gt 0 ] && ok "harga beras per provinsi: $n" || warn "harga pangan: 0 (trigger DAG food_price_ingest di Airflow)"
 n=$(curl -fsS "$API/api/dq/latest" | jq_py 'len(d)')
 [ "$n" -gt 0 ] && ok "DQ checks: $n" || fail "belum ada hasil DQ"
 

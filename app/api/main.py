@@ -171,6 +171,27 @@ def news(hours: int = Query(24, ge=1, le=168), topic: str = Query("")):
     return cached(("news", hours, topic), q)
 
 
+@app.get("/api/food-prices/latest")
+def food_prices_latest(commodity_id: int = Query(1, ge=1, le=10)):
+    def q():
+        res = ch().query(
+            """
+            SELECT prov_id, province, commodity, toString(price_date), price, national_avg,
+                   pct_change, toString(prev_date)
+            FROM food_prices FINAL
+            WHERE commodity_id = {c:UInt8}
+              AND price_date = (SELECT max(price_date) FROM food_prices WHERE commodity_id = {c:UInt8})
+            ORDER BY price DESC
+            """,
+            parameters={"c": commodity_id},
+        )
+        keys = ["prov_id", "province", "commodity", "price_date", "price", "national_avg",
+                "pct_change", "prev_date"]
+        return [dict(zip(keys, r)) for r in res.result_rows]
+
+    return cached(("food", commodity_id), q)
+
+
 # Static map page (mount terakhir supaya tidak menutupi /api)
 if os.path.isdir("/web"):
     app.mount("/", StaticFiles(directory="/web", html=True), name="web")
