@@ -27,6 +27,17 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def redact(text: str) -> str:
+    """Pesan status tampil di situs publik: jangan pernah bocorkan secret / URL ber-key."""
+    import re
+    for var in ("FIRMS_MAP_KEY",):
+        val = os.getenv(var, "").strip()
+        if val:
+            text = text.replace(val, "***")
+    text = re.sub(r"/api/area/csv/[^/\s']+", "/api/area/csv/***", text)
+    return re.sub(r"https?://\S+", "[url]", text)
+
+
 def write(out: str, name: str, obj) -> int:
     path = os.path.join(out, name)
     with open(path, "w", encoding="utf-8") as f:
@@ -146,7 +157,7 @@ def main() -> int:
                     info["bytes"] = write(a.out, name, obj)
                 info["count"], info["note"] = res["count"], res.get("note", "")
             except Exception as exc:  # noqa: BLE001 - satu sumber gagal tidak menghentikan yang lain
-                info.update(status="error", note=f"{type(exc).__name__}: {exc}"[:200])
+                info.update(status="error", note=redact(f"{type(exc).__name__}: {exc}")[:200])
             info["ms"] = int((time.monotonic() - t0) * 1000)
             meta["sources"][key] = info
             print(f"{key:15} {info['status']:6} n={info['count']:<6} {info['ms']:>6}ms {info['note']}")
