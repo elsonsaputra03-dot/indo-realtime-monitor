@@ -1,0 +1,67 @@
+# Live snapshot gratis: GitHub Actions mengambil data tiap jam, lalu publish site/ ke GitHub Pages.
+name: Publish live snapshot
+
+on:
+  schedule:
+    - cron: "17 * * * *"          # tiap jam menit ke-17 (UTC); GitHub bisa menunda beberapa menit
+  workflow_dispatch:               # tombol "Run workflow" manual
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "scripts/snapshot.py"
+      - "app/producers/**"
+      - "airflow/dags/news_lib.py"
+      - "airflow/dags/pihps_lib.py"
+      - ".github/workflows/snapshot.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements-snapshot.txt
+      - run: pip install -r scripts/requirements-snapshot.txt
+
+      # harga pangan cukup diambil 2x sehari: pulihkan hasil sebelumnya dari cache
+      - uses: actions/cache@v4
+        with:
+          path: site/data/food_prices.json
+          key: food-${{ github.run_id }}
+          restore-keys: food-
+
+      - name: Build snapshot
+        env:
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+        run: |
+          mkdir -p site/data
+          PYTHONPATH=app:airflow/dags python scripts/snapshot.py --out site/data
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

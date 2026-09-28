@@ -432,7 +432,7 @@ def _chat(client: httpx.Client, system: str, user: str, schema: dict | None, tem
     return r.json()["message"]["content"]
 
 
-def ask(ch, question: str, client: httpx.Client | None = None) -> dict:
+def ask(ch, question: str, client: httpx.Client | None = None, context: str = "") -> dict:
     t0 = time.monotonic()
     own = client is None
     client = client or httpx.Client(timeout=httpx.Timeout(10, read=120))
@@ -443,6 +443,17 @@ def ask(ch, question: str, client: httpx.Client | None = None) -> dict:
             llm_plan = {"alat": []}
         rules = rule_route(question)
         llm_tools = [t for t in llm_plan.get("alat", []) if t in TOOL_FUNCS]
+        followup = False
+        if context and not rules["alat"] and not llm_tools:
+            # pertanyaan lanjutan ("kalau di Riau?"): alat & topik dari pertanyaan sebelumnya,
+            # lokasi/waktu dari pertanyaan sekarang bila disebut
+            prev = rule_route(context)
+            if prev["alat"]:
+                followup = True
+                keep = {k: rules[k] for k in ("lokasi", "komoditas") if rules[k]}
+                if rules["_explicit"]["hari"]:
+                    keep["hari"] = rules["hari"]
+                rules = {**prev, **keep, "_explicit": {**prev["_explicit"], "hari": rules["_explicit"]["hari"] or prev["_explicit"]["hari"]}}
         tools = list(dict.fromkeys(llm_tools + rules["alat"]))[:3]      # LLM dulu, aturan melengkapi
         explicit = rules.pop("_explicit")
         dropped = [k for k in ("lokasi", "komoditas", "kata_kunci")
@@ -454,7 +465,7 @@ def ask(ch, question: str, client: httpx.Client | None = None) -> dict:
         calls = [{"nama": t, **params} for t in tools]
         for c in calls:
             c["_q"] = question.lower()
-        router_debug = {"llm": llm_plan, "aturan": rules, "parameter_llm_dibuang": dropped}
+        router_debug = {"llm": llm_plan, "aturan": rules, "parameter_llm_dibuang": dropped, "lanjutan": followup}
         results, sources, focus = [], [], None
         for c in calls:
             try:
@@ -473,7 +484,7 @@ def ask(ch, question: str, client: httpx.Client | None = None) -> dict:
                       "titik panas, kualitas udara, harga pangan, berita bencana/cuaca/pangan, dan status pipeline data.")
         else:
             data = json.dumps(results, ensure_ascii=False, default=str)[:MAX_DATA_CHARS * len(results)]
-            answer = _chat(client, ANSWER_PROMPT, f"PERTANYAAN: {question}\n\nDATA:\n{data}", None, 0).strip()
+            answer = _chat(client, ANSWER_PROMPT, (f"PERTANYAAN SEBELUMNYA: {context}\n" if followup else "") + f"PERTANYAAN: {question}\n\nDATA:\n{data}", None, 0).strip()
         return {"answer": answer, "tools": [{"nama": c["nama"], "parameter": {k: v for k, v in c.items()
                                               if k not in ("nama", "_q") and v not in ("", 0, None)}} for c in calls],
                 "facts": [f for r in results for f in r.get("fakta", [])],

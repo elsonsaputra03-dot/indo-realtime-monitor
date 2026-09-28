@@ -245,6 +245,17 @@ Rencana awal Fase 4 (referensi):
 3. Alert (Grafana alerting → Telegram bot): freshness fail > 15 menit, consumer lag naik terus, disk > 80%, gempa M ≥ 6.
 4. Test chaos kecil: matikan satu producer, pastikan DQ & alert menangkapnya. Dokumentasikan dengan screenshot.
 
+## Demo publik gratis (GitHub Pages + GitHub Actions)
+
+Biaya hosting Rp0. `site/` berisi halaman portofolio (`index.html`) dan peta statis (`demo.html`).
+Workflow `.github/workflows/snapshot.yml` berjalan tiap jam: `scripts/snapshot.py` mengambil data (memakai ulang
+normalizer producer/DAG), menulis `site/data/*.json` + `meta.json` (status per sumber), lalu mem-publish ke GitHub Pages.
+Stack lengkap (Kafka, ClickHouse, Airflow, DQ, AI lokal) tetap dijalankan lokal dengan Docker Compose.
+
+Setup sekali: repo public → Settings → Pages → Source: **GitHub Actions**; Settings → Secrets → Actions →
+`FIRMS_MAP_KEY`; Actions → "Publish live snapshot" → Run workflow. Catatan: GitHub menonaktifkan jadwal workflow
+setelah 60 hari tanpa aktivitas repo; aktifkan lagi dari tab Actions bila perlu.
+
 ## Fase 7 — Deploy online (minggu 9)
 
 1. VPS 4 vCPU / 8 GB (atau Oracle Cloud Always Free ARM), Ubuntu LTS, user non-root, SSH key only, `ufw` hanya buka 22.

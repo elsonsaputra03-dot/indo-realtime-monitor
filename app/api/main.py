@@ -215,6 +215,7 @@ def food_prices_latest(commodity_id: int = Query(1, ge=1, le=10)):
 
 class AskIn(BaseModel):
     question: str = Field(..., min_length=3, max_length=300)
+    context: str = Field("", max_length=300)     # pertanyaan sebelumnya (untuk pertanyaan lanjutan)
 
 
 _ask_hits: dict[str, deque] = defaultdict(deque)
@@ -233,7 +234,7 @@ def ask_data(body: AskIn, request: Request):
     hits.append(now)
     try:
         from api.ask import ask
-        return ask(ch(), body.question.strip())
+        return ask(ch(), body.question.strip(), context=body.context.strip())
     except ImportError as exc:
         raise HTTPException(503, f"Modul AI belum terpasang: {exc}") from exc
     except Exception as exc:  # noqa: BLE001

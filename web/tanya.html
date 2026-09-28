@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tanya Data — Indonesia Realtime Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --ink:#1D2A33; --muted:#5D6D78; --rule:#CBD5DB; --panel:#FFFFFF; --bg:#EEF2F4; --sea:#DCE6EA;
+    --accent:#2E5E8C; --fact:#F3F7F4; --fact-rule:#CFE0D4; --ok:#3E8E5E; --fail:#B3261E;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Barlow,system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+  a{color:var(--accent)}
+  button{font:inherit}
+  button:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+  .page{display:grid;grid-template-rows:auto 1fr;height:100%}
+  header{background:var(--panel);border-bottom:1px solid var(--rule);padding:14px 24px;display:flex;align-items:center;gap:16px}
+  header h1{font-size:1.35rem;margin:0;font-weight:700;letter-spacing:-.01em}
+  header .sub{color:var(--muted);font-size:.9rem;margin:2px 0 0}
+  header .spacer{flex:1}
+  .hbtn{border:1px solid var(--rule);background:#fff;color:var(--ink);border-radius:6px;padding:7px 12px;font-size:.9rem;cursor:pointer;text-decoration:none;white-space:nowrap}
+  .hbtn:hover{background:#F5F8F9}
+
+  .main{display:grid;grid-template-columns:minmax(0,1fr) 360px;min-height:0}
+  .chat{display:grid;grid-template-rows:1fr auto;min-height:0}
+  .scroll{overflow-y:auto;padding:24px 24px 8px}
+  .thread{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+  /* sambutan */
+  .welcome{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:22px 24px}
+  .welcome h2{margin:0 0 6px;font-size:1.25rem}
+  .welcome p{margin:0 0 14px;color:var(--muted);line-height:1.5}
+  .groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .group h3{font-size:.8rem;font-weight:600;color:var(--muted);margin:0 0 6px;text-transform:none}
+  .ex{display:block;width:100%;text-align:left;border:1px solid var(--rule);background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer;color:var(--ink);font-size:.92rem;line-height:1.35}
+  .ex:hover{border-color:var(--accent);background:#F7FAFC}
+
+  /* pesan */
+  .msg-user{align-self:flex-end;max-width:80%;background:var(--ink);color:#fff;padding:10px 14px;border-radius:14px 14px 4px 14px;line-height:1.45;white-space:pre-wrap}
+  .msg-ai{align-self:stretch;background:var(--panel);border:1px solid var(--rule);border-radius:4px 14px 14px 14px;padding:14px 16px}
+  .ai-meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:.8rem;color:var(--muted);margin-bottom:8px}
+  .tag{background:#E6EDF1;border-radius:10px;padding:1px 8px;color:var(--ink)}
+  .tag.follow{background:#E8E2F3}
+  .answer{font-size:1rem;line-height:1.55}
+  .answer p{margin:0 0 8px}
+  .answer ul,.answer ol{margin:4px 0 8px;padding-left:20px}
+  .facts{margin-top:12px;background:var(--fact);border:1px solid var(--fact-rule);border-radius:8px;padding:10px 12px}
+  .facts .ttl{font-weight:600;font-size:.88rem}
+  .facts .ttl span{font-weight:400;color:var(--muted)}
+  .facts ul{margin:6px 0 0;padding-left:18px;font-size:.9rem;line-height:1.45}
+  .sources{margin-top:10px;font-size:.9rem}
+  .sources a{display:block;margin-top:3px}
+  .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .abtn{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:5px 10px;font-size:.84rem;cursor:pointer;color:var(--ink)}
+  .abtn:hover{background:#F5F8F9}
+  details.raw{margin-top:10px;font-size:.85rem}
+  details.raw summary{cursor:pointer;color:var(--muted)}
+  details.raw pre{white-space:pre-wrap;font-size:.75rem;background:#F5F8F9;padding:8px;border-radius:6px;max-height:280px;overflow:auto}
+  .msg-err{align-self:stretch;border:1px solid #E7C3C0;background:#FBF1F0;color:var(--fail);border-radius:10px;padding:12px 14px}
+  .thinking{display:flex;align-items:center;gap:10px;color:var(--muted)}
+  .dots span{display:inline-block;width:7px;height:7px;margin-right:3px;border-radius:50%;background:var(--muted);animation:b 1.2s infinite ease-in-out}
+  .dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+  @keyframes b{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+
+  /* composer */
+  .composer{border-top:1px solid var(--rule);background:var(--panel);padding:12px 24px 14px}
+  .compose-inner{max-width:780px;margin:0 auto}
+  .ctx{font-size:.8rem;color:var(--muted);margin-bottom:6px;display:none}
+  .ctx.on{display:block}
+  .row{display:flex;gap:10px;align-items:flex-end}
+  textarea{flex:1;font:inherit;font-size:1rem;line-height:1.4;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;resize:none;max-height:160px;color:var(--ink)}
+  .send{border:0;background:var(--ink);color:#fff;font-weight:600;border-radius:10px;padding:11px 18px;cursor:pointer}
+  .send[disabled]{opacity:.45;cursor:not-allowed}
+  .hint{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-top:6px}
+
+  /* panel kanan */
+  aside{border-left:1px solid var(--rule);background:var(--panel);display:grid;grid-template-rows:280px auto;min-height:0;overflow-y:auto}
+  #minimap{height:280px;border-bottom:1px solid var(--rule)}
+  .side{padding:14px 18px;font-size:.9rem;line-height:1.5}
+  .side h2{font-size:.95rem;margin:0 0 6px}
+  .side ul{margin:0 0 12px;padding-left:18px}
+  .side .note{color:var(--muted);font-size:.84rem}
+  .loc-label{font-size:.84rem;color:var(--muted);margin:0 0 10px}
+
+  @media (max-width:1100px){
+    .main{grid-template-columns:1fr}
+    aside{display:none}
+  }
+  @media (max-width:640px){
+    header{padding:12px 14px;flex-wrap:wrap}
+    .scroll{padding:16px 12px 8px}
+    .composer{padding:10px 12px 12px}
+    .msg-user{max-width:92%}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div>
+      <h1>Tanya Data</h1>
+      <p class="sub">AI lokal menjawab hanya dari data Indonesia Realtime Monitor</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="hbtn" id="new-chat">Percakapan baru</button>
+    <a class="hbtn" href="/">Kembali ke peta</a>
+  </header>
+
+  <div class="main">
+    <section class="chat" aria-label="Percakapan">
+      <div class="scroll" id="scroll">
+        <div class="thread" id="thread" aria-live="polite"></div>
+      </div>
+      <div class="composer">
+        <div class="compose-inner">
+          <div class="ctx" id="ctx"></div>
+          <div class="row">
+            <label for="q" class="sr" style="position:absolute;left:-9999px">Pertanyaan</label>
+            <textarea id="q" rows="1" maxlength="300" placeholder="Tanyakan tentang gempa, titik panas, kualitas udara, harga pangan, atau berita…"></textarea>
+            <button class="send" id="send" disabled>Kirim</button>
+          </div>
+          <div class="hint"><span>Enter untuk kirim, Shift+Enter untuk baris baru</span><span id="count">0/300</span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside aria-label="Lokasi dan cakupan data">
+      <div id="minimap" role="region" aria-label="Peta lokasi pertanyaan"></div>
+      <div class="side">
+        <p class="loc-label" id="loc-label">Lokasi yang ditanyakan akan ditandai di peta.</p>
+        <h2>Data yang bisa ditanyakan</h2>
+        <ul>
+          <li>Gempa: BMKG &amp; USGS</li>
+          <li>Titik panas: NASA FIRMS (VIIRS)</li>
+          <li>Kualitas udara: Open-Meteo, 38 ibu kota provinsi</li>
+          <li>Harga pangan: PIHPS Nasional, Bank Indonesia</li>
+          <li>Berita: 8 portal nasional, ditandai lokasi oleh AI</li>
+          <li>Status kualitas data platform</li>
+        </ul>
+        <h2>Cara kerja</h2>
+        <p class="note">AI memilih data yang relevan, sistem menjalankan query yang sudah ditentukan, lalu AI merangkum hasilnya.
+          Angka di kotak <strong>Ringkasan data</strong> dihitung langsung oleh sistem, bukan oleh AI. AI bisa keliru merangkai kalimat,
+          jadi periksa ringkasan data untuk angka yang pasti.</p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TOOL_LABEL = {gempa:'Gempa', titik_panas:'Titik panas', kualitas_udara:'Kualitas udara',
+  harga_pangan:'Harga pangan', berita:'Berita', kesehatan_pipeline:'Kualitas data'};
+const EXAMPLES = {
+  'Bencana': ['Gempa terbesar dalam 3 hari terakhir di mana?', 'Berapa titik panas di Kalimantan Tengah 24 jam terakhir?',
+              'Status Gunung Semeru hari ini'],
+  'Lingkungan': ['Bagaimana kualitas udara di Palembang sekarang?', 'Kota mana yang kualitas udaranya paling buruk?',
+                 'Berita kabut asap terbaru'],
+  'Pangan': ['Provinsi mana yang harga cabai rawitnya paling mahal?', 'Berapa harga beras di Jawa Barat?',
+             'Harga bawang merah termurah di provinsi mana?'],
+  'Data': ['Apakah ada masalah di pipeline data?'],
+};
+const STORE = 'irm-tanya-v1';
+
+// ---------- peta mini ----------
+const mini = L.map('minimap', {zoomControl: true, attributionControl: true}).setView([-2.5, 118], 4);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18,
+  attribution: '&copy; OpenStreetMap contributors'}).addTo(mini);
+let focusMarker = null;
+function showFocus(f){
+  if(!f) return;
+  if(focusMarker) mini.removeLayer(focusMarker);
+  focusMarker = L.circleMarker([f.lat, f.lng], {radius: 9, color: '#2E5E8C', weight: 3, fillColor: '#2E5E8C', fillOpacity: .25})
+    .addTo(mini).bindTooltip(f.nama, {permanent: true, direction: 'top', offset: [0, -8]});
+  mini.flyTo([f.lat, f.lng], Math.min(f.zoom, 8), {duration: .8});
+  $('loc-label').textContent = `Lokasi: ${f.nama}`;
+}
+
+// ---------- format jawaban (aman: escape dulu) ----------
+function formatAnswer(text){
+  const lines = esc(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').split('\n');
+  let html = '', list = null;
+  for(const raw of lines){
+    const line = raw.trim();
+    const m = line.match(/^(?:[-•*]|\d+[.)])\s+(.*)$/);
+    if(m){
+      if(!list){ list = /^\d/.test(line) ? 'ol' : 'ul'; html += `<${list}>`; }
+      html += `<li>${m[1]}</li>`;
+    }else{
+      if(list){ html += `</${list}>`; list = null; }
+      if(line) html += `<p>${line}</p>`;
+    }
+  }
+  if(list) html += `</${list}>`;
+  return html;
+}
+
+// ---------- state percakapan ----------
+let history = [];          // [{q, res|null, err|null}]
+let lastToolQuestion = '';  // konteks untuk pertanyaan lanjutan
+try{ history = JSON.parse(sessionStorage.getItem(STORE) || '[]').filter(h => h.res || h.err); }catch(e){ history = []; }
+const save = () => { try{ sessionStorage.setItem(STORE, JSON.stringify(history.slice(-30))); }catch(e){} };
+
+function renderWelcome(){
+  const groups = Object.entries(EXAMPLES).map(([g, qs]) => `
+    <div class="group"><h3>${esc(g)}</h3>${qs.map(q => `<button class="ex">${esc(q)}</button>`).join('')}</div>`).join('');
+  return `<div class="welcome">
+      <h2>Mau tahu apa hari ini?</h2>
+      <p>Tanyakan dengan bahasa sehari-hari. Pertanyaan lanjutan juga bisa, misalnya setelah bertanya harga beras
+         di Jawa Barat, cukup ketik “kalau di Riau?”.</p>
+      <div class="groups">${groups}</div></div>`;
+}
+
+function renderAI(res){
+  const tools = res.tools.map(t => `<span class="tag">${esc(TOOL_LABEL[t.nama] || t.nama)}</span>`).join('');
+  const follow = res.router && res.router.lanjutan ? '<span class="tag follow">lanjutan</span>' : '';
+  const facts = (res.facts || []).length ? `<div class="facts"><div class="ttl">Ringkasan data <span>(dihitung sistem, bukan AI)</span></div>
+      <ul>${res.facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div>` : '';
+  const sources = (res.sources || []).length ? `<div class="sources"><strong>Sumber berita</strong>${res.sources.map(s =>
+      `<a href="${esc(s.link)}" target="_blank" rel="noopener noreferrer">${esc(s.judul)}</a>`).join('')}</div>` : '';
+  const focusBtn = res.focus ? `<button class="abtn" data-act="focus">Tampilkan ${esc(res.focus.nama)} di peta</button>` : '';
+  return `<div class="msg-ai">
+      <div class="ai-meta"><span>AI · ${esc(res.model)} · ${(res.ms / 1000).toFixed(1)} dtk</span>${tools}${follow}</div>
+      <div class="answer">${formatAnswer(res.answer)}</div>
+      ${facts}${sources}
+      <div class="actions"><button class="abtn" data-act="copy">Salin jawaban</button>${focusBtn}</div>
+      <details class="raw"><summary>Lihat data yang dipakai AI</summary>
+        <pre>${esc(JSON.stringify({alat: res.tools, data: res.data}, null, 2))}</pre></details>
+    </div>`;
+}
+
+function render(){
+  const t = $('thread');
+  if(!history.length){ t.innerHTML = renderWelcome(); }
+  else{
+    t.innerHTML = history.map((h, i) => `<div class="msg-user">${esc(h.q)}</div>` +
+      (h.res ? `<div data-idx="${i}">${renderAI(h.res)}</div>` :
+       h.err ? `<div class="msg-err">${esc(h.err)}</div>` :
+       `<div class="msg-ai thinking"><span class="dots"><span></span><span></span><span></span></span><span id="think-text">Mencari data yang relevan…</span></div>`)).join('');
+  }
+  t.querySelectorAll('.ex').forEach(b => b.onclick = () => send(b.textContent));
+  t.querySelectorAll('[data-idx]').forEach(el => {
+    const res = history[+el.dataset.idx].res;
+    el.querySelector('[data-act="copy"]').onclick = e => {
+      const txt = res.answer + (res.facts.length ? '\n\nRingkasan data:\n- ' + res.facts.join('\n- ') : '');
+      navigator.clipboard.writeText(txt).then(() => { e.target.textContent = 'Tersalin'; setTimeout(() => e.target.textContent = 'Salin jawaban', 1500); });
+    };
+    const fb = el.querySelector('[data-act="focus"]');
+    if(fb) fb.onclick = () => showFocus(res.focus);
+  });
+  const ctx = $('ctx');
+  ctx.classList.toggle('on', !!lastToolQuestion);
+  ctx.textContent = lastToolQuestion ? `Pertanyaan lanjutan akan memakai konteks: “${lastToolQuestion}”` : '';
+  $('scroll').scrollTop = $('scroll').scrollHeight;
+}
+
+async function send(text){
+  const q = (text ?? $('q').value).trim();
+  if(q.length < 3 || $('send').dataset.busy) return;
+  $('q').value = ''; autosize(); updateCount();
+  history.push({q, res: null, err: null});
+  const item = history[history.length - 1];
+  $('send').dataset.busy = '1'; $('send').disabled = true;
+  render();
+  const t = setTimeout(() => { const el = $('think-text'); if(el) el.textContent = 'Menyusun jawaban…'; }, 2500);
+  try{
+    const r = await fetch('/api/ask', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question: q, context: lastToolQuestion})});
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(r.status === 429 ? 'Terlalu banyak pertanyaan dalam satu menit. Tunggu sebentar lalu coba lagi.'
+                                                : (d.detail || `Server mengembalikan ${r.status}.`));
+    item.res = d;
+    if(d.tools.length && !(d.router && d.router.lanjutan)) lastToolQuestion = q;
+    if(d.focus) showFocus(d.focus);
+  }catch(e){
+    item.err = `AI belum bisa menjawab. ${e.message}`;
+  }finally{
+    clearTimeout(t);
+    delete $('send').dataset.busy;
+    updateCount();
+    save(); render();
+    $('q').focus();
+  }
+}
+
+// ---------- composer ----------
+function autosize(){ const q = $('q'); q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 160) + 'px'; }
+function updateCount(){ const n = $('q').value.length; $('count').textContent = `${n}/300`;
+  $('send').disabled = n < 3 || !!$('send').dataset.busy; }
+$('q').addEventListener('input', () => { autosize(); updateCount(); });
+$('q').addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+$('send').onclick = () => send();
+$('new-chat').onclick = () => { history = []; lastToolQuestion = ''; save(); render();
+  if(focusMarker){ mini.removeLayer(focusMarker); focusMarker = null; } mini.setView([-2.5, 118], 4);
+  $('loc-label').textContent = 'Lokasi yang ditanyakan akan ditandai di peta.'; $('q').focus(); };
+
+// pulihkan konteks dari riwayat sesi
+for(const h of history){ if(h.res && h.res.tools.length && !(h.res.router && h.res.router.lanjutan)) lastToolQuestion = h.q; }
+const lastFocus = [...history].reverse().find(h => h.res && h.res.focus);
+if(lastFocus) showFocus(lastFocus.res.focus);
+// pertanyaan dari URL: /tanya.html?q=...
+const preset = new URLSearchParams(location.search).get('q');
+render();
+if(preset) send(preset);
+$('q').focus();
+</script>
+</body>
+</html>

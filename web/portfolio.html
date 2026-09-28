@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elson Saputra — Data Engineer</title>
+<meta name="description" content="Elson Saputra — Data Engineer with 13+ years in telecommunications network analytics and enterprise-scale big data (BigQuery, Airflow, Kafka).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1D2A33; --ink-2:#2B3C48; --muted:#5D6D78; --rule:#D3DCE1; --paper:#FFFFFF; --bg:#EEF2F4;
+    --accent:#2E5E8C; --signal:#E9B44C; --night:#15212A;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
+  body{margin:0;font-family:Barlow,system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.55;font-size:17px}
+  a{color:var(--accent)}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px}
+  .cond{font-family:"Barlow Condensed",Barlow,sans-serif;letter-spacing:.01em}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:10;background:rgba(21,33,42,.96);backdrop-filter:blur(6px);border-bottom:1px solid #26343E}
+  nav .wrap{display:flex;align-items:center;gap:22px;height:58px}
+  nav .brand{color:#fff;font-weight:700;text-decoration:none;font-size:1.05rem}
+  nav .links{display:flex;gap:20px;margin-left:auto}
+  nav .links a{color:#C9D4DB;text-decoration:none;font-size:.95rem}
+  nav .links a:hover{color:#fff}
+  @media (max-width:720px){ nav .links a:not(.keep){display:none} }
+
+  /* hero */
+  .hero{background:var(--night);color:#fff;overflow:hidden}
+  .hero .wrap{display:grid;grid-template-columns:1.25fr .75fr;gap:48px;align-items:end;padding-top:64px}
+  .eyebrow{color:var(--signal);font-weight:600;font-size:.95rem;margin:0 0 14px}
+  .hero h1{font-size:clamp(2.6rem,6vw,4.6rem);line-height:1;margin:0 0 18px;font-weight:700}
+  .hero .role{font-size:1.25rem;color:#DDE5EA;margin:0 0 22px;max-width:36ch}
+  .hero .lede{color:#B7C4CC;max-width:58ch;margin:0 0 30px}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:44px}
+  .btn{display:inline-block;padding:11px 18px;border-radius:6px;font-weight:600;text-decoration:none;font-size:.98rem}
+  .btn.primary{background:var(--signal);color:var(--night)}
+  .btn.ghost{border:1px solid #4A5B66;color:#fff}
+  .btn.ghost:hover{border-color:#fff}
+  .photo{align-self:end;position:relative}
+  .photo img{display:block;width:100%;max-width:360px;margin-left:auto;height:auto;border-radius:10px 10px 0 0;
+             filter:saturate(.95)}
+  .photo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--signal)}
+
+  /* KPI strip: telco dashboard motif */
+  .kpis{background:var(--ink);color:#fff}
+  .kpis .wrap{display:grid;grid-template-columns:repeat(4,1fr)}
+  .kpi{padding:22px 20px;border-left:1px solid #33444F}
+  .kpi:first-child{border-left:0;padding-left:0}
+  .kpi .num{font-family:"Barlow Condensed",sans-serif;font-size:2.6rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .lbl{color:#B7C4CC;font-size:.9rem;margin-top:6px}
+
+  section{padding:76px 0}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:28px}
+  .sec-head h2{font-size:2rem;margin:0;font-weight:700;letter-spacing:-.01em}
+  .sec-head .idx{font-family:"Barlow Condensed",sans-serif;color:var(--accent);font-size:1.1rem;font-weight:700}
+
+  /* about */
+  .about{display:grid;grid-template-columns:1.2fr .8fr;gap:48px}
+  .about p{margin:0 0 16px;max-width:62ch}
+  .facts{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:20px 22px}
+  .facts dt{font-size:.82rem;color:var(--muted);margin-top:12px}
+  .facts dt:first-child{margin-top:0}
+  .facts dd{margin:2px 0 0;font-weight:600}
+
+  /* project */
+  .project{background:var(--paper);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+  .project-top{padding:30px 32px 8px}
+  .status{display:inline-block;font-size:.8rem;font-weight:600;color:var(--ink);background:#FBEFD2;border-radius:12px;padding:2px 10px;margin-bottom:12px}
+  .project h3{font-size:1.7rem;margin:0 0 8px}
+  .project .summary{color:var(--ink-2);max-width:70ch;margin:0}
+  .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin:26px 32px;border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+  .stage{padding:14px 14px 16px;border-left:1px solid var(--rule);position:relative;background:#FAFBFC}
+  .stage:first-child{border-left:0}
+  .stage .n{font-family:"Barlow Condensed",sans-serif;font-weight:700;color:var(--accent);font-size:.95rem}
+  .stage .t{font-weight:600;margin:2px 0 4px}
+  .stage .d{font-size:.86rem;color:var(--muted);line-height:1.4}
+  .highlights{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:0 32px 26px}
+  .hl{border-top:3px solid var(--ink);padding-top:12px}
+  .hl h4{margin:0 0 6px;font-size:1.02rem}
+  .hl p{margin:0;font-size:.93rem;color:var(--ink-2)}
+  .project-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid var(--rule);padding:18px 32px;background:#FAFBFC}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:.82rem;background:#E6EDF1;border-radius:12px;padding:2px 10px}
+  .plinks{display:flex;gap:10px;flex-wrap:wrap}
+  .plinks .btn{font-size:.92rem;padding:9px 14px}
+  .plinks .dark{background:var(--ink);color:#fff}
+  .plinks .line{border:1px solid var(--rule);color:var(--ink);background:#fff}
+
+  /* experience */
+  .timeline{position:relative;margin-left:8px}
+  .job{display:grid;grid-template-columns:170px 1fr;gap:28px;padding:0 0 30px;position:relative}
+  .job .when{font-family:"Barlow Condensed",sans-serif;font-weight:600;color:var(--muted);font-size:1.02rem;padding-top:2px;font-variant-numeric:tabular-nums}
+  .job .body{border-left:2px solid var(--rule);padding-left:24px;position:relative}
+  .job .body::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--paper);border:2px solid var(--accent)}
+  .job.current .body::before{background:var(--signal);border-color:var(--signal)}
+  .job h3{margin:0;font-size:1.15rem}
+  .job .org{color:var(--ink-2);margin:2px 0 8px}
+  .job ul{margin:0;padding-left:18px}
+  .job li{margin-bottom:4px;font-size:.96rem}
+  .job .stack{margin-top:8px}
+
+  /* skills */
+  .skills{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .skill{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:18px 20px}
+  .skill h3{margin:0 0 10px;font-size:1.02rem}
+  .cert{display:flex;flex-wrap:wrap;align-items:center;gap:18px;margin-top:26px;background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:10px;padding:18px 22px}
+  .cert strong{font-size:1.05rem}
+
+  /* contact */
+  .contact{background:var(--night);color:#fff}
+  .contact h2{color:#fff}
+  .contact p{color:#B7C4CC;max-width:56ch}
+  .contact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
+  .cbox{border:1px solid #33444F;border-radius:10px;padding:16px 18px;text-decoration:none;color:#fff;display:block}
+  .cbox:hover{border-color:var(--signal)}
+  .cbox .k{font-size:.82rem;color:#9FB0BB}
+  .cbox .v{font-weight:600;word-break:break-word}
+  footer{background:var(--night);color:#7F919C;font-size:.85rem;border-top:1px solid #26343E}
+  footer .wrap{padding:18px 28px}
+
+  @media (max-width:900px){
+    .hero .wrap{grid-template-columns:1fr;padding-top:44px}
+    .photo img{max-width:260px;margin:0 auto}
+    .about,.skills{grid-template-columns:1fr}
+    .flow{grid-template-columns:1fr 1fr}
+    .stage{border-left:0;border-top:1px solid var(--rule)}
+    .highlights{grid-template-columns:1fr}
+    .kpis .wrap{grid-template-columns:repeat(2,1fr)}
+    .kpi{border-left:0;padding-left:0}
+    .job{grid-template-columns:1fr;gap:4px}
+    .contact-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<nav aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="#top">Elson Saputra</a>
+    <div class="links">
+      <a href="#about">About</a>
+      <a href="#project" class="keep">Project</a>
+      <a href="#experience">Experience</a>
+      <a href="#skills">Skills</a>
+      <a href="#contact" class="keep">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Data Engineer · Telecommunications &amp; Big Data Analytics</p>
+      <h1 class="cond">Elson Saputra</h1>
+      <p class="role">I build data platforms that stay trustworthy at scale.</p>
+      <p class="lede">13+ years turning network and enterprise data into reliable pipelines, data quality controls, and dashboards,
+        from multi-vendor telecom OSS to BigQuery environments with 20,000+ tables.</p>
+      <div class="cta">
+        <a class="btn primary" href="#project">See featured project</a>
+        <a class="btn ghost" href="#contact">Get in touch</a>
+      </div>
+    </div>
+    <div class="photo">
+      <img src="assets/elson.jpg" alt="Portrait of Elson Saputra" width="720" height="1439">
+    </div>
+  </div>
+</header>
+
+<div class="kpis" role="list" aria-label="Career highlights">
+  <div class="wrap">
+    <div class="kpi" role="listitem"><div class="num">13+</div><div class="lbl">years in data &amp; telecom analytics</div></div>
+    <div class="kpi" role="listitem"><div class="num">30+</div><div class="lbl">BigQuery projects operated</div></div>
+    <div class="kpi" role="listitem"><div class="num">20,000+</div><div class="lbl">tables under DQ &amp; governance</div></div>
+    <div class="kpi" role="listitem"><div class="num">4</div><div class="lbl">network vendors: Huawei, Ericsson, Nokia, ZTE</div></div>
+  </div>
+</div>
+
+<main>
+  <section id="about">
+    <div class="wrap">
+      <div class="sec-head"><span class="idx">01</span><h2>About</h2></div>
+      <div class="about">
+        <div>
+          <p>I'm a Data Engineer with a background that started in a network operations center and grew into enterprise big data.
+            For over a decade I worked inside telecom OSS data (2G to 5G KPIs across Huawei, Ericsson, Nokia, and ZTE) for operators
+            including Telkomsel, Indosat, and Celcom Malaysia.</p>
+          <p>Today I architect and operate large-scale BigQuery environments at Indosat Ooredoo Hutchison: data quality and governance,
+            lineage, catalogs, cost tracking, and pipeline orchestration with Airflow and Kafka.</p>
+          <p>What ties it together: I care about whether data can be trusted, not just whether it arrives.</p>
+        </div>
+        <dl class="facts">
+          <dt>Based in</dt><dd>Kedoya, West Jakarta, Indonesia</dd>
+          <dt>Focus</dt><dd>Data quality, governance &amp; pipeline engineering</dd>
+          <dt>Certification</dt><dd>Google Cloud Professional Data Engineer</dd>
+          <dt>Education</dt><dd>Bachelor of Computer Science, STMIK AMIK Riau (2013)</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="project" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head"><span class="idx">02</span><h2>Featured project</h2></div>
+      <article class="project">
+        <div class="project-top">
+          <span class="status">Personal project · running locally, public demo in progress</span>
+          <h3>Indonesia Realtime Monitor</h3>
+          <p class="summary">An end-to-end data platform that ingests public Indonesian data in near real time (earthquakes, wildfire
+            hotspots, air quality, food prices, and news), checks its quality continuously, and lets anyone ask questions about it
+            in plain Indonesian through a local AI.</p>
+        </div>
+
+        <div class="flow" role="list" aria-label="Architecture">
+          <div class="stage" role="listitem"><div class="n">01</div><div class="t">Ingest</div>
+            <div class="d">BMKG, USGS, NASA FIRMS, Open-Meteo, PIHPS (Bank Indonesia), 8 news portals</div></div>
+          <div class="stage" role="listitem"><div class="n">02</div><div class="t">Stream &amp; orchestrate</div>
+            <div class="d">Redpanda (Kafka API) producers; Airflow for scrapers &amp; batch jobs</div></div>
+          <div class="stage" role="listitem"><div class="n">03</div><div class="t">Store</div>
+            <div class="d">ClickHouse: Kafka engine, materialized views, dedup by design</div></div>
+          <div class="stage" role="listitem"><div class="n">04</div><div class="t">Trust</div>
+            <div class="d">Data quality checks per source: freshness, errors, validity, duplicates, lag</div></div>
+          <div class="stage" role="listitem"><div class="n">05</div><div class="t">Serve</div>
+            <div class="d">FastAPI, GIS map, Grafana ops dashboard, AI Q&amp;A</div></div>
+        </div>
+
+        <div class="highlights">
+          <div class="hl"><h4>Data quality that caught real issues</h4>
+            <p>DQ checks flagged a misconfigured API key, duplicate events after restarts, and backfill lag, each fixed and documented.</p></div>
+          <div class="hl"><h4>Local LLM with guardrails</h4>
+            <p>News classification and geotagging on a 4 GB laptop GPU (Ollama). The model extracts place names only; coordinates
+              always come from a gazetteer of 38 provinces and 514 regencies.</p></div>
+          <div class="hl"><h4>Ask the data, safely</h4>
+            <p>Tool-calling Q&amp;A: the AI picks predefined queries, never writes SQL. Numbers are computed by the system and shown
+              next to every AI answer.</p></div>
+        </div>
+
+        <div class="project-foot">
+          <div class="chips">
+            <span class="chip">Python</span><span class="chip">Redpanda / Kafka</span><span class="chip">ClickHouse</span>
+            <span class="chip">Airflow</span><span class="chip">FastAPI</span><span class="chip">Grafana</span>
+            <span class="chip">Ollama</span><span class="chip">Shapely / GIS</span><span class="chip">Docker</span>
+          </div>
+          <div class="plinks">
+            <a class="btn dark" href="/">Open live map</a>
+            <a class="btn line" href="/tanya.html">Ask the data</a>
+            <a class="btn line" href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="experience" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head"><span class="idx">03</span><h2>Experience</h2></div>
+      <div class="timeline">
+
+        <div class="job current">
+          <div class="when">Jan 2025 – Present</div>
+          <div class="body">
+            <h3>Data Engineer (Managed Service)</h3>
+            <p class="org">Indosat Ooredoo Hutchison (PT Indosat Tbk), Jakarta</p>
+            <ul>
+              <li>Architect and operate enterprise BigQuery environments spanning 30+ projects, 20,000+ tables, and 500,000+ columns.</li>
+              <li>Designed and built data quality &amp; governance dashboards: DQ monitoring, lineage, data catalog, table usage, and pipeline cost tracking.</li>
+              <li>Build and orchestrate pipelines with Airflow (scheduled ETL/DAGs) and Kafka (streaming ingestion into BigQuery).</li>
+              <li>Designed anomaly detection and DQ scoring logic to flag outliers and integrity issues at scale.</li>
+              <li>Built automated web scraping pipelines with scheduling and deduplication, feeding BigQuery.</li>
+              <li>Reduced BigQuery slot costs through pipeline cost monitoring and removal of unused tables and queries.</li>
+            </ul>
+            <div class="chips stack"><span class="chip">BigQuery</span><span class="chip">Airflow</span><span class="chip">Kafka</span>
+              <span class="chip">Flask</span><span class="chip">FastAPI</span><span class="chip">React</span><span class="chip">GCP</span></div>
+          </div>
+        </div>
+
+        <div class="job">
+          <div class="when">Jul 2022 – Dec 2024</div>
+          <div class="body">
+            <h3>Senior OSS Engineer Consultant</h3>
+            <p class="org">PT TelkomInfra (Telkom Infrastruktur Indonesia) · Telkomsel, Ericsson &amp; ZTE</p>
+            <ul>
+              <li>Extracted high-volume Ericsson network data from Sybase ASE, automating KPI formula calculations with MySQL scripting.</li>
+              <li>Integrated ZTE UME and Ericsson sources into unified KPI reporting pipelines.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="job">
+          <div class="when">Jan 2020 – Jun 2022</div>
+          <div class="body">
+            <h3>Senior OSS Engineer Consultant</h3>
+            <p class="org">PT China ComService Indonesia · Telkomsel Area 3 (Central Java, East Java, Bali &amp; Nusa Tenggara)</p>
+            <ul>
+              <li>Managed MySQL-based KPI tracking for 10,000+ 3G/4G cell sites on Huawei infrastructure.</li>
+              <li>Designed telecom KPI schemas with ~40% faster query performance through SQL optimization.</li>
+              <li>Automated 15+ daily reports and built dashboards for network performance and capacity across frequency bands.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="job">
+          <div class="when">Feb 2020 – Jul 2020</div>
+          <div class="body">
+            <h3>Senior OSS Engineer Consultant</h3>
+            <p class="org">PT GCI Indonesia · Telkomsel Area 3</p>
+            <ul><li>KPI monitoring pipelines for traffic payload, bandwidth utilization, and capacity planning.</li></ul>
+          </div>
+        </div>
+
+        <div class="job">
+          <div class="when">Jan 2016 – Dec 2019</div>
+          <div class="body">
+            <h3>OSS Engineer Consultant</h3>
+            <p class="org">Project-based · Telkomsel (Indonesia) &amp; Celcom (Malaysia)</p>
+            <ul>
+              <li>Telkomsel MIP (2019): web-based KPI dashboard for 50+ users across three areas, ~50% faster report generation.</li>
+              <li>Nokia-to-Huawei swap, Kupang (2018): data migration and performance monitoring across 2G/3G/4G.</li>
+              <li>Asian Games 2018, Palembang: 2-hour interval network monitoring; migrated MS Access to MySQL.</li>
+              <li>Celcom Malaysia (2017): 2G/3G/4G KPI analysis, capacity upgrade and refarming projects in Kuala Lumpur.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="job">
+          <div class="when">Dec 2014 – Dec 2015</div>
+          <div class="body">
+            <h3>Database Engineer</h3>
+            <p class="org">PT Humanika Sarana Mandiri · Telkomsel Sumbagteng</p>
+            <ul><li>2G/3G performance reporting pipelines, database tuning, backup and recovery.</li></ul>
+          </div>
+        </div>
+
+        <div class="job">
+          <div class="when">Nov 2012 – Dec 2014</div>
+          <div class="body">
+            <h3>OMC Operator</h3>
+            <p class="org">KISEL (Koperasi Telkomsel) · Sumbagteng</p>
+            <ul><li>BTS outage trouble-ticketing, OSS alarm monitoring, and daily availability reports.</li></ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section id="skills" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head"><span class="idx">04</span><h2>Skills</h2></div>
+      <div class="skills">
+        <div class="skill"><h3>Data engineering</h3><div class="chips">
+          <span class="chip">BigQuery</span><span class="chip">Airflow</span><span class="chip">Kafka</span><span class="chip">ClickHouse</span>
+          <span class="chip">ETL / ELT</span><span class="chip">Data quality &amp; governance</span><span class="chip">Data lineage</span></div></div>
+        <div class="skill"><h3>Languages &amp; apps</h3><div class="chips">
+          <span class="chip">Python</span><span class="chip">SQL</span><span class="chip">JavaScript</span><span class="chip">React</span>
+          <span class="chip">Node.js</span><span class="chip">Flask</span><span class="chip">FastAPI</span></div></div>
+        <div class="skill"><h3>Databases</h3><div class="chips">
+          <span class="chip">MySQL</span><span class="chip">PostgreSQL</span><span class="chip">SQL Server</span><span class="chip">Sybase ASE / IQ</span>
+          <span class="chip">Query tuning</span><span class="chip">Schema design</span></div></div>
+        <div class="skill"><h3>Telecom analytics</h3><div class="chips">
+          <span class="chip">2G–5G KPIs</span><span class="chip">Network optimization</span><span class="chip">Multi-vendor</span>
+          <span class="chip">Drive test</span></div></div>
+        <div class="skill"><h3>OSS platforms</h3><div class="chips">
+          <span class="chip">Huawei U2000 &amp; iPRS</span><span class="chip">Ericsson ENIQ</span><span class="chip">Nokia NetAct</span>
+          <span class="chip">ZTE UME</span></div></div>
+        <div class="skill"><h3>Visualization &amp; tools</h3><div class="chips">
+          <span class="chip">Dashboards</span><span class="chip">Real-time monitoring</span><span class="chip">Grafana</span>
+          <span class="chip">TEMS</span><span class="chip">Genex</span><span class="chip">MapInfo</span></div></div>
+      </div>
+      <div class="cert">
+        <div><strong>Google Cloud Certified — Professional Data Engineer</strong><br>
+          <span style="color:var(--muted);font-size:.92rem">Verifiable credential on Credly</span></div>
+        <a class="btn line" style="border:1px solid var(--rule);color:var(--ink)" href="https://www.credly.com/badges/9364f150-842c-4d05-8d3f-2f987ba86e27"
+           target="_blank" rel="noopener noreferrer">Verify badge</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" class="contact">
+    <div class="wrap">
+      <div class="sec-head"><span class="idx" style="color:var(--signal)">05</span><h2>Contact</h2></div>
+      <p>Open to data engineering roles and collaborations around data platforms, data quality, and telecom analytics.</p>
+      <div class="contact-grid">
+        <a class="cbox" href="mailto:elsonsaputra02@gmail.com"><div class="k">Email</div><div class="v">elsonsaputra02@gmail.com</div></a>
+        <a class="cbox" href="https://www.linkedin.com/in/elson-saputra-4960ba82" target="_blank" rel="noopener noreferrer">
+          <div class="k">LinkedIn</div><div class="v">in/elson-saputra-4960ba82</div></a>
+        <a class="cbox" href="https://github.com/elsonsaputra03-dot" target="_blank" rel="noopener noreferrer">
+          <div class="k">GitHub</div><div class="v">elsonsaputra03-dot</div></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">© 2026 Elson Saputra · Built alongside the Indonesia Realtime Monitor project</div></footer>
+</body>
+</html>

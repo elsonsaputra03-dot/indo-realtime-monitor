@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Indonesia Realtime Monitor — Live snapshot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{--ink:#1D2A33;--muted:#5D6D78;--rule:#CBD5DB;--panel:#fff;--sea:#DCE6EA;--accent:#2E5E8C;
+        --m3:#8FB3C4;--m4:#E9B44C;--m5:#D9722E;--m6:#A3261E;--fire:#6B1E0A;--ok:#3E8E5E;--fail:#B3261E}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Barlow,system-ui,sans-serif;color:var(--ink);background:var(--sea)}
+  a{color:var(--accent)}
+  .app{display:grid;grid-template-columns:390px 1fr;height:100%}
+  aside{background:var(--panel);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0}
+  header{padding:16px 20px 12px;border-bottom:1px solid var(--rule)}
+  .back{font-size:.85rem;text-decoration:none}
+  h1{font-size:1.4rem;margin:6px 0 4px;line-height:1.15}
+  .sub{color:var(--muted);font-size:.88rem;margin:0}
+  .tabs{display:flex;border-bottom:1px solid var(--rule)}
+  .tab{flex:1;padding:10px 4px;border:0;background:none;font:inherit;font-weight:600;font-size:.9rem;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
+  .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+  .tab:focus-visible,select:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .list{overflow-y:auto;flex:1;min-height:0}
+  .row{display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:center;width:100%;padding:11px 20px;border:0;border-bottom:1px solid #EEF2F4;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer}
+  .row:hover{background:#F5F8F9}
+  .big{font-size:1.8rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .title{font-weight:500;font-size:.94rem;line-height:1.3}
+  .meta{color:var(--muted);font-size:.82rem;margin-top:2px;font-variant-numeric:tabular-nums}
+  .empty{padding:22px 20px;color:var(--muted)}
+  .filter{padding:10px 20px;border-bottom:1px solid #EEF2F4}
+  select{font:inherit;font-size:.9rem;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;background:#fff;color:var(--ink)}
+  .chip{display:inline-block;font-size:.75rem;padding:1px 7px;border-radius:10px;background:#E6EDF1;margin:4px 4px 0 0}
+  .news{display:block;padding:11px 20px;border-bottom:1px solid #EEF2F4;color:inherit;text-decoration:none}
+  .news:hover{background:#F5F8F9}
+  .aqi{display:inline-block;min-width:52px;text-align:center;padding:5px 4px;border-radius:6px;font-weight:700;font-variant-numeric:tabular-nums}
+  .status{border-top:1px solid var(--rule);padding:10px 20px 14px;font-size:.84rem;max-height:30vh;overflow-y:auto}
+  .status h2{font-size:.95rem;margin:0 0 6px}
+  .srow{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center;padding:2px 0}
+  .dot{width:10px;height:10px;border-radius:50%} .dot.ok{background:var(--ok)} .dot.error{background:var(--fail)}
+  .note{color:var(--muted);font-size:.78rem;padding-left:18px}
+  #map{height:100%}
+  .legend{background:#fff;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;font:500 .8rem Barlow,sans-serif;line-height:1.6}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 8px;vertical-align:-1px}
+  .legend i:first-of-type{margin-left:0}
+  .aqi-marker{border-radius:5px;font:700 11px/20px Barlow,sans-serif;text-align:center;border:1px solid rgba(0,0,0,.35)}
+  @media (max-width:760px){.app{grid-template-columns:1fr;grid-template-rows:55vh auto}aside{order:2}.tab{font-size:.84rem;padding:10px 2px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <header>
+      <a class="back" href="index.html">← Portofolio Elson Saputra</a>
+      <h1>Indonesia Realtime Monitor</h1>
+      <p class="sub" id="summary">Memuat snapshot data…</p>
+    </header>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="quake">Gempa</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="aq">Udara</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="news">Berita</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="food">Pangan</button>
+    </div>
+    <div class="list" id="p-quake" role="tabpanel"></div>
+    <div class="list" id="p-aq" role="tabpanel" hidden></div>
+    <div class="list" id="p-news" role="tabpanel" hidden>
+      <div class="filter"><select id="news-topic" aria-label="Topik berita">
+        <option value="">Semua topik</option><option value="gempa">Gempa</option><option value="banjir_longsor">Banjir &amp; longsor</option>
+        <option value="kebakaran">Kebakaran hutan</option><option value="gunung_api">Gunung api</option><option value="cuaca">Cuaca</option>
+        <option value="kualitas_udara">Kualitas udara</option><option value="pangan">Pangan</option></select></div>
+      <div id="news-items"></div>
+    </div>
+    <div class="list" id="p-food" role="tabpanel" hidden>
+      <div class="filter"><select id="food-c" aria-label="Komoditas"></select><div class="meta" id="food-meta"></div></div>
+      <div id="food-items"></div>
+      <div class="meta" style="padding:10px 20px">Sumber: PIHPS Nasional, Bank Indonesia (pasar tradisional).</div>
+    </div>
+    <section class="status" aria-live="polite">
+      <h2>Status sumber data</h2>
+      <div id="status"></div>
+      <p class="meta" style="margin-top:8px">Snapshot statis, diperbarui tiap jam oleh GitHub Actions. Versi lengkap (Kafka, ClickHouse,
+        Airflow, data quality, AI lokal) ada di <a href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor" target="_blank" rel="noopener noreferrer">repository</a>.</p>
+    </section>
+  </aside>
+  <div id="map" role="region" aria-label="Peta"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const magColor = m => m >= 6 ? css('--m6') : m >= 5 ? css('--m5') : m >= 4 ? css('--m4') : css('--m3');
+const aqiCat = a => a <= 50 ? ['#00E400','#1D2A33','Baik'] : a <= 100 ? ['#FFFF00','#1D2A33','Sedang']
+  : a <= 150 ? ['#FF7E00','#1D2A33','Tidak sehat (sensitif)'] : a <= 200 ? ['#FF0000','#fff','Tidak sehat']
+  : a <= 300 ? ['#8F3F97','#fff','Sangat tidak sehat'] : ['#7E0023','#fff','Berbahaya'];
+const fmt = iso => new Date(iso).toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+const rupiah = v => 'Rp' + Math.round(v).toLocaleString('id-ID');
+const TOPIC = {gempa:'Gempa', banjir_longsor:'Banjir & longsor', kebakaran:'Kebakaran hutan', gunung_api:'Gunung api',
+               cuaca:'Cuaca', kualitas_udara:'Kualitas udara', pangan:'Pangan'};
+const get = name => fetch(`data/${name}?v=${Date.now() / 3.6e6 | 0}`).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)));
+
+const map = L.map('map', {preferCanvas: true}).setView([-2.5, 118], 5);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18,
+  attribution: '&copy; OpenStreetMap contributors | Data: BMKG, USGS, NASA FIRMS, Open-Meteo, PIHPS-BI'}).addTo(map);
+const layers = {quake: L.layerGroup().addTo(map), fire: L.layerGroup().addTo(map), aq: L.layerGroup().addTo(map)};
+L.control.layers(null, {'Gempa': layers.quake, 'Titik panas (FIRMS)': layers.fire, 'Kualitas udara': layers.aq},
+  {collapsed: false}).addTo(map);
+const legend = L.control({position: 'bottomright'});
+legend.onAdd = () => { const d = L.DomUtil.create('div', 'legend');
+  d.innerHTML = `Gempa <i style="background:${css('--m3')}"></i>&lt;4<i style="background:${css('--m4')}"></i>4–5
+    <i style="background:${css('--m5')}"></i>5–6<i style="background:${css('--m6')}"></i>6+<br>
+    <i style="background:${css('--fire')};margin-left:0"></i>Titik panas (ukuran = FRP)<br>Kotak angka: US AQI ibu kota provinsi`; return d; };
+legend.addTo(map);
+
+const summary = {};
+const renderSummary = () => {
+  const parts = [];
+  if(summary.quake != null) parts.push(`${summary.quake} gempa (7 hari)`);
+  if(summary.fire != null) parts.push(`${summary.fire.toLocaleString('id-ID')} titik panas`);
+  if(summary.news != null) parts.push(`${summary.news} berita`);
+  $('summary').textContent = parts.join(', ') + (summary.at ? `. Snapshot ${fmt(summary.at)}.` : '');
+};
+
+async function loadQuakes(){
+  const box = $('p-quake');
+  try{
+    const fc = await get('earthquakes.json');
+    summary.quake = fc.features.length;
+    box.innerHTML = fc.features.length ? '' : '<div class="empty">Tidak ada gempa dalam 7 hari terakhir di snapshot ini.</div>';
+    for(const f of fc.features){
+      const p = f.properties, [lon, lat] = f.geometry.coordinates, col = magColor(p.magnitude);
+      const mk = L.circleMarker([lat, lon], {radius: 3 + p.magnitude * 2.2, color: col, weight: 2, fillColor: col, fillOpacity: .35,
+        dashArray: p.source === 'usgs' ? '4 3' : null}).bindPopup(`<strong>M ${p.magnitude}</strong> ${esc(p.region)}<br>${fmt(p.time)},
+        kedalaman ${p.depth_km} km<br>Sumber: ${p.source.toUpperCase()}${p.felt ? '<br>Dirasakan: ' + esc(p.felt) : ''}`).addTo(layers.quake);
+      const b = document.createElement('button'); b.className = 'row';
+      b.innerHTML = `<div class="big" style="color:${col}">${p.magnitude.toFixed(1)}</div><div><div class="title">${esc(p.region)}</div>
+        <div class="meta">${fmt(p.time)}, ${p.depth_km} km, ${p.source.toUpperCase()}</div></div>`;
+      b.onclick = () => { map.flyTo([lat, lon], 7, {duration: .8}); mk.openPopup(); };
+      box.appendChild(b);
+    }
+  }catch(e){ box.innerHTML = '<div class="empty">Data gempa belum tersedia di snapshot ini.</div>'; }
+  renderSummary();
+}
+
+async function loadFires(){
+  try{
+    const d = await get('hotspots.json'), fire = css('--fire');
+    summary.fire = d.points.length;
+    for(const [lat, lon, frp, conf, t] of d.points){
+      L.circleMarker([lat, lon], {radius: Math.min(2 + Math.sqrt(frp || 0) / 2, 9), stroke: false, fillColor: fire, fillOpacity: .75})
+        .bindPopup(`<strong>Titik panas</strong><br>${fmt(t + 'Z')}<br>FRP ${frp} MW, confidence ${conf === 'h' ? 'high' : 'nominal'}`)
+        .addTo(layers.fire);
+    }
+  }catch(e){ summary.fire = null; }
+  renderSummary();
+}
+
+async function loadAQ(){
+  const box = $('p-aq');
+  try{
+    const rows = (await get('air_quality.json')).filter(r => r.us_aqi >= 0).sort((a, b) => b.us_aqi - a.us_aqi);
+    box.innerHTML = '';
+    for(const r of rows){
+      const a = Math.round(r.us_aqi), [bg, fg, label] = aqiCat(a);
+      const icon = L.divIcon({className: '', html: `<div class="aqi-marker" style="background:${bg};color:${fg}">${a}</div>`, iconSize: [30, 20], iconAnchor: [15, 10]});
+      const mk = L.marker([r.lat, r.lon], {icon, title: r.city}).bindPopup(`<strong>${esc(r.city)}</strong>, ${esc(r.province)}<br>
+        US AQI ${a} (${label})<br>PM2.5 ${r.pm2_5.toFixed(1)} µg/m³<br>${fmt(r.obs_time)}`).addTo(layers.aq);
+      const b = document.createElement('button'); b.className = 'row';
+      b.innerHTML = `<div><span class="aqi" style="background:${bg};color:${fg}">${a}</span></div><div><div class="title">${esc(r.city)}</div>
+        <div class="meta">${esc(r.province)}, ${label}, PM2.5 ${r.pm2_5.toFixed(1)}</div></div>`;
+      b.onclick = () => { map.flyTo([r.lat, r.lon], 9, {duration: .8}); mk.openPopup(); };
+      box.appendChild(b);
+    }
+  }catch(e){ box.innerHTML = '<div class="empty">Data kualitas udara belum tersedia di snapshot ini.</div>'; }
+}
+
+let NEWS = [];
+function renderNews(){
+  const t = $('news-topic').value, rows = NEWS.filter(n => !t || n.topics.includes(t));
+  $('news-items').innerHTML = rows.length ? rows.map(n => `<a class="news" href="${esc(n.link)}" target="_blank" rel="noopener noreferrer">
+      <div class="title">${esc(n.title)}</div><div class="meta">${esc(n.publisher)}, ${fmt(n.published_at)}</div>
+      ${n.summary ? `<div class="meta">${esc(n.summary)}</div>` : ''}<div>${n.topics.map(x => `<span class="chip">${esc(TOPIC[x] || x)}</span>`).join('')}</div></a>`).join('')
+    : '<div class="empty">Tidak ada berita untuk topik ini dalam 3 hari terakhir.</div>';
+}
+async function loadNews(){
+  try{ NEWS = await get('news.json'); summary.news = NEWS.length; }catch(e){ NEWS = []; }
+  renderNews(); renderSummary();
+}
+
+let FOOD = [];
+function renderFood(){
+  const cid = +$('food-c').value, rows = FOOD.filter(r => r.commodity_id === cid).sort((a, b) => b.price - a.price);
+  if(!rows.length){ $('food-items').innerHTML = '<div class="empty">Belum ada data harga di snapshot ini.</div>'; $('food-meta').textContent = ''; return; }
+  const nat = rows[0].national_avg, max = rows[0].price, unit = cid === 9 ? 'liter' : 'kg';
+  $('food-meta').textContent = `${new Date(rows[0].price_date).toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'})}. Rata-rata nasional ${rupiah(nat)}/${unit}.`;
+  $('food-items').innerHTML = rows.map(r => {
+    const d = (r.price - nat) / nat * 100, col = d > 10 ? 'var(--fail)' : d < -10 ? 'var(--ok)' : 'var(--muted)';
+    return `<div class="row" style="cursor:default;grid-template-columns:96px 1fr"><div style="font-weight:700;font-variant-numeric:tabular-nums">${rupiah(r.price)}</div>
+      <div><div class="title">${esc(r.province)}</div><div class="meta"><span style="color:${col}">${Math.abs(d).toFixed(1)}% lebih ${d >= 0 ? 'tinggi' : 'rendah'} dari nasional</span></div>
+      <div style="height:4px;background:#EEF2F4;border-radius:2px;margin-top:4px"><div style="height:4px;width:${(r.price / max * 100).toFixed(1)}%;background:${col};border-radius:2px"></div></div></div></div>`;
+  }).join('');
+}
+async function loadFood(){
+  try{ FOOD = (await get('food_prices.json')).items; }catch(e){ FOOD = []; }
+  const seen = new Map(); FOOD.forEach(r => seen.set(r.commodity_id, r.commodity));
+  $('food-c').innerHTML = [...seen].sort((a, b) => a[0] - b[0]).map(([id, n]) => `<option value="${id}">${esc(n)}</option>`).join('');
+  renderFood();
+}
+
+async function loadMeta(){
+  try{
+    const m = await get('meta.json'); summary.at = m.generated_at;
+    $('status').innerHTML = Object.values(m.sources).map(s => `<div class="srow"><span class="dot ${s.status}"></span>
+      <span>${esc(s.label)}</span><span class="meta">${s.status === 'ok' ? s.count.toLocaleString('id-ID') : 'gagal'}</span></div>
+      ${s.note ? `<div class="note">${esc(s.note)}</div>` : ''}`).join('');
+  }catch(e){ $('status').innerHTML = '<div class="meta">Snapshot belum pernah dibuat.</div>'; }
+  renderSummary();
+}
+
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
+  ['quake', 'aq', 'news', 'food'].forEach(k => $('p-' + k).hidden = t.dataset.tab !== k);
+});
+$('news-topic').onchange = renderNews;
+$('food-c').onchange = renderFood;
+loadMeta(); loadQuakes(); loadFires(); loadAQ(); loadNews(); loadFood();
+</script>
+</body>
+</html>
