@@ -176,7 +176,7 @@
           "editorType": "sql",
           "queryType": "table",
           "format": 1,
-          "rawSql": "SELECT source, check_name,\n       argMax(status, checked_at) AS status,\n       round(argMax(value, checked_at), 1) AS value,\n       argMax(detail, checked_at) AS detail,\n       max(checked_at) AS checked_at\nFROM dq_results\nWHERE checked_at > now() - INTERVAL 1 HOUR\nGROUP BY source, check_name\nORDER BY multiIf(status = 'fail', 0, status = 'warn', 1, 2), source, check_name"
+          "rawSql": "SELECT source, check_name,\n       argMax(status, checked_at) AS status,\n       round(argMax(value, checked_at), 1) AS value,\n       argMax(detail, checked_at) AS detail,\n       max(checked_at) AS last_checked\nFROM dq_results\nWHERE checked_at > now() - INTERVAL 1 HOUR\nGROUP BY source, check_name\nORDER BY multiIf(status = 'fail', 0, status = 'warn', 1, 2), source, check_name"
         }
       ],
       "fieldConfig": {
@@ -273,7 +273,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "checked_at"
+              "options": "last_checked"
             },
             "properties": [
               {

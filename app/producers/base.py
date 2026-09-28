@@ -10,7 +10,7 @@ from typing import Callable
 
 import httpx
 
-from common import kafka_producer, send, utcnow_iso
+from common import ch_client, kafka_producer, send, utcnow_iso
 
 RUN_TOPIC = "ops.ingest_run"
 USER_AGENT = "indo-realtime-monitor/0.2 (portfolio project)"
@@ -31,6 +31,19 @@ class SeenCache:
         return True
 
 
+def seed_seen(seen: "SeenCache", sql: str | None, log: logging.Logger) -> None:
+    """Isi seen-cache dari ClickHouse supaya restart tidak mengirim ulang event lama."""
+    if not sql:
+        return
+    try:
+        keys = [r[0] for r in ch_client().query(sql).result_rows]
+        for k in keys:
+            seen.add_if_new(k)
+        log.info("seen-cache di-seed %d key dari ClickHouse", len(keys))
+    except Exception as exc:  # noqa: BLE001 - seeding gagal tidak boleh menghentikan producer
+        log.warning("seed seen-cache gagal (lanjut tanpa seed): %s", exc)
+
+
 def http_client() -> httpx.Client:
     return httpx.Client(
         transport=httpx.HTTPTransport(retries=3),
@@ -41,10 +54,11 @@ def http_client() -> httpx.Client:
 
 
 def run_source(name: str, topic: str, fetch: Callable[[httpx.Client], list[dict]],
-               key: Callable[[dict], str], poll_seconds: int) -> None:
+               key: Callable[[dict], str], poll_seconds: int, seed_sql: str | None = None) -> None:
     log = logging.getLogger(f"producer.{name}")
     producer = kafka_producer()
     seen = SeenCache()
+    seed_seen(seen, seed_sql, log)
     with http_client() as client:
         while True:
             t0 = time.monotonic()

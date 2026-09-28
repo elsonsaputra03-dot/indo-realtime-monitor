@@ -66,4 +66,5 @@ def fetch(client: httpx.Client) -> list[dict]:
 
 
 if __name__ == "__main__":
-    run_source("firms", "raw.hotspot", fetch, key=lambda e: e["event_id"], poll_seconds=POLL_SECONDS)
+    run_source("firms", "raw.hotspot", fetch, key=lambda e: e["event_id"], poll_seconds=POLL_SECONDS,
+               seed_sql="SELECT DISTINCT event_id FROM hotspots WHERE acq_time >= now() - INTERVAL 3 DAY")

@@ -144,6 +144,25 @@ Urutan yang disarankan:
 
 ## Fase 3 — Scraper + orkestrasi batch (minggu 3–4)
 
+**Status 3a: Airflow + scraper berita sudah ada di repo.** 3b (harga pangan) menyusul setelah endpoint data diverifikasi.
+
+```bash
+echo "AIRFLOW_DB_PASSWORD=ganti_password_airflow" >> .env
+make up && make migrate          # topic raw.news + tabel news
+docker compose restart dq api
+make batch-up                    # build image Airflow (pertama kali ±5-10 menit)
+make airflow-pass                # password user admin
+make urls                        # URL Airflow (port 8081, via IP WSL)
+```
+
+- `airflow/dags/news_ingest.py`: DAG tiap 15 menit, `load_seen` → `fetch` (dynamic task mapping, 1 task per feed, maks 3 paralel) → `publish` ke `raw.news` + heartbeat `ops.ingest_run`.
+- `airflow/dags/news_lib.py`: 7 query Google News RSS per topik + RSS Antara, CNN Indonesia, Tempo; cek robots.txt per host, jeda antar request, hanya judul + ringkasan ≤280 karakter + link; klasifikasi topik rule-based (Fase 4: LLM).
+- `clickhouse/init/03_phase3.sql`: tabel `news` (ReplacingMergeTree by `news_id`) + Kafka engine + MV.
+- DQ source `news`, endpoint `/api/news?hours=&topic=`, tab **Berita** di peta.
+- Airflow memakai profile `batch`: `make up` saja tidak menjalankannya. Saat Airflow mati, DQ `news freshness` akan merah (memang disengaja).
+
+Rencana awal Fase 3 (referensi):
+
 1. Tambah Airflow (image resmi `apache/airflow`, mode `LocalExecutor` + Postgres) ke compose sebagai profile terpisah (`docker compose --profile batch up`).
 2. DAG harian:
    - `scrape_harga_pangan`: PIHPS / Panel Harga Badan Pangan → `raw.food_price`.

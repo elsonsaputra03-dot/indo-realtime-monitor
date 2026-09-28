@@ -49,6 +49,11 @@
   .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 8px;vertical-align:-1px}
   .legend i:first-of-type{margin-left:0}
   .aqi-marker{border-radius:5px;font:700 11px/20px Barlow,sans-serif;text-align:center;border:1px solid rgba(0,0,0,.35)}
+  .news-filter{padding:10px 20px;border-bottom:1px solid #EEF2F4}
+  .news{display:block;padding:12px 20px;border-bottom:1px solid #EEF2F4;color:inherit;text-decoration:none}
+  .news:hover{background:#F5F8F9}
+  .news .title{font-weight:600}
+  .chip{display:inline-block;font-size:.75rem;padding:1px 7px;border-radius:10px;background:#E6EDF1;color:var(--ink);margin:4px 4px 0 0}
   .leaflet-popup-content{font-family:Barlow,sans-serif;font-size:.9rem}
   @media (max-width:760px){
     .app{grid-template-columns:1fr;grid-template-rows:55vh auto}
@@ -78,9 +83,22 @@
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-tab="quake">Gempa</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="aq">Kualitas udara</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="news">Berita</button>
     </div>
     <div class="list" id="list-quake" role="tabpanel"></div>
     <div class="list" id="list-aq" role="tabpanel" hidden></div>
+    <div class="list" id="list-news" role="tabpanel" hidden>
+      <div class="news-filter">
+        <select id="news-topic" aria-label="Topik berita">
+          <option value="">Semua topik</option>
+          <option value="gempa">Gempa</option><option value="banjir_longsor">Banjir & longsor</option>
+          <option value="kebakaran">Kebakaran hutan</option><option value="gunung_api">Gunung api</option>
+          <option value="cuaca">Cuaca</option><option value="kualitas_udara">Kualitas udara</option>
+          <option value="pangan">Pangan</option>
+        </select>
+      </div>
+      <div id="news-items"></div>
+    </div>
     <section class="health" aria-live="polite">
       <h2>Kesehatan pipeline</h2>
       <div id="health"><div class="val">Belum ada hasil pengecekan.</div></div>
@@ -126,10 +144,10 @@ legend.onAdd = () => {
 };
 legend.addTo(map);
 
-const counts = {quake: 0, fire: 0, aq: 0};
+const counts = {quake: 0, fire: 0, aq: 0, news: 0};
 const renderSummary = () => {
   $('summary').textContent = `${counts.quake} gempa, ${counts.fire.toLocaleString('id-ID')} titik panas, ` +
-    `${counts.aq} kota terpantau. Diperbarui ${new Date().toLocaleTimeString('id-ID')}.`;
+    `${counts.aq} kota terpantau, ${counts.news} berita. Diperbarui ${new Date().toLocaleTimeString('id-ID')}.`;
 };
 
 async function getJSON(url){
@@ -211,6 +229,27 @@ async function loadAQ(){
   renderSummary();
 }
 
+const TOPIC_LABEL = {gempa:'Gempa', banjir_longsor:'Banjir & longsor', kebakaran:'Kebakaran hutan',
+  gunung_api:'Gunung api', cuaca:'Cuaca', kualitas_udara:'Kualitas udara', pangan:'Pangan'};
+async function loadNews(){
+  const box = $('news-items'), t = $('news-topic').value;
+  try{
+    const rows = await getJSON(`/api/news?hours=48&topic=${encodeURIComponent(t)}`);
+    counts.news = rows.length;
+    box.innerHTML = rows.length ? rows.map(n => `
+      <a class="news" href="${esc(n.link)}" target="_blank" rel="noopener noreferrer">
+        <div class="title">${esc(n.title)}</div>
+        <div class="meta">${esc(n.publisher)}, ${fmtTime(n.published_at + 'Z')}</div>
+        ${n.summary ? `<div class="meta">${esc(n.summary)}</div>` : ''}
+        <div>${n.topics.map(x => `<span class="chip">${esc(TOPIC_LABEL[x] || x)}</span>`).join('')}</div>
+      </a>`).join('')
+      : '<div class="empty">Belum ada berita. Berita diambil oleh Airflow setiap 15 menit (jalankan <code>make batch-up</code>).</div>';
+  }catch(e){
+    box.innerHTML = `<div class="empty">Berita gagal dimuat (${esc(e.message)}).</div>`;
+  }
+  renderSummary();
+}
+
 async function loadHealth(){
   try{
     const rows = await getJSON('/api/dq/latest');
@@ -226,11 +265,13 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
   $('list-quake').hidden = t.dataset.tab !== 'quake';
   $('list-aq').hidden = t.dataset.tab !== 'aq';
+  $('list-news').hidden = t.dataset.tab !== 'news';
 });
 $('hours').onchange = () => { loadQuakes(); loadFires(); };
 $('minmag').onchange = loadQuakes;
+$('news-topic').onchange = loadNews;
 
-const refreshAll = () => { loadQuakes(); loadFires(); loadAQ(); loadHealth(); };
+const refreshAll = () => { loadQuakes(); loadFires(); loadAQ(); loadNews(); loadHealth(); };
 refreshAll();
 setInterval(refreshAll, 60000);
 </script>

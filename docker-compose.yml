@@ -31,6 +31,7 @@ services:
         rpk -X brokers=redpanda:9092 topic create ops.ingest_run -p 1 -r 1 || true
         rpk -X brokers=redpanda:9092 topic create raw.hotspot -p 3 -r 1 || true
         rpk -X brokers=redpanda:9092 topic create raw.air_quality -p 1 -r 1 || true
+        rpk -X brokers=redpanda:9092 topic create raw.news -p 1 -r 1 || true
     restart: "no"
 
   console:
@@ -131,7 +132,51 @@ services:
       clickhouse:
         condition: service_healthy
 
+  # ---------- Fase 3: batch / scraper (opsional: make batch-up) ----------
+  airflow-db:
+    image: postgres:16-alpine
+    profiles: ["batch"]
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow}
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      retries: 10
+    restart: unless-stopped
+
+  airflow:
+    build: ./airflow
+    profiles: ["batch"]
+    command: standalone
+    env_file: .env
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD:-airflow}@airflow-db:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "60"
+      CLICKHOUSE_HOST: clickhouse
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - airflow-logs:/opt/airflow/logs
+    ports:
+      - "8081:8080"
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      topics-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
 volumes:
+  airflow-db:
+  airflow-logs:
   redpanda:
   clickhouse:
   grafana:

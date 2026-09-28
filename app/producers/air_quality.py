@@ -70,4 +70,6 @@ def fetch(client: httpx.Client) -> list[dict]:
 
 if __name__ == "__main__":
     run_source("openmeteo_aq", "raw.air_quality", fetch,
-               key=lambda e: f"{e['city']}|{e['obs_time']}", poll_seconds=POLL_SECONDS)
+               key=lambda e: f"{e['city']}|{e['obs_time']}", poll_seconds=POLL_SECONDS,
+               seed_sql="SELECT DISTINCT concat(toString(city), '|', formatDateTime(obs_time, '%Y-%m-%dT%H:%i:%SZ')) "
+                        "FROM air_quality WHERE obs_time >= now() - INTERVAL 1 DAY")

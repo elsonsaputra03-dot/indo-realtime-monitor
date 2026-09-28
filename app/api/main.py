@@ -151,6 +151,26 @@ def air_quality_latest():
     return cached(("aq",), q)
 
 
+@app.get("/api/news")
+def news(hours: int = Query(24, ge=1, le=168), topic: str = Query("")):
+    def q():
+        res = ch().query(
+            """
+            SELECT news_id, publisher, title, link, summary, toString(published_at), topics
+            FROM news FINAL
+            WHERE published_at >= now() - toIntervalHour({h:UInt32})
+              AND ({t:String} = '' OR has(topics, {t:String}))
+            ORDER BY published_at DESC
+            LIMIT 200
+            """,
+            parameters={"h": hours, "t": topic},
+        )
+        keys = ["id", "publisher", "title", "link", "summary", "published_at", "topics"]
+        return [dict(zip(keys, r)) for r in res.result_rows]
+
+    return cached(("news", hours, topic), q)
+
+
 # Static map page (mount terakhir supaya tidak menutupi /api)
 if os.path.isdir("/web"):
     app.mount("/", StaticFiles(directory="/web", html=True), name="web")

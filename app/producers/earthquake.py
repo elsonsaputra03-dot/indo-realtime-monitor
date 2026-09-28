@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 from common import kafka_producer, send, utcnow_iso
+from producers.base import seed_seen
 
 log = logging.getLogger("producer.earthquake")
 
@@ -122,6 +123,8 @@ SOURCES = {"bmkg": fetch_bmkg, "usgs": fetch_usgs}
 def run_forever() -> None:
     producer = kafka_producer()
     seen = SeenCache()
+    seed_seen(seen, "SELECT DISTINCT event_id FROM earthquake_events "
+                    "WHERE ingested_at >= now() - INTERVAL 7 DAY", log)
     with httpx.Client(transport=httpx.HTTPTransport(retries=3), timeout=20, headers={"User-Agent": USER_AGENT}, follow_redirects=True) as client:
         while True:
             for name, fetch in SOURCES.items():

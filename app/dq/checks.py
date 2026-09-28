@@ -39,6 +39,11 @@ SOURCES = {
         "validity": f"{INDONESIA} OR frp < 0",
         "freshness_min": (30, 60), "lag_window_h": 24, "event_lag_min": (240, 480),
     },
+    "news": {
+        "table": "news", "filter": "1", "key": "news_id", "time_col": "published_at",
+        "validity": "title = '' OR NOT startsWith(link, 'http') OR length(topics) = 0",
+        "freshness_min": (30, 60), "lag_window_h": 6, "event_lag_min": (120, 360),
+    },
     "openmeteo_aq": {
         "table": "air_quality", "filter": "1", "key": "concat(city, toString(obs_time))", "time_col": "obs_time",
         "validity": "pm2_5 < 0 OR pm10 < 0 OR us_aqi < 0 OR us_aqi > 500",
