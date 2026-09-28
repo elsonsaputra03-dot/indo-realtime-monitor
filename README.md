@@ -7,6 +7,7 @@ people ask questions about it in plain Indonesian through a local LLM.
 **Live demo (free, rebuilt hourly):** https://elsonsaputra03-dot.github.io/indo-realtime-monitor/demo.html
 **Portfolio:** https://elsonsaputra03-dot.github.io/indo-realtime-monitor/
 
+<!-- Screenshots: save PNGs to docs/img/ and uncomment.
 ![Risk index choropleth](docs/img/demo-risk.png)
 
 | Ask the data | Follow-up question |
@@ -16,6 +17,7 @@ people ask questions about it in plain Indonesian through a local LLM.
 | Pipeline Ops (Grafana) | Airflow |
 |---|---|
 | ![Pipeline Ops](docs/img/grafana-pipeline-ops.png) | ![Airflow](docs/img/airflow-news-ingest.png) |
+-->
 
 > Built by [Elson Saputra](https://www.linkedin.com/in/elson-saputra-4960ba82), Data Engineer. Personal project; not affiliated
 > with any data provider. The risk index is experimental and is **not** an official hazard assessment (see BNPB InaRISK).
