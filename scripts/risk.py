@@ -99,7 +99,7 @@ def comp_gempa(regions, quakes, now) -> dict:
 
 def comp_titik_panas(regions, points) -> dict:
     """kepadatan = titik per 1.000 km2 (luas minimum 1.000 km2 supaya 1 titik di kota kecil tidak
-    langsung bernilai maksimum); norm = log1p(k)/log1p(20) (20 titik/1.000 km2 -> 1)."""
+    langsung bernilai maksimum); norm = log1p(k)/log1p(100) (100 titik/1.000 km2 -> 1)."""
     import shapely
     from shapely import STRtree
     counts = {r["kode"]: 0 for r in regions}
@@ -115,12 +115,12 @@ def comp_titik_panas(regions, points) -> dict:
     for r in regions:
         n = counts[r["kode"]]
         dens = n / max(r["luas_km2"], 1000.0) * 1000
-        out[r["kode"]] = (clip01(math.log1p(dens) / math.log1p(20)), f"{n} titik ({dens:.1f}/1.000 km²)")
+        out[r["kode"]] = (clip01(math.log1p(dens) / math.log1p(100)), f"{n} titik ({dens:.1f}/1.000 km²)")
     return out
 
 
 def comp_udara(regions, aq_rows) -> dict:
-    """norm = (AQI-50)/250 (AQI 50 -> 0, 300 -> 1). Proksi provinsi: kota pemantau di provinsi yang sama."""
+    """norm = (AQI-50)/450 (AQI 50 -> 0, 500 -> 1). Proksi provinsi: kota pemantau di provinsi yang sama."""
     by_prov = {}
     for a in aq_rows:
         pk = prov_code(a["province"])
@@ -130,7 +130,7 @@ def comp_udara(regions, aq_rows) -> dict:
     for r in regions:
         a = by_prov.get(r["prov_kode"])
         if a:
-            out[r["kode"]] = (clip01((a["us_aqi"] - 50) / 250), f"AQI {round(a['us_aqi'])} di {a['city']}")
+            out[r["kode"]] = (clip01((a["us_aqi"] - 50) / 450), f"AQI {round(a['us_aqi'])} di {a['city']}")
     return out
 
 
