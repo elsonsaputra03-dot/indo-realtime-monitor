@@ -151,24 +151,42 @@ def air_quality_latest():
     return cached(("aq",), q)
 
 
+NEWS_SQL = """
+    SELECT n.news_id, n.publisher, n.title, n.link, n.summary, toString(n.published_at),
+           if(notEmpty(e.topics_llm), e.topics_llm, n.topics) AS topics,
+           e.summary_llm, e.nama_wilayah, e.prov_nama, e.lat, e.lng, e.level_wilayah, e.geo_method
+    FROM news AS n FINAL
+    LEFT JOIN (SELECT * FROM news_enriched FINAL
+               ORDER BY status = 'ok' DESC, enriched_at DESC LIMIT 1 BY news_id) AS e ON e.news_id = n.news_id
+    WHERE n.published_at >= now() - toIntervalHour({h:UInt32})
+      AND ({t:String} = '' OR has(if(notEmpty(e.topics_llm), e.topics_llm, n.topics), {t:String}))
+    ORDER BY n.published_at DESC
+    LIMIT 300
+"""
+NEWS_KEYS = ["id", "publisher", "title", "link", "summary", "published_at", "topics", "summary_llm",
+             "wilayah", "provinsi", "lat", "lng", "level", "geo_method"]
+
+
 @app.get("/api/news")
 def news(hours: int = Query(24, ge=1, le=168), topic: str = Query("")):
     def q():
-        res = ch().query(
-            """
-            SELECT news_id, publisher, title, link, summary, toString(published_at), topics
-            FROM news FINAL
-            WHERE published_at >= now() - toIntervalHour({h:UInt32})
-              AND ({t:String} = '' OR has(topics, {t:String}))
-            ORDER BY published_at DESC
-            LIMIT 200
-            """,
-            parameters={"h": hours, "t": topic},
-        )
-        keys = ["id", "publisher", "title", "link", "summary", "published_at", "topics"]
-        return [dict(zip(keys, r)) for r in res.result_rows]
+        res = ch().query(NEWS_SQL, parameters={"h": hours, "t": topic})
+        return [dict(zip(NEWS_KEYS, r)) for r in res.result_rows]
 
     return cached(("news", hours, topic), q)
+
+
+@app.get("/api/news/geo")
+def news_geo(hours: int = Query(48, ge=1, le=168), topic: str = Query("")):
+    """Berita yang ter-geotag sebagai GeoJSON (titik = ibu kota kab/kota/provinsi hasil geotag)."""
+    rows = news(hours=hours, topic=topic)
+    feats = [{
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [r["lng"], r["lat"]]},
+        "properties": {k: r[k] for k in ("id", "title", "link", "publisher", "published_at", "topics",
+                                         "summary_llm", "wilayah", "provinsi", "level", "geo_method")},
+    } for r in rows if r["level"]]
+    return {"type": "FeatureCollection", "features": feats}
 
 
 @app.get("/api/food-prices/latest")

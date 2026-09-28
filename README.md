@@ -180,6 +180,27 @@ Rencana awal Fase 3 (referensi):
 
 ## Fase 4 — LLM enrichment (minggu 5)
 
+**Status: sudah ada di repo.** LLM lokal via Ollama (GPU), tanpa biaya API.
+
+```bash
+echo "OLLAMA_URL=http://ollama:11434" >> .env
+echo "LLM_MODEL=qwen2.5:3b" >> .env
+make up && make migrate && docker compose restart dq api
+make batch-up          # Airflow membaca mount ./reference + DAG news_enrich
+make llm-up            # Ollama (butuh NVIDIA Container Toolkit)
+make llm-pull          # download model (~2 GB)
+make llm-eval          # uji 15 berita terbaru, cek topik & lokasi secara manual
+```
+
+- `airflow/dags/llm_lib.py`: prompt + JSON schema (structured output, temperature 0), resolver gazetteer, fallback rule-based, CLI evaluasi.
+- **Koordinat tidak pernah berasal dari LLM.** LLM hanya mengekstrak nama tempat; koordinat diambil dari gazetteer `reference/wilayah_indonesia.csv` (38 provinsi + 514 kab/kota, sumber cahyadsn/wilayah, MIT). Mencegah titik halusinasi di peta.
+- Disambiguasi: awalan "Kota"/"Kabupaten" di teks, nama provinsi yang disebut di teks, alias media (Kotim, Kukar, Jabar, ...). Kasus ambigu ditandai `geo_ambiguous`.
+- `airflow/dags/news_enrich.py`: tiap 15 menit (offset 5 menit), maks 40 berita, retry item gagal setelah 1 jam.
+- Tabel `news_enriched`, DQ source `llm_enrich`, endpoint `/api/news/geo`, layer peta **Berita (lokasi)**, ringkasan LLM + chip lokasi di tab Berita.
+- Ganti model: ubah `LLM_MODEL` di `.env`, `make llm-pull`, `make llm-eval`, lalu `docker compose --profile batch up -d airflow`. Hasil per model disimpan terpisah (`ORDER BY (news_id, model)`), jadi bisa dibandingkan.
+
+Rencana awal Fase 4 (referensi):
+
 1. Service `llm-worker`: consume `raw.news` & `raw.app_review` → produce `enriched.news` / `enriched.review`.
 2. Tugas LLM (output JSON ketat, divalidasi pakai Pydantic, yang gagal masuk `dlq.llm`):
    - kategori (bencana, ekonomi, kesehatan, politik, teknologi), sentimen, ringkasan 1 kalimat;

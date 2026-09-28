@@ -48,6 +48,8 @@
   .legend{background:#fff;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;font:500 .8rem Barlow,sans-serif;color:var(--ink);line-height:1.6}
   .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 8px;vertical-align:-1px}
   .legend i:first-of-type{margin-left:0}
+  .news-marker{width:10px;height:10px;background:#2E5E8C;border:2px solid #fff;transform:rotate(45deg);box-shadow:0 0 0 1px #2E5E8C}
+  .chip.loc{background:#DDE8F3}
   .aqi-marker{border-radius:5px;font:700 11px/20px Barlow,sans-serif;text-align:center;border:1px solid rgba(0,0,0,.35)}
   .news-filter{padding:10px 20px;border-bottom:1px solid #EEF2F4}
   .news{display:block;padding:12px 20px;border-bottom:1px solid #EEF2F4;color:inherit;text-decoration:none}
@@ -142,8 +144,9 @@ const layers = {
   quake: L.layerGroup().addTo(map),
   fire: L.layerGroup().addTo(map),
   aq: L.layerGroup().addTo(map),
+  news: L.layerGroup().addTo(map),
 };
-L.control.layers(null, {'Gempa': layers.quake, 'Titik panas (FIRMS)': layers.fire, 'Kualitas udara': layers.aq},
+L.control.layers(null, {'Gempa': layers.quake, 'Titik panas (FIRMS)': layers.fire, 'Kualitas udara': layers.aq, 'Berita (lokasi)': layers.news},
   {collapsed: false, position: 'topright'}).addTo(map);
 
 const legend = L.control({position:'bottomright'});
@@ -153,7 +156,8 @@ legend.onAdd = () => {
     <i style="background:${css('--m5')}"></i>5–6<i style="background:${css('--m6')}"></i>6+<br>
     Garis penuh BMKG, putus-putus USGS<br>
     <i style="background:${css('--fire')}"></i>Titik panas, makin besar makin kuat (FRP)<br>
-    Kotak angka: US AQI per ibu kota provinsi`;
+    Kotak angka: US AQI per ibu kota provinsi<br>
+    <span class="news-marker" style="display:inline-block;margin:0 6px 0 2px;width:8px;height:8px"></span>Berita, di ibu kota wilayah hasil geotag`;
   return d;
 };
 legend.addTo(map);
@@ -254,8 +258,8 @@ async function loadNews(){
       <a class="news" href="${esc(n.link)}" target="_blank" rel="noopener noreferrer">
         <div class="title">${esc(n.title)}</div>
         <div class="meta">${esc(n.publisher)}, ${fmtTime(n.published_at + 'Z')}</div>
-        ${n.summary ? `<div class="meta">${esc(n.summary)}</div>` : ''}
-        <div>${n.topics.map(x => `<span class="chip">${esc(TOPIC_LABEL[x] || x)}</span>`).join('')}</div>
+        ${(n.summary_llm || n.summary) ? `<div class="meta">${esc(n.summary_llm || n.summary)}</div>` : ''}
+        <div>${n.topics.map(x => `<span class="chip">${esc(TOPIC_LABEL[x] || x)}</span>`).join('')}${n.wilayah ? `<span class="chip loc">${esc(n.wilayah)}</span>` : ''}</div>
       </a>`).join('')
       : '<div class="empty">Belum ada berita. Berita diambil oleh Airflow setiap 15 menit (jalankan <code>make batch-up</code>).</div>';
   }catch(e){
@@ -291,6 +295,23 @@ async function loadFood(){
   }
 }
 
+// Sebar sedikit titik berita yang berada di wilayah sama (deterministik per id)
+const jitter = id => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0; return [((h & 255) / 255 - .5) * .12, (((h >> 8) & 255) / 255 - .5) * .12]; };
+async function loadNewsGeo(){
+  try{
+    const fc = await getJSON('/api/news/geo?hours=48');
+    layers.news.clearLayers();
+    const icon = L.divIcon({className: '', html: '<div class="news-marker"></div>', iconSize: [12, 12], iconAnchor: [6, 6]});
+    for(const f of fc.features){
+      const p = f.properties, [lon, lat] = f.geometry.coordinates, [dy, dx] = jitter(p.id);
+      L.marker([lat + dy, lon + dx], {icon, title: p.title}).bindPopup(
+        `<strong>${esc(p.title)}</strong><br>${esc(p.publisher)}, ${fmtTime(p.published_at + 'Z')}
+         ${p.summary_llm ? `<br>${esc(p.summary_llm)}` : ''}<br>Lokasi: ${esc(p.wilayah)}${p.level === 2 ? ', ' + esc(p.provinsi) : ''}
+         <br><a href="${esc(p.link)}" target="_blank" rel="noopener noreferrer">Baca di sumber</a>`).addTo(layers.news);
+    }
+  }catch(e){ /* layer berita opsional */ }
+}
+
 async function loadHealth(){
   try{
     const rows = await getJSON('/api/dq/latest');
@@ -314,7 +335,7 @@ $('minmag').onchange = loadQuakes;
 $('news-topic').onchange = loadNews;
 $('food-commodity').onchange = loadFood;
 
-const refreshAll = () => { loadQuakes(); loadFires(); loadAQ(); loadNews(); loadFood(); loadHealth(); };
+const refreshAll = () => { loadQuakes(); loadFires(); loadAQ(); loadNews(); loadNewsGeo(); loadFood(); loadHealth(); };
 refreshAll();
 setInterval(refreshAll, 60000);
 </script>

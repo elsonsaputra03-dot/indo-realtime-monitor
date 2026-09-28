@@ -52,6 +52,11 @@ SOURCES = {
         # 2 run/hari meng-upsert key yang sama -> duplikat pra-merge memang by design
         "dup_ratio": (80.0, 95.0),
     },
+    "llm_enrich": {
+        "table": "news_enriched", "filter": "1", "key": "concat(news_id, model)", "time_col": "published_at",
+        "validity": "status = 'ok' AND (summary_llm = '' OR length(topics_llm) = 0)",
+        "freshness_min": (30, 60), "lag_window_h": 6, "event_lag_min": (180, 480),
+    },
     "openmeteo_aq": {
         "table": "air_quality", "filter": "1", "key": "concat(city, toString(obs_time))", "time_col": "obs_time",
         "validity": "pm2_5 < 0 OR pm10 < 0 OR us_aqi < 0 OR us_aqi > 500",

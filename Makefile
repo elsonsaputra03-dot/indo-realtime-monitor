@@ -1,4 +1,4 @@
-.PHONY: up down logs ps smoke ch migrate topics reset urls batch-up batch-down airflow-pass
+.PHONY: up down logs ps smoke ch migrate topics reset urls batch-up batch-down airflow-pass llm-up llm-pull llm-eval
 
 CH_USER := $(shell grep -E '^CLICKHOUSE_USER=' .env | cut -d= -f2)
 CH_PASS := $(shell grep -E '^CLICKHOUSE_PASSWORD=' .env | cut -d= -f2)
@@ -38,6 +38,17 @@ batch-down:
 
 airflow-pass: ## password admin Airflow (user: admin)
 	@docker compose --profile batch exec airflow cat /opt/airflow/standalone_admin_password.txt; echo
+
+LLM_MODEL ?= $(or $(shell grep -E '^LLM_MODEL=' .env | cut -d= -f2),qwen2.5:3b)
+
+llm-up:    ## jalankan Ollama (GPU)
+	docker compose --profile llm up -d ollama
+
+llm-pull:  ## download model (default dari .env LLM_MODEL; override: make llm-pull LLM_MODEL=gemma3:4b)
+	docker compose --profile llm exec ollama ollama pull $(LLM_MODEL)
+
+llm-eval:  ## uji LLM pada 15 berita terbaru (override: make llm-eval LLM_MODEL=...)
+	docker compose --profile batch exec -e LLM_MODEL=$(LLM_MODEL) airflow python /opt/airflow/dags/llm_lib.py --eval 15 --model $(LLM_MODEL)
 
 urls:      ## tampilkan URL aplikasi
 	@echo "Peta    : http://localhost:8000"

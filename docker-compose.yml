@@ -33,6 +33,7 @@ services:
         rpk -X brokers=redpanda:9092 topic create raw.air_quality -p 1 -r 1 || true
         rpk -X brokers=redpanda:9092 topic create raw.news -p 1 -r 1 || true
         rpk -X brokers=redpanda:9092 topic create raw.food_price -p 1 -r 1 || true
+        rpk -X brokers=redpanda:9092 topic create raw.news_enriched -p 1 -r 1 || true
     restart: "no"
 
   console:
@@ -163,6 +164,7 @@ services:
       CLICKHOUSE_HOST: clickhouse
     volumes:
       - ./airflow/dags:/opt/airflow/dags
+      - ./reference:/opt/airflow/reference:ro
       - airflow-logs:/opt/airflow/logs
     ports:
       - "8081:8080"
@@ -175,7 +177,29 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # ---------- Fase 4: LLM lokal (opsional: make llm-up) ----------
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["llm"]
+    environment:
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
 volumes:
+  ollama:
   airflow-db:
   airflow-logs:
   redpanda:
