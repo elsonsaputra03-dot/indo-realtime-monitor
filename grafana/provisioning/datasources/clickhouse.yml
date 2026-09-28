@@ -1,0 +1,13 @@
+apiVersion: 1
+datasources:
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    isDefault: true
+    jsonData:
+      host: clickhouse
+      port: 9000
+      protocol: native
+      username: ${CLICKHOUSE_USER}
+      defaultDatabase: irm
+    secureJsonData:
+      password: ${CLICKHOUSE_PASSWORD}

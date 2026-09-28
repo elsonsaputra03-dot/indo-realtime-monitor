@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Indonesia Realtime Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --ink:#1D2A33; --muted:#5D6D78; --rule:#CBD5DB; --panel:#FFFFFF; --sea:#DCE6EA;
+    --m3:#8FB3C4; --m4:#E9B44C; --m5:#D9722E; --m6:#A3261E;
+    --fire:#6B1E0A;
+    --ok:#3E8E5E; --warn:#D9A21E; --fail:#B3261E;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Barlow,system-ui,sans-serif;color:var(--ink);background:var(--sea)}
+  .app{display:grid;grid-template-columns:380px 1fr;height:100%}
+  aside{background:var(--panel);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0}
+  header{padding:20px 20px 14px;border-bottom:1px solid var(--rule)}
+  h1{font-size:1.5rem;line-height:1.15;margin:0 0 4px;font-weight:700;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:.9rem;margin:0}
+  .filters{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  select{font:inherit;font-size:.9rem;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;background:#fff;color:var(--ink)}
+  select:focus-visible,button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .tabs{display:flex;border-bottom:1px solid var(--rule)}
+  .tab{flex:1;padding:10px 8px;border:0;background:none;font:inherit;font-weight:600;font-size:.92rem;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
+  .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+  .list{overflow-y:auto;flex:1;min-height:0}
+  .row{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;width:100%;
+       padding:12px 20px;border:0;border-bottom:1px solid #EEF2F4;background:none;text-align:left;
+       font:inherit;color:inherit;cursor:pointer}
+  .row:hover{background:#F5F8F9}
+  .big{font-size:2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .aqi-chip{display:inline-block;min-width:52px;text-align:center;padding:6px 4px;border-radius:6px;font-weight:700;font-size:1.2rem;font-variant-numeric:tabular-nums}
+  .title{font-weight:500;font-size:.95rem;line-height:1.3}
+  .meta{color:var(--muted);font-size:.82rem;margin-top:2px;font-variant-numeric:tabular-nums}
+  .empty{padding:24px 20px;color:var(--muted);font-size:.95rem}
+  .health{border-top:1px solid var(--rule);padding:12px 20px 16px;font-size:.84rem;max-height:34vh;overflow-y:auto}
+  .health h2{font-size:.95rem;margin:0 0 8px;font-weight:600}
+  .check{display:grid;grid-template-columns:10px 92px 1fr auto;gap:8px;align-items:center;padding:2px 0}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .dot.pass{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.fail{background:var(--fail)}
+  .val{font-variant-numeric:tabular-nums;color:var(--muted)}
+  #map{height:100%;width:100%}
+  .legend{background:#fff;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;font:500 .8rem Barlow,sans-serif;color:var(--ink);line-height:1.6}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 8px;vertical-align:-1px}
+  .legend i:first-of-type{margin-left:0}
+  .aqi-marker{border-radius:5px;font:700 11px/20px Barlow,sans-serif;text-align:center;border:1px solid rgba(0,0,0,.35)}
+  .leaflet-popup-content{font-family:Barlow,sans-serif;font-size:.9rem}
+  @media (max-width:760px){
+    .app{grid-template-columns:1fr;grid-template-rows:55vh auto}
+    aside{order:2;border-right:0;border-top:1px solid var(--rule)}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <header>
+      <h1>Indonesia Realtime Monitor</h1>
+      <p class="sub" id="summary">Memuat data…</p>
+      <div class="filters">
+        <select id="hours" aria-label="Rentang waktu">
+          <option value="24">24 jam terakhir</option>
+          <option value="72" selected>3 hari terakhir</option>
+          <option value="168">7 hari terakhir</option>
+        </select>
+        <select id="minmag" aria-label="Magnitudo minimum gempa">
+          <option value="0">Semua magnitudo</option>
+          <option value="4">M 4 ke atas</option>
+          <option value="5">M 5 ke atas</option>
+        </select>
+      </div>
+    </header>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="quake">Gempa</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="aq">Kualitas udara</button>
+    </div>
+    <div class="list" id="list-quake" role="tabpanel"></div>
+    <div class="list" id="list-aq" role="tabpanel" hidden></div>
+    <section class="health" aria-live="polite">
+      <h2>Kesehatan pipeline</h2>
+      <div id="health"><div class="val">Belum ada hasil pengecekan.</div></div>
+    </section>
+  </aside>
+  <div id="map" role="region" aria-label="Peta"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const magColor = m => m >= 6 ? css('--m6') : m >= 5 ? css('--m5') : m >= 4 ? css('--m4') : css('--m3');
+// Warna kategori US AQI (EPA)
+const aqiCat = a => a <= 50 ? ['#00E400','#1D2A33','Baik'] : a <= 100 ? ['#FFFF00','#1D2A33','Sedang']
+  : a <= 150 ? ['#FF7E00','#1D2A33','Tidak sehat bagi kelompok sensitif'] : a <= 200 ? ['#FF0000','#fff','Tidak sehat']
+  : a <= 300 ? ['#8F3F97','#fff','Sangat tidak sehat'] : ['#7E0023','#fff','Berbahaya'];
+const fmtTime = iso => new Date(iso).toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $ = id => document.getElementById(id);
+
+const map = L.map('map', {preferCanvas: true}).setView([-2.5, 118], 5);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors | Data: BMKG, USGS, NASA FIRMS, Open-Meteo'
+}).addTo(map);
+
+const layers = {
+  quake: L.layerGroup().addTo(map),
+  fire: L.layerGroup().addTo(map),
+  aq: L.layerGroup().addTo(map),
+};
+L.control.layers(null, {'Gempa': layers.quake, 'Titik panas (FIRMS)': layers.fire, 'Kualitas udara': layers.aq},
+  {collapsed: false, position: 'topright'}).addTo(map);
+
+const legend = L.control({position:'bottomright'});
+legend.onAdd = () => {
+  const d = L.DomUtil.create('div', 'legend');
+  d.innerHTML = `Gempa <i style="background:${css('--m3')}"></i>&lt;4<i style="background:${css('--m4')}"></i>4–5
+    <i style="background:${css('--m5')}"></i>5–6<i style="background:${css('--m6')}"></i>6+<br>
+    Garis penuh BMKG, putus-putus USGS<br>
+    <i style="background:${css('--fire')}"></i>Titik panas, makin besar makin kuat (FRP)<br>
+    Kotak angka: US AQI per ibu kota provinsi`;
+  return d;
+};
+legend.addTo(map);
+
+const counts = {quake: 0, fire: 0, aq: 0};
+const renderSummary = () => {
+  $('summary').textContent = `${counts.quake} gempa, ${counts.fire.toLocaleString('id-ID')} titik panas, ` +
+    `${counts.aq} kota terpantau. Diperbarui ${new Date().toLocaleTimeString('id-ID')}.`;
+};
+
+async function getJSON(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error(`${url} → ${r.status}`);
+  return r.json();
+}
+
+async function loadQuakes(){
+  const h = $('hours').value, m = $('minmag').value, list = $('list-quake');
+  try{
+    const fc = await getJSON(`/api/earthquakes?hours=${h}&min_mag=${m}`);
+    layers.quake.clearLayers(); list.innerHTML = '';
+    counts.quake = fc.features.length;
+    if(!fc.features.length){
+      list.innerHTML = '<div class="empty">Tidak ada gempa pada rentang ini. Perluas rentang waktu atau turunkan magnitudo minimum.</div>';
+    }
+    for(const f of fc.features){
+      const p = f.properties, [lon, lat] = f.geometry.coordinates, col = magColor(p.magnitude);
+      const mk = L.circleMarker([lat, lon], {radius: 3 + p.magnitude * 2.2, color: col, weight: 2, fillColor: col,
+        fillOpacity: .35, dashArray: p.source === 'usgs' ? '4 3' : null})
+        .bindPopup(`<strong>M ${p.magnitude}</strong> ${esc(p.region)}<br>${fmtTime(p.time)}, kedalaman ${p.depth_km} km
+          <br>Sumber: ${p.source.toUpperCase()}${p.felt ? '<br>Dirasakan: ' + esc(p.felt) : ''}`).addTo(layers.quake);
+      const b = document.createElement('button');
+      b.className = 'row';
+      b.innerHTML = `<div class="big" style="color:${col}">${p.magnitude.toFixed(1)}</div>
+        <div><div class="title">${esc(p.region)}</div><div class="meta">${fmtTime(p.time)}, ${p.depth_km} km, ${p.source.toUpperCase()}</div></div>`;
+      b.onclick = () => { map.flyTo([lat, lon], 7, {duration: .8}); mk.openPopup(); };
+      list.appendChild(b);
+    }
+  }catch(e){
+    list.innerHTML = `<div class="empty">Data gempa gagal dimuat (${esc(e.message)}). Cek: <code>docker compose ps</code>.</div>`;
+  }
+  renderSummary();
+}
+
+async function loadFires(){
+  const h = Math.min(+$('hours').value, 240);
+  try{
+    const fc = await getJSON(`/api/hotspots?hours=${h}`);
+    layers.fire.clearLayers();
+    counts.fire = fc.features.length;
+    const fire = css('--fire');
+    for(const f of fc.features){
+      const p = f.properties, [lon, lat] = f.geometry.coordinates;
+      L.circleMarker([lat, lon], {radius: Math.min(2 + Math.sqrt(p.frp || 0) / 2, 9), stroke: false,
+        fillColor: fire, fillOpacity: .75})
+        .bindPopup(`<strong>Titik panas</strong><br>${fmtTime(p.time)}<br>FRP ${p.frp} MW, confidence ${esc(p.confidence)}
+          <br>${esc(p.satellite)} (${p.daynight === 'D' ? 'siang' : 'malam'})`).addTo(layers.fire);
+    }
+  }catch(e){ counts.fire = 0; }
+  renderSummary();
+}
+
+async function loadAQ(){
+  const list = $('list-aq');
+  try{
+    const rows = await getJSON('/api/air-quality/latest');
+    layers.aq.clearLayers(); list.innerHTML = '';
+    counts.aq = rows.length;
+    if(!rows.length) list.innerHTML = '<div class="empty">Belum ada data kualitas udara. Producer mengambil data setiap 15 menit.</div>';
+    for(const r of rows){
+      const a = Math.round(r.us_aqi), [bg, fg, label] = aqiCat(a);
+      const icon = L.divIcon({className: '', html: `<div class="aqi-marker" style="background:${bg};color:${fg}">${a}</div>`,
+        iconSize: [30, 20], iconAnchor: [15, 10]});
+      const mk = L.marker([r.lat, r.lon], {icon, title: r.city})
+        .bindPopup(`<strong>${esc(r.city)}</strong>, ${esc(r.province)}<br>US AQI ${a} (${label})
+          <br>PM2.5 ${r.pm2_5.toFixed(1)} µg/m³, PM10 ${r.pm10.toFixed(1)} µg/m³<br>${fmtTime(r.obs_time + 'Z')}`).addTo(layers.aq);
+      const b = document.createElement('button');
+      b.className = 'row';
+      b.innerHTML = `<div><span class="aqi-chip" style="background:${bg};color:${fg}">${a}</span></div>
+        <div><div class="title">${esc(r.city)}</div><div class="meta">${esc(r.province)}, ${label}, PM2.5 ${r.pm2_5.toFixed(1)}</div></div>`;
+      b.onclick = () => { map.flyTo([r.lat, r.lon], 9, {duration: .8}); mk.openPopup(); };
+      list.appendChild(b);
+    }
+  }catch(e){
+    list.innerHTML = `<div class="empty">Data kualitas udara gagal dimuat (${esc(e.message)}).</div>`;
+  }
+  renderSummary();
+}
+
+async function loadHealth(){
+  try{
+    const rows = await getJSON('/api/dq/latest');
+    if(!rows.length) return;
+    $('health').innerHTML = rows.map(r => `
+      <div class="check" title="${esc(r.detail)}"><span class="dot ${r.status}"></span>
+      <span>${esc(r.source)}</span><span>${esc(r.check.replace(/_/g,' '))}</span>
+      <span class="val">${r.value < 0 ? 'n/a' : Number(r.value).toFixed(1)}</span></div>`).join('');
+  }catch(e){ /* tetap tampilkan status terakhir */ }
+}
+
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
+  $('list-quake').hidden = t.dataset.tab !== 'quake';
+  $('list-aq').hidden = t.dataset.tab !== 'aq';
+});
+$('hours').onchange = () => { loadQuakes(); loadFires(); };
+$('minmag').onchange = loadQuakes;
+
+const refreshAll = () => { loadQuakes(); loadFires(); loadAQ(); loadHealth(); };
+refreshAll();
+setInterval(refreshAll, 60000);
+</script>
+</body>
+</html>

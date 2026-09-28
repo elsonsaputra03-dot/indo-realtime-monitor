@@ -1,0 +1,137 @@
+name: irm
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --smp 1
+      - --memory 1G
+      - --mode dev-container
+    ports:
+      - "127.0.0.1:19092:19092"
+    volumes:
+      - redpanda:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 10s
+      retries: 10
+
+  topics-init:
+    image: redpandadata/redpanda:v24.2.7
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        rpk -X brokers=redpanda:9092 topic create raw.earthquake -p 3 -r 1 || true
+        rpk -X brokers=redpanda:9092 topic create ops.ingest_run -p 1 -r 1 || true
+        rpk -X brokers=redpanda:9092 topic create raw.hotspot -p 3 -r 1 || true
+        rpk -X brokers=redpanda:9092 topic create raw.air_quality -p 1 -r 1 || true
+    restart: "no"
+
+  console:
+    image: redpandadata/console:v2.7.2
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "127.0.0.1:8123:8123"
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+      - ./clickhouse/init:/docker-entrypoint-initdb.d:ro
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping | grep -q Ok"]
+      interval: 10s
+      retries: 10
+
+  producer-earthquake:
+    build: ./app
+    command: python -m producers.earthquake
+    env_file: .env
+    depends_on:
+      topics-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  producer-hotspot:
+    build: ./app
+    command: python -m producers.hotspot
+    env_file: .env
+    depends_on:
+      topics-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  producer-airquality:
+    build: ./app
+    command: python -m producers.air_quality
+    env_file: .env
+    depends_on:
+      topics-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  dq:
+    build: ./app
+    command: python -m dq.checks
+    env_file: .env
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build: ./app
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    env_file: .env
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+    volumes:
+      - ./web:/web:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+volumes:
+  redpanda:
+  clickhouse:
+  grafana:
