@@ -21,7 +21,7 @@
   h1{font-size:1.4rem;margin:6px 0 4px;line-height:1.15}
   .sub{color:var(--muted);font-size:.88rem;margin:0}
   .tabs{display:flex;border-bottom:1px solid var(--rule)}
-  .tab{flex:1;padding:10px 4px;border:0;background:none;font:inherit;font-weight:600;font-size:.9rem;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
+  .tab{flex:1;padding:10px 2px;font-size:.86rem!important;border:0;background:none;font:inherit;font-weight:600;font-size:.9rem;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
   .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
   .tab:focus-visible,select:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
   .list{overflow-y:auto;flex:1;min-height:0}
@@ -43,6 +43,10 @@
   .dot{width:10px;height:10px;border-radius:50%} .dot.ok{background:var(--ok)} .dot.error{background:var(--fail)}
   .note{color:var(--muted);font-size:.78rem;padding-left:18px;overflow-wrap:anywhere}
   #map{height:100%}
+  .rbar{height:5px;background:#EEF2F4;border-radius:3px;margin-top:5px;display:flex;overflow:hidden}
+  .rbar span{height:5px}
+  .rnote{padding:10px 20px;font-size:.8rem;color:var(--muted);border-bottom:1px solid #EEF2F4;line-height:1.45}
+  .rscore{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
   .legend{background:#fff;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;font:500 .8rem Barlow,sans-serif;line-height:1.6}
   .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 8px;vertical-align:-1px}
   .legend i:first-of-type{margin-left:0}
@@ -59,12 +63,19 @@
       <p class="sub" id="summary">Memuat snapshot data…</p>
     </header>
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="quake">Gempa</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="risk">Risiko</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="quake">Gempa</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="aq">Udara</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="news">Berita</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="food">Pangan</button>
     </div>
-    <div class="list" id="p-quake" role="tabpanel"></div>
+    <div class="list" id="p-risk" role="tabpanel">
+      <div class="rnote">Indeks risiko komposit per kabupaten/kota (0–100) dari 5 komponen: titik panas 30%, gempa 25%,
+        kualitas udara 20%, berita bencana 15%, harga pangan 10%. <strong>Eksperimental</strong>, bukan penilaian resmi
+        (rujukan resmi: BNPB InaRISK). Klik wilayah untuk melihat rinciannya.</div>
+      <div id="risk-items"></div>
+    </div>
+    <div class="list" id="p-quake" role="tabpanel" hidden></div>
     <div class="list" id="p-aq" role="tabpanel" hidden></div>
     <div class="list" id="p-news" role="tabpanel" hidden>
       <div class="filter"><select id="news-topic" aria-label="Topik berita">
@@ -106,14 +117,21 @@ const get = name => fetch(`data/${name}?v=${Date.now() / 3.6e6 | 0}`).then(r => 
 const map = L.map('map', {preferCanvas: true}).setView([-2.5, 118], 5);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18,
   attribution: '&copy; OpenStreetMap contributors | Data: BMKG, USGS, NASA FIRMS, Open-Meteo, PIHPS-BI'}).addTo(map);
-const layers = {quake: L.layerGroup().addTo(map), fire: L.layerGroup().addTo(map), aq: L.layerGroup().addTo(map)};
-L.control.layers(null, {'Gempa': layers.quake, 'Titik panas (FIRMS)': layers.fire, 'Kualitas udara': layers.aq},
-  {collapsed: false}).addTo(map);
+map.createPane('riskPane'); map.getPane('riskPane').style.zIndex = 350;
+const layers = {risk: L.layerGroup().addTo(map), quake: L.layerGroup().addTo(map), fire: L.layerGroup().addTo(map),
+                aq: L.layerGroup().addTo(map)};
+L.control.layers(null, {'Indeks risiko kab/kota': layers.risk, 'Gempa': layers.quake, 'Titik panas (FIRMS)': layers.fire,
+  'Kualitas udara': layers.aq}, {collapsed: false}).addTo(map);
+const RISK_BREAKS = [[65, '#4B2991'], [50, '#7163B5'], [35, '#9E9AD1'], [20, '#C9CDE8'], [0, '#EEF0F7']];
+const riskColor = v => RISK_BREAKS.find(([b]) => v >= b)[1];
+const COMP = {titik_panas: ['Titik panas', '#6B1E0A'], gempa: ['Gempa', '#D9722E'], udara: ['Kualitas udara', '#8F3F97'],
+              berita: ['Berita bencana', '#2E5E8C'], pangan: ['Harga pangan', '#3E8E5E']};
 const legend = L.control({position: 'bottomright'});
 legend.onAdd = () => { const d = L.DomUtil.create('div', 'legend');
   d.innerHTML = `Gempa <i style="background:${css('--m3')}"></i>&lt;4<i style="background:${css('--m4')}"></i>4–5
     <i style="background:${css('--m5')}"></i>5–6<i style="background:${css('--m6')}"></i>6+<br>
-    <i style="background:${css('--fire')};margin-left:0"></i>Titik panas (ukuran = FRP)<br>Kotak angka: US AQI ibu kota provinsi`; return d; };
+    <i style="background:${css('--fire')};margin-left:0"></i>Titik panas (ukuran = FRP)<br>Kotak angka: US AQI ibu kota provinsi<br>
+    Indeks risiko ${RISK_BREAKS.slice().reverse().map(([b, c]) => `<i style="background:${c};border-radius:2px"></i>${b}+`).join('')}`; return d; };
 legend.addTo(map);
 
 const summary = {};
@@ -211,6 +229,43 @@ async function loadFood(){
   renderFood();
 }
 
+function riskBar(it){
+  return `<div class="rbar">${Object.entries(it.komponen).filter(([, v]) => v && v.kontribusi > 0)
+    .map(([k, v]) => `<span title="${COMP[k][0]}: ${v.kontribusi}" style="width:${v.kontribusi}%;background:${COMP[k][1]}"></span>`).join('')}</div>`;
+}
+function riskPopup(it){
+  const rows = Object.entries(it.komponen).map(([k, v]) => v
+    ? `<tr><td>${COMP[k][0]}</td><td style="text-align:right;padding:0 6px"><strong>${v.kontribusi}</strong></td><td style="color:#5D6D78">${esc(v.ket)}</td></tr>`
+    : `<tr><td>${COMP[k][0]}</td><td style="text-align:right;padding:0 6px">–</td><td style="color:#5D6D78">tidak ada data</td></tr>`).join('');
+  return `<strong>${esc(it.nama)}</strong>, ${esc(it.prov)}<br>Indeks risiko <strong>${it.skor}</strong>/100
+    ${it.cakupan < 1 ? `<br><span style="color:#5D6D78">Dihitung dari ${Math.round(it.cakupan * 100)}% bobot (sebagian komponen tanpa data)</span>` : ''}
+    ${it.batas_valid ? '' : '<br><span style="color:#5D6D78">Batas wilayah diperkirakan (poligon sumber tidak valid)</span>'}
+    <table style="margin-top:6px;font-size:.82rem;border-collapse:collapse">${rows}</table>`;
+}
+async function loadRisk(){
+  const box = $('risk-items');
+  try{
+    const [risk, geo] = await Promise.all([get('risk.json'), fetch('assets/kabkota.geojson').then(r => r.json())]);
+    const byKode = Object.fromEntries(risk.items.map(it => [it.kode, it]));
+    const polys = {};
+    const layer = L.geoJSON(geo, {pane: 'riskPane', style: f => {
+        const it = byKode[f.properties.k];
+        return {color: '#FFFFFF', weight: .6, fillOpacity: it ? .62 : .1, fillColor: it ? riskColor(it.skor) : '#DDD',
+                dashArray: f.properties.approx ? '3 3' : null};
+      }, onEachFeature: (f, l) => { const it = byKode[f.properties.k]; if(it){ l.bindPopup(riskPopup(it), {maxWidth: 360}); polys[it.kode] = l; } }});
+    layers.risk.addLayer(layer);
+    box.innerHTML = risk.items.slice(0, 25).map((it, i) => `<button class="row" data-k="${it.kode}" style="grid-template-columns:54px 1fr">
+        <div class="rscore" style="color:${it.skor >= 35 ? riskColor(it.skor) : '#5D6D78'}">${it.skor.toFixed(0)}</div>
+        <div><div class="title">${i + 1}. ${esc(it.nama)}</div><div class="meta">${esc(it.prov)}</div>${riskBar(it)}</div></button>`).join('')
+      + `<div class="rnote">Warna batang: ${Object.values(COMP).map(([n, c]) => `<span style="color:${c}">■</span> ${n}`).join(' · ')}.
+         ${risk.batas_diperkirakan} wilayah memakai batas perkiraan (garis putus-putus) karena poligon sumbernya tidak valid.</div>`;
+    box.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+      const l = polys[b.dataset.k]; if(!l) return;
+      map.flyToBounds(l.getBounds(), {maxZoom: 9, duration: .8}); setTimeout(() => l.openPopup(), 850);
+    });
+  }catch(e){ box.innerHTML = '<div class="empty">Indeks risiko belum tersedia di snapshot ini.</div>'; }
+}
+
 async function loadMeta(){
   try{
     const m = await get('meta.json'); summary.at = m.generated_at;
@@ -223,11 +278,11 @@ async function loadMeta(){
 
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
-  ['quake', 'aq', 'news', 'food'].forEach(k => $('p-' + k).hidden = t.dataset.tab !== k);
+  ['risk', 'quake', 'aq', 'news', 'food'].forEach(k => $('p-' + k).hidden = t.dataset.tab !== k);
 });
 $('news-topic').onchange = renderNews;
 $('food-c').onchange = renderFood;
-loadMeta(); loadQuakes(); loadFires(); loadAQ(); loadNews(); loadFood();
+loadMeta(); loadRisk(); loadQuakes(); loadFires(); loadAQ(); loadNews(); loadFood();
 </script>
 </body>
 </html>

@@ -9,7 +9,8 @@ on:
     branches: [main]
     paths:
       - "site/**"
-      - "scripts/snapshot.py"
+      - "scripts/**"
+      - "reference/**"
       - "app/producers/**"
       - "airflow/dags/news_lib.py"
       - "airflow/dags/pihps_lib.py"

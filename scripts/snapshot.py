@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
-sys.path[:0] = ["app", "airflow/dags"]
+sys.path[:0] = ["app", "airflow/dags", "scripts"]
 os.environ.setdefault("GAZETTEER_CSV", "reference/wilayah_indonesia.csv")
 
 UA = "indo-realtime-monitor-snapshot/1.0 (+https://github.com/elsonsaputra03-dot/indo-realtime-monitor)"
@@ -161,9 +161,25 @@ def main() -> int:
             info["ms"] = int((time.monotonic() - t0) * 1000)
             meta["sources"][key] = info
             print(f"{key:15} {info['status']:6} n={info['count']:<6} {info['ms']:>6}ms {info['note']}")
+    # ---- Fase 5: indeks risiko per kab/kota dari data yang baru ditulis
+    t0 = time.monotonic()
+    info = {"label": "Indeks risiko kab/kota", "status": "ok", "count": 0, "note": "", "ms": 0}
+    try:
+        import risk
+        res = risk.build_from_dir(a.out, "reference/batas_kabkota.geojson", os.environ["GAZETTEER_CSV"])
+        info["bytes"] = write(a.out, "risk.json", res)
+        info["count"] = len(res["items"])
+        top = res["items"][0]
+        info["note"] = f"tertinggi: {top['nama']} ({top['skor']})"
+    except Exception as exc:  # noqa: BLE001
+        info.update(status="error", note=redact(f"{type(exc).__name__}: {exc}")[:200])
+    info["ms"] = int((time.monotonic() - t0) * 1000)
+    meta["sources"]["risiko"] = info
+    print(f"{'risiko':15} {info['status']:6} n={info['count']:<6} {info['ms']:>6}ms {info['note']}")
+
     write(a.out, "meta.json", meta)
     ok = sum(s["status"] == "ok" for s in meta["sources"].values())
-    print(f"selesai: {ok}/{len(jobs)} sumber ok")
+    print(f"selesai: {ok}/{len(meta['sources'])} langkah ok")
     return 0 if ok else 1          # gagal total -> job merah (dapat email dari GitHub)
 
 
