@@ -4,6 +4,7 @@ Sumber: PIHPS Nasional, Bank Indonesia (https://www.bi.go.id/hargapangan).
 robots.txt bi.go.id tidak melarang /hargapangan. Etika: 2 run/hari, jeda antar request,
 User-Agent jelas, atribusi sumber di UI & README.
 """
+import json
 import time
 from datetime import date, datetime
 
@@ -65,6 +66,8 @@ def fetch_commodity(commodity_id: int, dates: list[date]) -> dict:
                 })
                 r.raise_for_status()
                 rows = r.json()
+                if isinstance(rows, str):   # server kadang mengirim JSON ter-encode dua kali
+                    rows = json.loads(rows)
                 if not isinstance(rows, list):
                     raise ValueError(f"format respons tidak dikenal: {str(rows)[:120]}")
                 out["items"] += [x for x in (normalize(row, commodity_id) for row in rows) if x]
