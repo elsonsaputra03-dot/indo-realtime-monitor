@@ -136,6 +136,46 @@ def src_food_prices(_c: httpx.Client, out: str) -> dict:
             "note": f"komoditas gagal: {', '.join(failed)}" if failed else ""}
 
 
+# ---------------------------------------------------------------- alert email
+SITE_URL = "https://elsonsaputra03-dot.github.io/indo-realtime-monitor/demo.html"
+INDONESIA_BBOX = (94.0, -12.0, 142.0, 7.0)     # lon_min, lat_min, lon_max, lat_max
+
+
+def run_alerts(out: str, meta: dict) -> None:
+    """Sumber gagal >=3 run berturut-turut, gempa M>=6 (sekali per event), AQI >=300 (pulih bila <200)."""
+    import alerting
+    st = alerting.AlertState(os.getenv("ALERT_STATE", ".alert-state/state.json"))
+    now = datetime.now(timezone.utc)
+    for key, s in meta["sources"].items():
+        st.update(f"source:{key}", s["status"] != "ok", f"Sumber data gagal: {s['label']}",
+                  s.get("note", ""), open_after=3, now=now)
+
+    def load(name, default):
+        p = os.path.join(out, name)
+        return json.load(open(p, encoding="utf-8")) if os.path.exists(p) else default
+
+    lo0, la0, lo1, la1 = INDONESIA_BBOX
+    for f in load("earthquakes.json", {"features": []})["features"]:
+        p, (lon, lat) = f["properties"], f["geometry"]["coordinates"]
+        age_h = (now - datetime.fromisoformat(p["time"])).total_seconds() / 3600
+        if p["magnitude"] >= 6.0 and age_h <= 24 and lo0 <= lon <= lo1 and la0 <= lat <= la1:
+            wib = datetime.fromisoformat(p["time"]).astimezone(WIB)
+            st.once(f"quake:{p['id']}", f"Gempa M{p['magnitude']} · {p['region']}",
+                    f"{wib:%d %b %Y %H:%M} WIB, kedalaman {p['depth_km']:g} km, sumber {p['source'].upper()}", now=now)
+    for r in load("air_quality.json", []):
+        aqi, key = r.get("us_aqi", -1), f"aqi:{r['city']}"
+        failing = aqi >= 300 or (st.is_active(key) and aqi >= 200)      # histeresis: tutup saat < 200
+        st.update(key, failing, f"Kualitas udara berbahaya: {r['city']} ({r['province']})",
+                  f"US AQI {round(aqi)}, PM2.5 {r.get('pm2_5', 0):.0f} µg/m³", now=now)
+    st.prune(now=now)
+    n_open = sum(1 for e in st.events if e["type"] != "resolve")
+    n_res = len(st.events) - n_open
+    sent = st.flush("snapshot", footer=f"Peta: {SITE_URL}")
+    st.save()
+    print(f"{'alert':15} {'sent' if sent else 'skip':6} baru={n_open} pulih={n_res} "
+          f"email={'on' if alerting.email_configured() else 'off'}")
+
+
 # ---------------------------------------------------------------- main
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -178,6 +218,7 @@ def main() -> int:
     print(f"{'risiko':15} {info['status']:6} n={info['count']:<6} {info['ms']:>6}ms {info['note']}")
 
     write(a.out, "meta.json", meta)
+    run_alerts(a.out, meta)
     ok = sum(s["status"] == "ok" for s in meta["sources"].values())
     print(f"selesai: {ok}/{len(meta['sources'])} langkah ok")
     return 0 if ok else 1          # gagal total -> job merah (dapat email dari GitHub)

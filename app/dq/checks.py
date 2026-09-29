@@ -127,9 +127,27 @@ def check_source(ch, src: str, c: dict, now: datetime) -> list[list]:
     return rows
 
 
+DQ_ALERT_AFTER = int(os.getenv("DQ_ALERT_AFTER_RUNS", "10"))   # 10 run x 60 dtk = gagal 10 menit berturut-turut
+
+
+def alert_dq(state, rows: list[list]) -> None:
+    """Email saat cek DQ berubah ke fail (setelah N run berturut-turut) dan saat pulih."""
+    for checked_at, src, check, status, value, threshold, detail in rows:
+        fmt = lambda x: "-" if x is None else f"{x:g}"
+        state.update(f"dq:{src}:{check}", status == "fail", f"DQ fail: {src} · {check}",
+                     f"nilai {fmt(value)}, ambang {fmt(threshold)}" + (f" · {detail[:160]}" if detail else ""),
+                     open_after=DQ_ALERT_AFTER, now=checked_at)
+    state.prune()
+    state.flush("lokal", footer="Grafana: http://<IP-WSL>:3001 · Pipeline Ops")
+    state.save()
+
+
 def main() -> None:
+    import alerting
     ch = ch_client()
     cols = ["checked_at", "source", "check_name", "status", "value", "threshold", "detail"]
+    state = alerting.AlertState(os.getenv("ALERT_STATE", "/tmp/irm-alert-state.json"))
+    log.info("email alert DQ: %s", "aktif" if alerting.email_configured() else "tidak dikonfigurasi")
     while True:
         now = datetime.now(timezone.utc)
         rows: list[list] = []
@@ -148,6 +166,10 @@ def main() -> None:
             log.info("dq run: %s", summary)
         except Exception:  # noqa: BLE001
             log.exception("insert dq_results gagal")
+        try:
+            alert_dq(state, rows)
+        except Exception:  # noqa: BLE001 - alert tidak boleh menghentikan DQ
+            log.exception("alert DQ gagal")
         time.sleep(INTERVAL)
 
 

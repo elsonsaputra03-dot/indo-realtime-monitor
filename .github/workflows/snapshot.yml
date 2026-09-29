@@ -45,9 +45,19 @@ jobs:
           key: food-${{ github.run_id }}
           restore-keys: food-
 
+      # status alert (supaya email hanya dikirim saat status berubah, bukan tiap jam)
+      - uses: actions/cache@v6
+        with:
+          path: .alert-state
+          key: alert-state-${{ github.run_id }}
+          restore-keys: alert-state-
+
       - name: Build snapshot
         env:
           FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
         run: |
           mkdir -p site/data
           PYTHONPATH=app:airflow/dags python scripts/snapshot.py --out site/data
