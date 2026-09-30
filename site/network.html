@@ -174,12 +174,27 @@ const failCount = (t, kp) => cellsOf(t).filter(c => { const o = cellO(t, c); ret
 
 // ------------------------------------------------------------------ Ringkasan KPI
 const VENDORS = [['EID', '#2E5E8C'], ['ZTE', '#C9901D'], ['KAL', '#1D2A33']];
-const vendorSet = v => { const base = kabSet(); return v === 'KAL' ? base : new Set([...base].filter(i => N.VENDOR_OF[KABS[i].pk] === v)); };
-const vendorsShown = () => VENDORS.filter(([v]) => !state.vendor || v === state.vendor || v === 'KAL');
+// grafik vendor: filter branch/cluster berlaku, filter vendor TIDAK, supaya EID, ZTE, dan KAL (gabungan) selalu terlihat berdampingan
+const areaNoVendor = () => new Set(KABS.map((k, i) => i).filter(i => (!state.branch || KABS[i].p === state.branch) && (!state.cluster || KABS[i].c === state.cluster)));
+const vendorSet = v => { const base = areaNoVendor(); return v === 'KAL' ? base : new Set([...base].filter(i => N.VENDOR_OF[KABS[i].pk] === v)); };
+const vendorsShown = () => VENDORS.filter(([v]) => v === 'KAL' || vendorSet(v).size);
 const branchesShown = () => BRANCHES.filter(b => (!state.vendor || b.vendor === state.vendor) && (!state.branch || b.name === state.branch));
 const branchSet = b => new Set([...kabSet()].filter(i => KABS[i].p === b.name));
 function daily(t, set){ return dates.map((_, d) => N.sumKab(t, set, d)); }
 const PAYKEY = {'2G': 'payload', '4G': 'payload', '5G': 'payload'};
+// skala Y mengikuti rentang data (bukan dipaksa memuat target), dengan ruang 15%; persentase tidak melewati 100
+function yRange(kp, datasets){
+  const v = datasets.flatMap(d => d.data).filter(isFinite); if(!v.length) return {};
+  let lo = Math.min(...v), hi = Math.max(...v); const span = hi - lo, pad = Math.max(span * .15, Math.abs(hi) * (kp.u === '%' ? .0005 : .01), kp.u === '%' ? .02 : 1e-6);
+  lo -= pad; hi += pad;
+  // bulatkan ke langkah "rapi" (1, 2, 5 × 10^n) supaya label sumbu mudah dibaca
+  const raw = (hi - lo) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 5, 10].map(m => m * mag).find(x => x >= raw);
+  lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  if(kp.u === '%' && Math.max(...v) <= 100) hi = Math.min(hi, 100); if(kp.u === '%' && lo < 0) lo = 0;
+  return {min: +lo.toFixed(6), max: +hi.toFixed(6)};
+}
+const tgtInRange = (kp, r) => kp.tgt != null && r.min != null && kp.tgt >= r.min && kp.tgt <= r.max;
+const tgtNote = (kp, r) => kp.tgt == null ? '' : tgtInRange(kp, r) ? '' : (kp.tgt < r.min ? ' · target di bawah skala' : ' · target di atas skala');
 function payloadTB(t, s){ const kp = KPI[t].find(k => k.k === PAYKEY[t]); const v = kp.f(s); return t === '2G' ? v / 1024 : v; }   // 2G dalam GB -> TB
 function viewSummary(){
   state.sumTech ||= '4G'; state.payTech ||= 'all';
@@ -193,7 +208,7 @@ function viewSummary(){
     <div class="grid2" style="margin-bottom:14px">
       <div class="card"><h3>Payload harian: EID, ZTE, dan KAL <span>TB · ${dl(dates[0])} – ${dl(LD_DATE)}</span></h3><div class="chart"><canvas id="c-payv"></canvas></div></div>
       <div class="card"><h3>Payload harian per branch <span>TB</span></h3><div class="chart"><canvas id="c-payb"></canvas></div></div></div>
-    <h2 class="sec">KPI ${t} <span class="muted" style="font-weight:400;font-size:.9rem">garis: EID, ZTE, KAL (gabungan) dan target · ${DAYS} hari</span></h2>
+    <h2 class="sec">KPI ${t} <span class="muted" style="font-weight:400;font-size:.9rem">${DAYS} hari · ${vendorsShown().map(([v, c]) => `<span style="display:inline-block;width:14px;height:3px;background:${c};vertical-align:middle;margin:0 4px 0 8px"></span>${v}${v === 'KAL' ? ' (gabungan)' : ''}`).join('')}<span style="display:inline-block;width:14px;border-top:2px dashed #B3261E;vertical-align:middle;margin:0 4px 0 8px"></span>target (bila masuk skala)</span></h2>
     <div class="mgrid" id="mgrid">${kps.map(kp => `<div class="card mc"><div class="mh"><span>${esc(kp.l)}</span><span class="mv" id="mv-${kp.k}"></span></div>
       <div class="mt muted">${kp.tgt != null ? 'target ' + tgtTxt(kp) : ['TB', 'GB', 'Erl', 'user'].includes(kp.u) ? 'volume' : 'tanpa target'}</div><div class="chart sm"><canvas id="m-${kp.k}"></canvas></div></div>`).join('')}</div>
     <h2 class="sec">Nilai KPI ${t} per vendor <span class="muted" style="font-weight:400;font-size:.9rem">${dl(LD_DATE)}</span></h2>
@@ -213,16 +228,18 @@ function viewSummary(){
   // grafik kecil per KPI
   const series = Object.fromEntries(vendorsShown().map(([v]) => [v, daily(t, vendorSet(v))]));
   kps.forEach(kp => {
-    const ds = vendorsShown().map(([v, c]) => line(v, series[v].map(s => kp.f(s)), c, {pointRadius: 0, borderWidth: v === 'KAL' ? 2.5 : 1.5}));
-    if(kp.tgt != null) ds.push({label: 'Target', data: dates.map(() => kp.tgt), borderColor: '#B3261E', borderDash: [4, 4], borderWidth: 1, pointRadius: 0});
+    const ds = vendorsShown().map(([v, c]) => line(v, series[v].map(s => kp.f(s)), c, {pointRadius: 0, borderWidth: v === 'KAL' ? 2.5 : 1.8}));
+    const yr = yRange(kp, ds);
+    if(tgtInRange(kp, yr)) ds.push({label: 'Target', data: dates.map(() => kp.tgt), borderColor: '#B3261E', borderDash: [4, 4], borderWidth: 1, pointRadius: 0});
+    const mt = $('mv-' + kp.k).closest('.mc').querySelector('.mt'); mt.textContent += tgtNote(kp, yr);
     const cur = kp.f(series.KAL[LD]), st = status(kp, cur);
     $('mv-' + kp.k).innerHTML = `<span class="${st === 'fail' ? 'fail' : st === 'near' ? 'near' : ''}">${fmtv(kp, cur)}${unit(kp)}</span>`;
     chart($('m-' + kp.k), {type: 'line', data: {labels: lbl, datasets: ds}, options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
       plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => `${c.dataset.label}: ${fmtv(kp, c.parsed.y)}${unit(kp)}`}}},
-      scales: {x: {ticks: {maxTicksLimit: 4, font: {size: 10}}}, y: {ticks: {font: {size: 10}, maxTicksLimit: 5}}}}});
+      scales: {x: {ticks: {maxTicksLimit: 4, font: {size: 10}}}, y: {...yr, ticks: {font: {size: 10}, maxTicksLimit: 5, callback: v => fmtv(kp, v)}}}}});
   });
   // tabel per vendor
-  const vs = vendorsShown(), cellsBad = kp => Object.fromEntries(vs.map(([v]) => [v, cellsOf(t).filter(c => (v === 'KAL' || c.site.vendor === v) && okDen(kp, cellO(t, c)) && status(kp, kp.f(cellO(t, c))) === 'fail').length]));
+  const vs = vendorsShown(), cellsBad = kp => Object.fromEntries(vs.map(([v]) => [v, CELLS[t].filter(c => areaNoVendor().has(c.site.kabI) && (qOk(c.id) || qOk(c.site.id))).filter(c => (v === 'KAL' || c.site.vendor === v) && okDen(kp, cellO(t, c)) && status(kp, kp.f(cellO(t, c))) === 'fail').length]));
   let fam = '';
   $('vtable').innerHTML = `<table class="ktable"><thead><tr><th>KPI</th>${vs.map(([v]) => `<th class="r">${v}</th>`).join('')}<th>Target</th>${vs.map(([v]) => `<th class="r">Cell di luar target ${v}</th>`).join('')}</tr></thead><tbody>`
     + kps.map(kp => { const head = kp.fam !== fam ? (fam = kp.fam, `<tr class="fam"><td colspan="${2 + vs.length * 2}">${esc(fam)}</td></tr>`) : '';
@@ -325,10 +342,14 @@ function viewTech(t){
     ${t === '4G' ? `<div class="card" style="margin-bottom:14px"><h3>Profil per jam <span>${dl(LAST)}, payload &amp; PRB DL (estimasi dari profil harian)</span></h3><div class="chart"><canvas id="c-bh"></canvas></div></div>` : ''}
     <div class="card"><h3>KPI per cluster <span>${dl(LAST)}</span></h3><div class="tw">${ctab}</div></div>`;
   const bs = BRANCHES.filter(b => (!state.vendor || b.vendor === state.vendor) && (!state.branch || b.name === state.branch));
-  chart($('c-trend'), {type: 'line', data: {labels: dates.map(dl), datasets: bs.map((b, i) => { const ks = new Set(KABS.map((kk, j) => j).filter(j => KABS[j].p === b.name && (!state.cluster || KABS[j].c === state.cluster)));
-    return {label: b.name, data: dates.map((_, d) => kp.f(N.sumKab(t, ks, d))), borderColor: COLORS[i], backgroundColor: COLORS[i], pointRadius: 2, tension: .2}; })
-    .concat(kp.tgt != null ? [{label: 'Target', data: dates.map(() => kp.tgt), borderColor: '#8FA1AC', borderDash: [5, 4], pointRadius: 0}] : [])},
-    options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, plugins: {legend: {labels: {boxWidth: 10}}}}});
+  const tds = bs.map((b, i) => { const ks = new Set(KABS.map((kk, j) => j).filter(j => KABS[j].p === b.name && (!state.cluster || KABS[j].c === state.cluster)));
+    return {label: b.name, data: dates.map((_, d) => kp.f(N.sumKab(t, ks, d))), borderColor: COLORS[i], backgroundColor: COLORS[i], pointRadius: 2, tension: .2}; });
+  const tyr = yRange(kp, tds);
+  if(tgtInRange(kp, tyr)) tds.push({label: 'Target', data: dates.map(() => kp.tgt), borderColor: '#B3261E', borderDash: [5, 4], pointRadius: 0});
+  chart($('c-trend'), {type: 'line', data: {labels: dates.map(dl), datasets: tds},
+    options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, plugins: {legend: {labels: {boxWidth: 10}},
+      subtitle: {display: !!tgtNote(kp, tyr), text: `target ${tgtTxt(kp)}${tgtNote(kp, tyr)}`, color: '#5D6D78'}},
+      scales: {y: {...tyr, ticks: {callback: v => fmtv(kp, v)}}}}});
   if(t === '4G'){ const pk = KPI['4G'].find(x => x.k === 'payload'), pr = KPI['4G'].find(x => x.k === 'prbdl'), vol = pk.f(now) * 1024, pd = pr.f(now), D = N.DIURNAL, DS = D.reduce((a, b) => a + b, 0);
     chart($('c-bh'), {type: 'bar', data: {labels: D.map((_, h) => String(h).padStart(2, '0')), datasets: [{label: 'Payload (GB)', data: D.map(w => vol * w / DS), backgroundColor: '#2E5E8C', yAxisID: 'y'},
       {type: 'line', label: 'PRB DL (%)', data: D.map(w => Math.min(99, pd * w / (DS / 24))), borderColor: '#B3261E', pointRadius: 0, yAxisID: 'y1'}]},
