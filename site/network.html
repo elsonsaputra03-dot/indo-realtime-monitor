@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network KPI Monitor — 2G/4G/5G &amp; transport (synthetic data)</title>
+<meta name="description" content="Multi-vendor radio and transport KPI monitor computed from synthetic counters, built for a portfolio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/gov.css">
+<style>
+  :root{--pass:#3E8E5E; --fail:#B3261E; --near:#C9901D}
+  .rail a{cursor:pointer}
+  .filters.nk{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.4fr) auto}
+  .score{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:16px}
+  .sc{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px 14px;border-top:4px solid var(--pass)}
+  .sc.fail{border-top-color:var(--fail)} .sc.near{border-top-color:var(--near)}
+  .sc .l{font-size:.82rem;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
+  .sc .v{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:1.6rem;line-height:1.15;font-variant-numeric:tabular-nums}
+  .sc .t{font-size:.78rem;color:var(--muted)}
+  .sc .d{font-size:.8rem}
+  .tech-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+  .tech{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:12px 16px;cursor:pointer;text-align:left}
+  .tech:hover{border-color:var(--ink)}
+  .tech h3{margin:0 0 4px;font-size:1rem}
+  .tech .big2{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:1.5rem}
+  .tech .row{font-size:.84rem;color:var(--ink-2)}
+  .pass{color:var(--pass)} .fail{color:var(--fail)} .near{color:var(--near)}
+  td.k{font-variant-numeric:tabular-nums;text-align:right}
+  td.k.fail{background:#F9E4E1;color:#8E2A22;font-weight:600} td.k.near{background:#FBF1DC}
+  .diag{font-size:.75rem;border-radius:10px;padding:1px 8px;background:#E6EDF1;white-space:nowrap}
+  .diag.avail{background:#F6DEDB;color:#8E2A22} .diag.intf{background:#EEE2F1;color:#62296B} .diag.cov{background:#DCE6F0;color:#23476A}
+  .diag.cap{background:#FBEFD2;color:#6B4B0F} .diag.tx{background:#E1EFEF;color:#1B5E63}
+  .newb{font-size:.72rem;background:var(--fail);color:#fff;border-radius:8px;padding:0 6px;margin-left:4px}
+  .hm2{border-collapse:separate;border-spacing:2px;font-size:.76rem}
+  .hm2 th{font-size:.72rem;color:var(--muted);font-weight:500;padding:2px;border:0;text-align:center}
+  .hm2 td{padding:0;border:0}
+  .hm2 td.rn{padding:2px 10px 2px 0;white-space:nowrap;font-size:.85rem;text-align:left}
+  .hc{display:block;min-width:34px;height:24px;line-height:24px;text-align:center;border-radius:3px;font-variant-numeric:tabular-nums}
+  .targets td,.targets th{font-size:.84rem}
+  .note{font-size:.86rem;color:var(--muted);max-width:80ch}
+  @media (max-width:1100px){ .tech-row{grid-template-columns:repeat(2,minmax(0,1fr))} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Tampilan">
+    <div class="brand"><strong>Network KPI Monitor</strong><span>Operator contoh · data sintetis</span></div>
+    <h2>Radio</h2>
+    <a data-view="summary" aria-current="page">Ringkasan</a>
+    <a data-view="2G">2G</a>
+    <a data-view="4G">4G</a>
+    <a data-view="5G">5G</a>
+    <h2>Transport</h2>
+    <a data-view="twamp">TWAMP</a>
+    <h2>Tindak lanjut</h2>
+    <a data-view="worst">Worst cells</a>
+    <a data-view="targets">Target KPI</a>
+    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+  </nav>
+
+  <main>
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Operator, site, cell, cluster, dan wilayah di sini fiktif. Counter dibangkitkan
+      dari rentang tipikal industri, bukan dari data operator mana pun. KPI dihitung dari counter (Σ pembilang ÷ Σ penyebut), seperti di OSS.</div>
+
+    <div class="head"><div><h1 id="title">Ringkasan jaringan</h1><p id="snap"></p></div><div class="spacer"></div>
+      <button class="btn" id="export" hidden>Export CSV</button></div>
+
+    <div class="filters nk" id="filters">
+      <div><label for="f-vendor">Vendor</label><select id="f-vendor"></select></div>
+      <div><label for="f-branch">Branch</label><select id="f-branch"></select></div>
+      <div><label for="f-cluster">Cluster</label><select id="f-cluster"></select></div>
+      <div><label for="f-q">Cari site / cell</label><input id="f-q" type="search" placeholder="mis. SYN-0412 atau L18"></div>
+      <div><button class="btn" id="reset">Reset</button></div>
+    </div>
+
+    <div id="view"></div>
+
+    <footer>Dibuat oleh <a href="index.html">Elson Saputra</a>. Data sintetis; ambang KPI adalah contoh umum, bukan target resmi operator.</footer>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+(() => {
+'use strict';
+// ================================================================== generator deterministik
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const R = rng(30082026);
+const between = (a, b) => a + R() * (b - a);
+const gauss = () => Math.sqrt(-2 * Math.log(R() || 1e-9)) * Math.cos(2 * Math.PI * R());
+const DAYS = 14, DAY = 864e5, LAST = new Date('2026-09-29T00:00:00Z');
+const dates = Array.from({length: DAYS}, (_, i) => new Date(+LAST - (DAYS - 1 - i) * DAY));
+
+const BRANCHES = [
+  {name: 'Pesisir Utara', vendor: 'Ericsson', clusters: ['PU-01 Kota', 'PU-02 Pelabuhan', 'PU-03 Industri'], urban: .7},
+  {name: 'Dataran Tengah', vendor: 'Ericsson', clusters: ['DT-01 Kota', 'DT-02 Agro', 'DT-03 Lintas'], urban: .45},
+  {name: 'Pegunungan', vendor: 'ZTE', clusters: ['PG-01 Lembah', 'PG-02 Dataran Tinggi'], urban: .25},
+  {name: 'Kepulauan', vendor: 'ZTE', clusters: ['KP-01 Pulau Besar', 'KP-02 Pulau Kecil'], urban: .2}];
+const KAB = ['Kab. Arunika', 'Kab. Bayu Rimba', 'Kota Candra', 'Kab. Dirgantara', 'Kab. Embun Pagi', 'Kota Fajar', 'Kab. Gita Laut', 'Kab. Harum Sari',
+  'Kota Indrakila', 'Kab. Jagat Raya', 'Kab. Kirana', 'Kab. Lintang'];
+const ISSUES = ['avail', 'intf', 'cov', 'cap', 'tx'];
+
+const SITES = [];
+let sid = 0;
+BRANCHES.forEach((b, bi) => b.clusters.forEach((c, ci) => {
+  const n = Math.round(between(95, 150) * (1 + b.urban));
+  for(let i = 0; i < n; i++){
+    sid++;
+    const urban = R() < b.urban;
+    SITES.push({id: 'SYN-' + String(sid).padStart(4, '0'), branch: b.name, vendor: b.vendor, cluster: c, kab: KAB[(bi * 3 + ci + Math.floor(R() * 2)) % KAB.length],
+      urban, txIssue: R() < .025 ? {start: Math.floor(between(0, DAYS - 1))} : null});
+  }
+}));
+
+// profil diurnal (proporsi trafik per jam), puncak malam
+const DIURNAL = Array.from({length: 24}, (_, h) => .25 + .9 * Math.exp(-((h - 20.5) ** 2) / 10) + .45 * Math.exp(-((h - 12) ** 2) / 8) + (h < 6 ? -.12 : 0));
+const DSUM = DIURNAL.reduce((a, b) => a + b, 0);
+
+const CELLS = [];
+function mkIssue(){
+  const r = R(); if(r > .045) return null;
+  const type = ISSUES[Math.floor(R() * 4)], start = R() < .45 ? Math.floor(between(DAYS - 3, DAYS)) : Math.floor(between(0, DAYS - 3));
+  return {type, start, sev: between(.5, 1)};
+}
+for(const s of SITES){
+  const sectors = 3;
+  if(R() < .82) for(let k = 1; k <= sectors; k++) CELLS.push({tech: '2G', site: s, band: 'G900', sector: k, issue: mkIssue()});
+  for(const [band, p] of [['L900', .4], ['L1800', .92], ['L2100', s.urban ? .75 : .4], ['L2300', s.urban ? .45 : .1]])
+    if(R() < p) for(let k = 1; k <= sectors; k++) CELLS.push({tech: '4G', site: s, band, sector: k, issue: mkIssue()});
+  if(s.urban && R() < .16) for(let k = 1; k <= sectors; k++) CELLS.push({tech: '5G', site: s, band: 'N2300', sector: k, issue: mkIssue()});
+}
+CELLS.forEach(c => { c.id = `${c.site.id.replace('-', '')}_${c.band}_${c.sector}`; c.load = Math.min(3, Math.exp(gauss() * .5) * (c.site.urban ? 1.4 : .8)); });
+
+// ---- counter harian per cell (hanya untuk nilai yang dibutuhkan KPI)
+function counters(c, d){
+  const r = rng((c.id.length * 7919 + d * 104729 + c.sector * 31 + c.band.charCodeAt(1) * 131) ^ (parseInt(c.site.id.slice(4)) * 2654435761));
+  const n = () => 1 + (r() - .5) * .08;
+  const iss = c.issue && d >= c.issue.start ? c.issue : null, sev = iss ? iss.sev : 0, t = iss && iss.type;
+  const tx = c.site.txIssue && d >= c.site.txIssue.start;
+  const weekend = [0, 6].includes(dates[d].getUTCDay()) ? .93 : 1;
+  const load = c.load * weekend * n();
+  const outage = t === 'avail' ? .03 + sev * .3 : r() < .004 ? r() * .08 : 0;
+  const up = 1 - outage;
+  if(c.tech === '2G'){
+    const tch = Math.round(900 * load * up), sd = Math.round(tch * 1.6);
+    const tchBlkR = t === 'cap' ? .03 + sev * .08 : .002 * n(), sdBlkR = t === 'cap' ? .01 + sev * .03 : .001 * n();
+    const sdFailR = t === 'intf' ? .02 + sev * .05 : .004 * n(), dropR = t === 'cov' ? .015 + sev * .04 : t === 'intf' ? .01 + sev * .02 : .005 * n();
+    const hoR = t === 'cov' ? .9 - sev * .1 : .975 + r() * .02;
+    const hoAtt = Math.round(tch * .8);
+    return {avail_n: 86400 * up, avail_d: 86400, tch_att: tch, tch_blk: Math.round(tch * tchBlkR), sd_att: sd, sd_blk: Math.round(sd * sdBlkR),
+      sd_fail: Math.round(sd * sdFailR), tch_seiz: Math.round(tch * (1 - tchBlkR)), tch_drop: Math.round(tch * (1 - tchBlkR) * dropR),
+      ho_att: hoAtt, ho_succ: Math.round(hoAtt * hoR), erl: 18 * load * up, payload: 900 * load * up};
+  }
+  if(c.tech === '4G'){
+    const bandF = {L900: .7, L1800: 1.2, L2100: 1, L2300: 1.3}[c.band];
+    const rrc = Math.round(52000 * load * bandF * up), erab = Math.round(rrc * 1.05);
+    const rrcF = t === 'intf' ? .015 + sev * .05 : t === 'cap' ? .005 + sev * .02 : .0015 * n();
+    const erabF = t === 'intf' ? .008 + sev * .03 : .001 * n();
+    const dropR = t === 'cov' ? .012 + sev * .03 : t === 'intf' ? .006 + sev * .015 : .0022 * n();
+    const hoAtt = Math.round(rrc * .35), hoR = t === 'cov' ? .9 - sev * .12 : .985 + r() * .012;
+    const prb = Math.min(.99, t === 'cap' ? .78 + sev * .2 : Math.max(.05, .16 * load * bandF + .05 + (r() - .5) * .04));
+    const tputMbps = Math.max(.8, (t === 'cap' ? 2.4 - sev * 1.2 : 17 * (1 - prb * .75) * bandF) * (t === 'intf' ? .6 : 1) * n());
+    const volMB = 26000 * load * bandF * up * n();
+    const cqi = t === 'intf' ? 6.3 - sev : 9.4 + (r() - .5) * 1.2;
+    const lossR = tx ? .004 + r() * .01 : .0002 * n();
+    return {avail_n: 86400 * up, avail_d: 86400, rrc_att: rrc, rrc_succ: Math.round(rrc * (1 - rrcF)), erab_att: erab, erab_succ: Math.round(erab * (1 - erabF)),
+      drop_n: Math.round(erab * dropR), drop_d: erab, ho_att: hoAtt, ho_succ: Math.round(hoAtt * hoR), prb_n: prb * 1e4 * up, prb_d: 1e4 * up,
+      tput_kbit: tputMbps * 1000 * 3600 * up, tput_s: 3600 * up, vol: volMB, cqi_n: cqi * 1e3 * up, cqi_d: 1e3 * up,
+      pl_n: Math.round(8e5 * load * lossR), pl_d: Math.round(8e5 * load), users: 35 * load * bandF * up};
+  }
+  const att = Math.round(9000 * load * up), f = t === 'intf' ? .02 + sev * .06 : .004 * n(), ret = t === 'cov' ? .015 + sev * .04 : .003 * n();
+  const prb = Math.min(.99, t === 'cap' ? .8 + sev * .18 : .12 * load + .04);
+  const tput = Math.max(15, (t === 'cap' ? 45 - sev * 20 : 260 * (1 - prb * .6)) * (t === 'intf' ? .55 : 1) * n());
+  return {avail_n: 86400 * up, avail_d: 86400, sn_att: att, sn_succ: Math.round(att * (1 - f)), ret_n: Math.round(att * (1 - ret)), ret_d: att,
+    tput_kbit: tput * 1000 * 3600 * up, tput_s: 3600 * up, prb_n: prb * 1e4 * up, prb_d: 1e4 * up, vol: 60000 * load * up * n(),
+    lat_n: (tx ? 28 : 11 + r() * 4) * 1e3, lat_d: 1e3, users: 22 * load * up};
+}
+const TECH_CELLS = {'2G': CELLS.filter(c => c.tech === '2G'), '4G': CELLS.filter(c => c.tech === '4G'), '5G': CELLS.filter(c => c.tech === '5G')};
+CELLS.forEach(c => { c.days = dates.map((_, d) => counters(c, d)); });
+
+// ---- TWAMP per site per jam (hari terakhir) + ringkasan harian per site
+function twamp(s, d, h){
+  const r = rng(parseInt(s.id.slice(4)) * 7349 + d * 97 + h * 13), tx = s.txIssue && d >= s.txIssue.start;
+  const base = (s.branch === 'Kepulauan' ? 12 : s.branch === 'Pegunungan' ? 9 : 5) + r() * 3;       // pulau/pegunungan: jalur microwave lebih panjang
+  const busy = DIURNAL[h] / Math.max(...DIURNAL);
+  const lat = base * (1 + (tx ? .9 * busy + .3 : .12 * busy)) + (r() < .01 ? r() * 30 : 0);
+  return {lat, jit: (tx ? 4 + busy * 6 : .6 + busy * 1.2) * (1 + r() * .4), loss: tx ? (.05 + busy * .9) * r() * 2 : r() < .03 ? r() * .08 : 0};
+}
+SITES.forEach(s => { s.twL = Array.from({length: 24}, (_, h) => twamp(s, DAYS - 1, h)); });   // hanya hari terakhir yang ditampilkan per jam
+
+// ================================================================== definisi KPI (dari counter)
+const sumKeys = (rows, d) => { const o = {}; for(const c of rows){ const x = c.days[d]; for(const k in x) o[k] = (o[k] || 0) + x[k]; } return o; };
+const pct = (a, b) => b ? a / b * 100 : NaN;
+const KPI = {
+  '2G': [
+    {k: 'avail', l: 'Availability', u: '%', f: s => pct(s.avail_n, s.avail_d), tgt: 99, dir: 'min'},
+    {k: 'cssr', l: 'CSSR', u: '%', f: s => (1 - s.sd_blk / s.sd_att) * (1 - s.sd_fail / s.sd_att) * (1 - s.tch_blk / s.tch_att) * 100, tgt: 98.5, dir: 'min'},
+    {k: 'tchblk', l: 'TCH blocking', u: '%', f: s => pct(s.tch_blk, s.tch_att), tgt: 2, dir: 'max'},
+    {k: 'sdsr', l: 'SDSR', u: '%', f: s => 100 - pct(s.sd_fail, s.sd_att), tgt: 98, dir: 'min'},
+    {k: 'drop', l: 'TCH drop', u: '%', f: s => pct(s.tch_drop, s.tch_seiz), tgt: 1.5, dir: 'max'},
+    {k: 'hosr', l: 'HOSR', u: '%', f: s => pct(s.ho_succ, s.ho_att), tgt: 97, dir: 'min'},
+    {k: 'erl', l: 'Trafik suara', u: 'Erl', f: s => s.erl, vol: true},
+    {k: 'payload', l: 'Payload data', u: 'GB', f: s => s.payload / 1024, vol: true}],
+  '4G': [
+    {k: 'avail', l: 'Availability', u: '%', f: s => pct(s.avail_n, s.avail_d), tgt: 99, dir: 'min'},
+    {k: 'cssr', l: 'CSSR', u: '%', f: s => s.rrc_succ / s.rrc_att * s.erab_succ / s.erab_att * 100, tgt: 99, dir: 'min'},
+    {k: 'rrc', l: 'RRC setup SR', u: '%', f: s => pct(s.rrc_succ, s.rrc_att), tgt: 99, dir: 'min'},
+    {k: 'drop', l: 'Service drop rate', u: '%', f: s => pct(s.drop_n, s.drop_d), tgt: .7, dir: 'max'},
+    {k: 'ifho', l: 'Intra-freq HOSR', u: '%', f: s => pct(s.ho_succ, s.ho_att), tgt: 97, dir: 'min'},
+    {k: 'tput', l: 'User DL throughput', u: 'Mbps', f: s => s.tput_kbit / s.tput_s / 1000, tgt: 5, dir: 'min'},
+    {k: 'prb', l: 'PRB DL utilization', u: '%', f: s => pct(s.prb_n, s.prb_d), tgt: 80, dir: 'max'},
+    {k: 'cqi', l: 'CQI rata-rata', u: '', f: s => s.cqi_n / s.cqi_d, tgt: 7, dir: 'min'},
+    {k: 'loss', l: 'Packet loss', u: '%', f: s => pct(s.pl_n, s.pl_d), tgt: .1, dir: 'max'},
+    {k: 'vol', l: 'Payload', u: 'TB', f: s => s.vol / 1024 / 1024, vol: true}],
+  '5G': [
+    {k: 'avail', l: 'Availability', u: '%', f: s => pct(s.avail_n, s.avail_d), tgt: 99, dir: 'min'},
+    {k: 'sn', l: 'SgNB setup SR', u: '%', f: s => pct(s.sn_succ, s.sn_att), tgt: 98, dir: 'min'},
+    {k: 'ret', l: 'Retainability', u: '%', f: s => pct(s.ret_n, s.ret_d), tgt: 99, dir: 'min'},
+    {k: 'tput', l: 'User DL throughput', u: 'Mbps', f: s => s.tput_kbit / s.tput_s / 1000, tgt: 50, dir: 'min'},
+    {k: 'prb', l: 'PRB DL utilization', u: '%', f: s => pct(s.prb_n, s.prb_d), tgt: 80, dir: 'max'},
+    {k: 'lat', l: 'Latency DL', u: 'ms', f: s => s.lat_n / s.lat_d, tgt: 20, dir: 'max'},
+    {k: 'vol', l: 'Payload', u: 'TB', f: s => s.vol / 1024 / 1024, vol: true}]};
+const TW_KPI = [{k: 'lat', l: 'Latency', u: 'ms', tgt: 20, dir: 'max'}, {k: 'jit', l: 'Jitter', u: 'ms', tgt: 5, dir: 'max'}, {k: 'loss', l: 'Packet loss', u: '%', tgt: .1, dir: 'max'}];
+const status = (kp, v) => { if(kp.vol || !isFinite(v)) return ''; const ok = kp.dir === 'min' ? v >= kp.tgt : v <= kp.tgt;
+  if(!ok) return 'fail';
+  const margin = kp.u === '%' && kp.tgt >= 90 ? .3 : Math.abs(kp.tgt) * .1;          // mendekati: < 0,3 poin (rasio sukses) atau < 10% dari target
+  return Math.abs(v - kp.tgt) < margin ? 'near' : ''; };
+const fmtv = (kp, v) => !isFinite(v) ? '–' : kp.u === '%' ? v.toFixed(v >= 99.9 || v < 1 ? 2 : 2) : kp.u === 'Erl' ? Math.round(v).toLocaleString('id-ID')
+  : v >= 100 ? Math.round(v).toLocaleString('id-ID') : v.toFixed(v >= 10 ? 1 : 2);
+
+// ================================================================== util tampilan
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const dl = d => d.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'});
+const charts = [];
+const chart = (el, cfg) => { if(!window.Chart) return; charts.push(new Chart(el, cfg)); };
+if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; Chart.defaults.animation = false; }
+const state = {view: 'summary', vendor: '', branch: '', cluster: '', q: ''};
+$('snap').textContent = `Data harian ${dl(dates[0])} – ${dl(LAST)} 2026 · ${SITES.length.toLocaleString('id-ID')} site · ${CELLS.length.toLocaleString('id-ID')} cell · 2 vendor`;
+$('f-vendor').innerHTML = '<option value="">Semua vendor</option><option>Ericsson</option><option>ZTE</option>';
+$('f-branch').innerHTML = '<option value="">Semua branch</option>' + BRANCHES.map(b => `<option>${esc(b.name)}</option>`).join('');
+function fillClusters(){ const bs = BRANCHES.filter(b => !state.branch || b.name === state.branch);
+  $('f-cluster').innerHTML = '<option value="">Semua cluster</option>' + bs.flatMap(b => b.clusters).map(c => `<option${c === state.cluster ? ' selected' : ''}>${esc(c)}</option>`).join(''); }
+fillClusters();
+const siteOk = s => (!state.vendor || s.vendor === state.vendor) && (!state.branch || s.branch === state.branch) && (!state.cluster || s.cluster === state.cluster);
+const cellsOf = tech => { const q = state.q.trim().toLowerCase(); return TECH_CELLS[tech].filter(c => siteOk(c.site) && (!q || c.id.toLowerCase().includes(q) || c.site.id.toLowerCase().includes(q))); };
+
+// diagnosa berbasis pola KPI cell (bukan label tersembunyi)
+function diagnose(c, d){
+  const kp = KPI[c.tech], s = c.days[d], v = Object.fromEntries(kp.map(x => [x.k, x.f(s)]));
+  if(v.avail < 99) return ['avail', 'Availability / perangkat'];
+  if(c.tech === '4G' && v.prb > 80 && v.tput < 5) return ['cap', 'Kapasitas (PRB tinggi, throughput rendah)'];
+  if(c.tech === '2G' && v.tchblk > 2) return ['cap', 'Kapasitas (TCH blocking)'];
+  if(c.tech === '5G' && v.prb > 80) return ['cap', 'Kapasitas'];
+  if(c.tech === '4G' && v.loss > .1) return ['tx', 'Transport (packet loss)'];
+  if(c.tech === '5G' && v.lat > 20) return ['tx', 'Transport (latency)'];
+  if((c.tech === '4G' && v.cqi < 7) || (c.tech === '2G' && v.sdsr < 98) || (c.tech === '5G' && v.sn < 98)) return ['intf', 'Interferensi / kualitas sinyal'];
+  if((v.hosr ?? v.ifho ?? 100) < 97 || (v.drop ?? 0) > (c.tech === '2G' ? 1.5 : .7) || (v.ret ?? 100) < 99) return ['cov', 'Coverage / neighbor'];
+  return null;
+}
+// dampak = jumlah kejadian gagal (bukan persentase)
+function impact(c, d){ const s = c.days[d];
+  if(c.tech === '2G') return (s.avail_d - s.avail_n) / 60 * 2 + s.tch_drop + s.sd_fail + s.tch_blk + (s.ho_att - s.ho_succ) * .3;
+  if(c.tech === '4G') return (s.avail_d - s.avail_n) / 60 * 10 + s.drop_n + (s.rrc_att - s.rrc_succ) + (s.erab_att - s.erab_succ) + (s.ho_att - s.ho_succ) * .3
+    + (s.prb_n / s.prb_d > .8 ? s.rrc_att * .01 : 0) + s.pl_n * .5;
+  return (s.avail_d - s.avail_n) / 60 * 5 + (s.sn_att - s.sn_succ) + (s.ret_d - s.ret_n) + (s.prb_n / s.prb_d > .8 ? s.sn_att * .01 : 0) + (s.lat_n / s.lat_d > 20 ? 200 : 0);
+}
+
+// ================================================================== tampilan
+function kpiCards(tech, rows){
+  const L = DAYS - 1, now = sumKeys(rows, L), prev = sumKeys(rows, L - 1);
+  return `<div class="score">${KPI[tech].map(kp => { const v = kp.f(now), p = kp.f(prev), st = status(kp, v), dv = v - p;
+    const better = kp.vol ? null : kp.dir === 'min' ? dv >= 0 : dv <= 0;
+    return `<div class="sc ${st}"><div class="l"><span>${kp.l}</span><span>${kp.vol ? '' : `target ${kp.dir === 'min' ? '≥' : '≤'} ${kp.tgt}${kp.u === '%' ? '%' : ' ' + kp.u}`}</span></div>
+      <div class="v">${fmtv(kp, v)}<small style="font-size:.9rem;color:var(--muted);margin-left:3px">${kp.u}</small></div>
+      <div class="d ${better == null ? 'muted' : better ? 'pass' : 'fail'}">${isFinite(dv) ? (dv >= 0 ? '+' : '') + (Math.abs(dv) < .01 && kp.u === '%' ? dv.toFixed(3) : fmtv(kp, dv)) + ' dari kemarin' : ''}</div></div>`; }).join('')}</div>`;
+}
+function trendChart(el, tech, rows, keys){
+  const ks = KPI[tech].filter(k => keys.includes(k.k)), sums = dates.map((_, d) => sumKeys(rows, d));
+  chart(el, {type: 'line', data: {labels: dates.map(dl), datasets: ks.map((kp, i) => ({label: `${kp.l} (${kp.u})`, data: sums.map(s => kp.f(s)),
+    borderColor: ['#2E5E8C', '#B3261E', '#3E8E5E', '#C9901D'][i], backgroundColor: ['#2E5E8C', '#B3261E', '#3E8E5E', '#C9901D'][i], pointRadius: 2, tension: .25, yAxisID: i ? 'y1' : 'y'}))},
+    options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, plugins: {legend: {labels: {boxWidth: 10}}},
+      scales: {y: {title: {display: true, text: `${ks[0].l} (${ks[0].u})`}}, ...(ks[1] ? {y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: `${ks[1].l} (${ks[1].u})`}}} : {})}}});
+}
+function clusterTable(tech, rows){
+  const L = DAYS - 1, kps = KPI[tech].filter(k => !k.vol), groups = new Map();
+  rows.forEach(c => { const k = c.site.branch + '|' + c.site.cluster; (groups.get(k) || groups.set(k, []).get(k)).push(c); });
+  return `<table><thead><tr><th>Branch</th><th>Cluster</th><th class="r">Cell</th>${kps.map(k => `<th class="r">${k.l}</th>`).join('')}</tr></thead><tbody>`
+    + [...groups].map(([k, cs]) => { const s = sumKeys(cs, L), [b, cl] = k.split('|');
+      return `<tr><td class="muted">${esc(b)}</td><td>${esc(cl)}</td><td class="k">${cs.length}</td>${kps.map(kp => { const v = kp.f(s); return `<td class="k ${status(kp, v)}">${fmtv(kp, v)}</td>`; }).join('')}</tr>`; }).join('')
+    + '</tbody></table>';
+}
+function worstRows(techs, limit){
+  const L = DAYS - 1, out = [];
+  for(const tech of techs) for(const c of cellsOf(tech)){ const dg = diagnose(c, L); if(!dg) continue;
+    const kp = KPI[tech], s = c.days[L], wasOk = !diagnose(c, L - 1) && !diagnose(c, L - 2);
+    out.push({c, tech, dg, imp: impact(c, L), isNew: wasOk, bad: kp.filter(k => !k.vol && status(k, k.f(s)) === 'fail').map(k => `${k.l} ${fmtv(k, k.f(s))}${k.u === '%' ? '%' : ' ' + k.u}`)}); }
+  out.sort((a, b) => b.imp - a.imp);
+  return limit ? out.slice(0, limit) : out;
+}
+function worstTable(rows){
+  return rows.length ? `<table><thead><tr><th>#</th><th>Cell</th><th>Tek.</th><th>Vendor</th><th>Cluster</th><th>Diagnosa</th><th>KPI di luar target</th><th class="r">Dampak</th></tr></thead><tbody>`
+    + rows.map((w, i) => `<tr><td class="muted">${i + 1}</td><td class="name">${esc(w.c.id)}${w.isNew ? '<span class="newb" title="normal 2 hari sebelumnya">baru</span>' : ''}</td>
+      <td>${w.tech}</td><td>${w.c.site.vendor}</td><td class="muted">${esc(w.c.site.cluster)}</td><td><span class="diag ${w.dg[0]}">${w.dg[1]}</span></td>
+      <td style="white-space:normal;min-width:220px">${esc(w.bad.join(' · '))}</td><td class="k">${Math.round(w.imp).toLocaleString('id-ID')}</td></tr>`).join('') + '</tbody></table>'
+    : '<div class="empty">Tidak ada cell di luar target untuk filter ini.</div>';
+}
+
+function viewSummary(){
+  const L = DAYS - 1;
+  const techBox = t => { const rows = cellsOf(t), s = sumKeys(rows, L), kps = KPI[t].filter(k => !k.vol), fails = kps.filter(k => status(k, k.f(s)) === 'fail');
+    const bad = rows.filter(c => diagnose(c, L)).length, vol = KPI[t].find(k => k.vol && k.k !== 'erl') || KPI[t].find(k => k.vol);
+    return `<button class="tech" data-go="${t}"><h3>${t} <span class="muted" style="font-weight:400;font-size:.85rem">${rows.length.toLocaleString('id-ID')} cell</span></h3>
+      <div class="big2 ${fails.length ? 'fail' : 'pass'}">${kps.length - fails.length}/${kps.length} KPI sesuai target</div>
+      <div class="row">${bad.toLocaleString('id-ID')} cell di luar target (${(bad / Math.max(rows.length, 1) * 100).toFixed(1)}%)</div>
+      <div class="row">${vol.l}: ${fmtv(vol, vol.f(s))} ${vol.u}</div></button>`; };
+  const sites = SITES.filter(siteOk), tw = sites.flatMap(s => s.twL), twLat = tw.reduce((a, x) => a + x.lat, 0) / tw.length;
+  const txBad = sites.filter(s => s.twL.filter(x => x.loss > .1 || x.lat > 20).length >= 4).length;
+  $('view').innerHTML = `<div class="tech-row">${['2G', '4G', '5G'].map(techBox).join('')}
+      <button class="tech" data-go="twamp"><h3>Transport <span class="muted" style="font-weight:400;font-size:.85rem">${sites.length.toLocaleString('id-ID')} link TWAMP</span></h3>
+      <div class="big2 ${twLat > 20 ? 'fail' : 'pass'}">${twLat.toFixed(1)} ms rata-rata</div>
+      <div class="row">${txBad} site melanggar ambang ≥ 4 jam</div><div class="row">latency, jitter, packet loss per jam</div></button></div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="card"><h3>4G: CSSR &amp; service drop <span>14 hari</span></h3><div class="chart"><canvas id="c1"></canvas></div></div>
+      <div class="card"><h3>4G: throughput &amp; PRB <span>14 hari</span></h3><div class="chart"><canvas id="c2"></canvas></div></div></div>
+    <div class="card"><h3>10 cell dengan dampak terbesar <span>${dl(LAST)}, semua teknologi</span></h3><div class="tw">${worstTable(worstRows(['2G', '4G', '5G'], 10))}</div>
+      <p class="note">Dampak = jumlah kejadian gagal (drop, setup gagal, menit tidak tersedia, dan sebagainya), bukan persentase, supaya cell bertrafik kecil tidak mendominasi.
+        Label <span class="newb">baru</span> = normal dua hari sebelumnya.</p></div>`;
+  $('view').querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  const r4 = cellsOf('4G'); trendChart($('c1'), '4G', r4, ['cssr', 'drop']); trendChart($('c2'), '4G', r4, ['tput', 'prb']);
+}
+function viewTech(t){
+  const rows = cellsOf(t), keys = {'2G': [['cssr', 'drop'], ['tchblk', 'hosr']], '4G': [['cssr', 'drop'], ['tput', 'prb']], '5G': [['sn', 'ret'], ['tput', 'lat']]}[t];
+  let extra = '';
+  if(t === '4G'){
+    const L = DAYS - 1, cap = rows.filter(c => { const s = c.days[L]; return s.prb_n / s.prb_d > .8 && s.tput_kbit / s.tput_s / 1000 < 5; });
+    extra = `<div class="grid2" style="margin:14px 0">
+      <div class="card"><h3>Profil jam sibuk <span>${dl(LAST)}, estimasi dari profil diurnal</span></h3><div class="chart"><canvas id="c-bh"></canvas></div></div>
+      <div class="card"><h3>Kandidat penambahan kapasitas <span>${cap.length} cell</span></h3>
+        <p class="note">Cell dengan PRB DL &gt; 80% <em>dan</em> throughput pengguna &lt; 5 Mbps pada hari terakhir. Keduanya harus terpenuhi:
+          PRB tinggi dengan throughput masih baik belum perlu upgrade.</p>
+        <div class="tw" style="max-height:230px;overflow-y:auto"><table><thead><tr><th>Cell</th><th>Cluster</th><th class="r">PRB DL</th><th class="r">Throughput</th></tr></thead><tbody>
+        ${cap.slice(0, 60).map(c => { const s = c.days[L]; return `<tr><td class="name">${esc(c.id)}</td><td class="muted">${esc(c.site.cluster)}</td>
+          <td class="k fail">${(s.prb_n / s.prb_d * 100).toFixed(1)}%</td><td class="k fail">${(s.tput_kbit / s.tput_s / 1000).toFixed(2)} Mbps</td></tr>`; }).join('')}</tbody></table></div></div></div>`;
+  }
+  $('view').innerHTML = kpiCards(t, rows) + `<div class="grid2">
+      <div class="card"><h3>${t}: tren 14 hari</h3><div class="chart"><canvas id="c1"></canvas></div></div>
+      <div class="card"><h3>${t}: tren 14 hari</h3><div class="chart"><canvas id="c2"></canvas></div></div></div>` + extra
+    + `<div class="card" style="margin-top:14px"><h3>KPI per cluster <span>${dl(LAST)}, merah = di luar target</span></h3><div class="tw">${clusterTable(t, rows)}</div></div>
+    <div class="card" style="margin-top:14px"><h3>Worst cells ${t} <span>20 teratas menurut dampak</span></h3><div class="tw">${worstTable(worstRows([t], 20))}</div></div>`;
+  trendChart($('c1'), t, rows, keys[0]); trendChart($('c2'), t, rows, keys[1]);
+  if(t === '4G'){ const s = sumKeys(rows, DAYS - 1), vol = s.vol / 1024, prbDay = s.prb_n / s.prb_d * 100, peak = Math.max(...DIURNAL);
+    chart($('c-bh'), {type: 'bar', data: {labels: DIURNAL.map((_, h) => String(h).padStart(2, '0')), datasets: [
+      {type: 'bar', label: 'Payload (GB)', data: DIURNAL.map(w => vol * w / DSUM), backgroundColor: '#2E5E8C', yAxisID: 'y'},
+      {type: 'line', label: 'PRB DL (%)', data: DIURNAL.map(w => Math.min(99, prbDay * w / (DSUM / 24))), borderColor: '#B3261E', pointRadius: 0, yAxisID: 'y1'}]},
+      options: {maintainAspectRatio: false, scales: {y: {title: {display: true, text: 'GB'}}, y1: {position: 'right', max: 100, grid: {drawOnChartArea: false}, title: {display: true, text: 'PRB %'}}}}}); }
+}
+function viewTwamp(){
+  const L = DAYS - 1, sites = SITES.filter(siteOk).filter(s => !state.q || s.id.toLowerCase().includes(state.q.toLowerCase()));
+  const byB = new Map(); sites.forEach(s => (byB.get(s.cluster) || byB.set(s.cluster, []).get(s.cluster)).push(s));
+  const avg = (arr, k) => arr.reduce((a, x) => a + x[k], 0) / arr.length;
+  const color = v => v > 20 ? '#B3261E' : v > 15 ? '#E9B44C' : v > 10 ? '#CFE3D6' : '#E6F2EA', fg = v => v > 20 ? '#fff' : '#1D2A33';   // skala tetap per ambang
+  const cards = TW_KPI.map(kp => { const v = avg(sites.flatMap(s => s.twL), kp.k), st = status(kp, v);
+    return `<div class="sc ${st}"><div class="l"><span>${kp.l} rata-rata</span><span>target ≤ ${kp.tgt} ${kp.u}</span></div><div class="v">${v.toFixed(kp.k === 'loss' ? 3 : 1)}<small style="font-size:.9rem;color:var(--muted);margin-left:3px">${kp.u}</small></div><div class="t">${dl(LAST)}, ${sites.length} link</div></div>`; }).join('');
+  const worst = sites.map(s => { const h = s.twL, br = h.filter(x => x.loss > .1 || x.lat > 20 || x.jit > 5).length;
+    return {s, br, lat: avg(h, 'lat'), jit: avg(h, 'jit'), loss: avg(h, 'loss'), peak: h.reduce((m, x, i) => x.lat > h[m].lat ? i : m, 0),
+      startedDaysAgo: s.txIssue ? L - s.txIssue.start : null}; }).filter(w => w.br).sort((a, b) => b.br - a.br || b.loss - a.loss).slice(0, 25);
+  $('view').innerHTML = `<div class="score">${cards}</div>
+    <div class="card" style="margin-bottom:14px"><h3>Latency per cluster per jam <span>${dl(LAST)}, ms</span></h3><div class="tw"><table class="hm2"><thead><tr><th></th>
+      ${Array.from({length: 24}, (_, h) => `<th>${String(h).padStart(2, '0')}</th>`).join('')}</tr></thead><tbody>
+      ${[...byB].map(([cl, ss]) => `<tr><td class="rn">${esc(cl)}</td>${Array.from({length: 24}, (_, h) => { const v = ss.reduce((a, s) => a + s.twL[h].lat, 0) / ss.length;
+        return `<td><span class="hc" style="background:${color(v)};color:${fg(v)}" title="${esc(cl)} jam ${h}: ${v.toFixed(1)} ms">${v.toFixed(0)}</span></td>`; }).join('')}</tr>`).join('')}
+      </tbody></table></div><p class="note">Kenaikan di jam sibuk malam normal; kolom merah menandai cluster dengan latency rata-rata &gt; 20 ms.</p></div>
+    <div class="card"><h3>Link bermasalah <span>jam melanggar ambang pada ${dl(LAST)}</span></h3><div class="tw">
+      ${worst.length ? `<table><thead><tr><th>Site</th><th>Cluster</th><th class="r">Jam melanggar</th><th class="r">Latency</th><th class="r">Jitter</th><th class="r">Loss</th><th>Latency puncak</th><th>Mulai</th></tr></thead><tbody>
+      ${worst.map(w => `<tr><td class="name">${w.s.id}</td><td class="muted">${esc(w.s.cluster)}</td><td class="k fail">${w.br} jam</td>
+        <td class="k ${w.lat > 20 ? 'fail' : ''}">${w.lat.toFixed(1)} ms</td><td class="k ${w.jit > 5 ? 'fail' : ''}">${w.jit.toFixed(1)} ms</td>
+        <td class="k ${w.loss > .1 ? 'fail' : ''}">${w.loss.toFixed(2)}%</td><td>pukul ${String(w.peak).padStart(2, '0')}.00</td>
+        <td class="muted">${w.startedDaysAgo == null ? 'sporadis' : w.startedDaysAgo === 0 ? 'hari ini' : w.startedDaysAgo + ' hari lalu'}</td></tr>`).join('')}</tbody></table>`
+        : '<div class="empty">Tidak ada link yang melanggar ambang untuk filter ini.</div>'}</div>
+      <p class="note">Masalah transport juga terlihat di radio: packet loss 4G dan latency 5G di site yang sama ikut memburuk (diagnosa "Transport" di Worst cells).</p></div>`;
+}
+let lastWorst = [];
+function viewWorst(){
+  lastWorst = worstRows(['2G', '4G', '5G']);
+  const by = {}; lastWorst.forEach(w => by[w.dg[1]] = (by[w.dg[1]] || 0) + 1);
+  $('view').innerHTML = `<div class="score">${Object.entries(by).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div class="sc fail"><div class="l"><span>${esc(k)}</span></div><div class="v">${n}</div><div class="t">cell</div></div>`).join('')}</div>
+    <div class="card"><h3>Semua cell di luar target <span>${lastWorst.length.toLocaleString('id-ID')} cell · ${lastWorst.filter(w => w.isNew).length} baru</span></h3>
+      <div class="tw">${worstTable(lastWorst.slice(0, 150))}</div>${lastWorst.length > 150 ? `<p class="note">Menampilkan 150 teratas; gunakan Export CSV untuk semuanya.</p>` : ''}
+      <p class="note">Diagnosa ditentukan dari pola KPI cell itu sendiri (misalnya PRB tinggi <em>dan</em> throughput rendah = kapasitas), dengan urutan prioritas:
+        availability, kapasitas, transport, interferensi, lalu coverage/neighbor.</p></div>`;
+}
+function viewTargets(){
+  $('view').innerHTML = `<div class="card"><h3>Target KPI yang dipakai</h3><p class="note">Ambang umum untuk ilustrasi, bukan target resmi operator mana pun.
+      Semua persentase dihitung dari counter: Σ pembilang ÷ Σ penyebut pada level yang ditampilkan (cell, cluster, branch, atau jaringan).</p>
+    <div class="tw"><table class="targets"><thead><tr><th>Teknologi</th><th>KPI</th><th>Target</th><th>Rumus (counter)</th></tr></thead><tbody>
+    ${[['2G', 'CSSR', '≥ 98,5%', '(1 − SD block) × SDSR × (1 − TCH block)'], ['2G', 'TCH drop', '≤ 1,5%', 'TCH drop ÷ TCH seizure'], ['2G', 'HOSR', '≥ 97%', 'HO sukses ÷ HO attempt'],
+       ['4G', 'CSSR', '≥ 99%', 'RRC SR × E-RAB SR'], ['4G', 'Service drop', '≤ 0,7%', 'E-RAB abnormal release ÷ E-RAB release'], ['4G', 'User DL throughput', '≥ 5 Mbps', 'Σ kbit ÷ Σ waktu transfer'],
+       ['4G', 'PRB DL', '≤ 80%', 'Σ PRB terpakai ÷ Σ PRB tersedia'], ['4G', 'CQI', '≥ 7', 'Σ (CQI × sampel) ÷ Σ sampel'], ['4G', 'Packet loss', '≤ 0,1%', 'paket hilang ÷ paket dikirim'],
+       ['5G', 'SgNB setup SR', '≥ 98%', 'SgNB addition sukses ÷ attempt'], ['5G', 'Retainability', '≥ 99%', '1 − abnormal release ÷ release'], ['5G', 'User DL throughput', '≥ 50 Mbps', 'Σ kbit ÷ Σ waktu transfer'],
+       ['Semua', 'Availability', '≥ 99%', 'detik tersedia ÷ detik periode'], ['Transport', 'Latency / jitter / loss', '≤ 20 ms / 5 ms / 0,1%', 'TWAMP per jam']]
+      .map(r => `<tr>${r.map((x, i) => `<td${i === 3 ? ' class="muted"' : ''}>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+}
+
+// ================================================================== navigasi
+const TITLES = {summary: 'Ringkasan jaringan', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', twamp: 'Transport (TWAMP)', worst: 'Worst cells', targets: 'Target KPI'};
+function go(v){ state.view = v; document.querySelectorAll('.rail a[data-view]').forEach(a => a.dataset.view === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+  scrollTo(0, 0); render(); }
+function render(){
+  charts.splice(0).forEach(c => c.destroy());
+  $('title').textContent = TITLES[state.view];
+  $('filters').hidden = state.view === 'targets'; $('export').hidden = state.view !== 'worst';
+  ({summary: viewSummary, twamp: viewTwamp, worst: viewWorst, targets: viewTargets}[state.view] || (() => viewTech(state.view)))();
+}
+document.querySelectorAll('.rail a[data-view]').forEach(a => { a.tabIndex = 0; a.onclick = () => go(a.dataset.view);
+  a.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); go(a.dataset.view); } }; });
+$('f-vendor').onchange = () => { state.vendor = $('f-vendor').value; render(); };
+$('f-branch').onchange = () => { state.branch = $('f-branch').value; state.cluster = ''; fillClusters(); render(); };
+$('f-cluster').onchange = () => { state.cluster = $('f-cluster').value; render(); };
+let qT; $('f-q').oninput = () => { clearTimeout(qT); qT = setTimeout(() => { state.q = $('f-q').value; render(); }, 250); };
+$('reset').onclick = () => { Object.assign(state, {vendor: '', branch: '', cluster: '', q: ''}); ['f-vendor', 'f-branch', 'f-q'].forEach(id => $(id).value = ''); fillClusters(); render(); };
+$('export').onclick = () => { const q = v => `"${String(v).replace(/"/g, '""')}"`;
+  const csv = ['cell,tech,vendor,branch,cluster,diagnosis,kpi_out_of_target,impact,new'].concat(lastWorst.map(w =>
+    [w.c.id, w.tech, w.c.site.vendor, w.c.site.branch, w.c.site.cluster, w.dg[1], w.bad.join('; '), Math.round(w.imp), w.isNew].map(q).join(','))).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = 'worst-cells-synthetic.csv'; a.click(); };
+render();
+})();
+</script>
+</body>
+</html>

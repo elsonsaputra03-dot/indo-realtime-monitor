@@ -312,6 +312,32 @@
             <a class="btn line" href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor/tree/main/site" target="_blank" rel="noopener noreferrer">Source</a></div>
         </div>
       </article>
+
+      <article class="project" id="network" style="margin-top:22px">
+        <div class="project-top">
+          <span class="status">Synthetic data · no operator data used</span>
+          <h3>Network KPI Monitor: 2G, 4G, 5G and transport</h3>
+          <p class="summary">Daily radio and transport KPI monitoring for a synthetic two-vendor mobile network: 1,767 sites and 15,957
+            cells across 2G, 4G and 5G, plus hourly TWAMP latency, jitter and packet loss. Modeled on the multi-vendor KPI reporting I
+            did for mobile operators for about a decade, rebuilt with generated counters and fictional sites.</p>
+        </div>
+        <div class="highlights">
+          <div class="hl"><h4>Counters, not averaged percentages</h4>
+            <p>Every KPI is Σ numerator ÷ Σ denominator at the level shown, cell to network, the way OSS reports compute them.
+              Averaging cell percentages would let a quiet cell weigh as much as a busy one.</p></div>
+          <div class="hl"><h4>Worst cells by impact</h4>
+            <p>Out-of-target cells are ranked by failure count (drops, failed setups, unavailable minutes), each with a diagnosis
+              read from its own KPI pattern: availability, capacity, transport, interference, or coverage.</p></div>
+          <div class="hl"><h4>Capacity needs two signals</h4>
+            <p>A cell is an upgrade candidate only if DL PRB is above 80% and user throughput is below 5 Mbps. High load with good
+              throughput is not a problem yet; the busy-hour profile shows when it will be.</p></div>
+        </div>
+        <div class="project-foot">
+          <div class="chips"><span class="chip">2G / 4G / 5G KPIs</span><span class="chip">Ericsson &amp; ZTE</span>
+            <span class="chip">TWAMP</span><span class="chip">Worst-cell analysis</span><span class="chip">Chart.js</span></div>
+          <div class="plinks"><a class="btn dark" href="network.html">Open KPI monitor</a></div>
+        </div>
+      </article>
     </div>
   </section>
 
