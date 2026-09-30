@@ -138,6 +138,15 @@
     .job{grid-template-columns:1fr;gap:4px}
     .contact-grid{grid-template-columns:1fr}
   }
+
+  /* proyek kedua: data governance */
+  .modules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:4px 32px 24px}
+  .mod{display:block;text-decoration:none;color:var(--ink);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;background:#fff}
+  .mod:hover,.mod:focus-visible{border-color:var(--ink)}
+  .mod .mn{font-weight:700;font-size:1rem}
+  .mod .mv{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:1.2rem;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+  .mod .md{font-size:.86rem;color:var(--ink-2)}
+  @media (max-width:900px){ .modules{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -147,7 +156,7 @@
     <a class="brand" href="#top">Elson Saputra</a>
     <div class="links">
       <a href="#about">About</a>
-      <a href="#project" class="keep">Project</a>
+      <a href="#project" class="keep">Projects</a>
       <a href="#experience">Experience</a>
       <a href="#skills">Skills</a>
       <a href="#contact" class="keep">Contact</a>
@@ -207,7 +216,7 @@
 
   <section id="project" style="padding-top:0">
     <div class="wrap">
-      <div class="sec-head"><span class="idx">02</span><h2>Featured project</h2></div>
+      <div class="sec-head"><span class="idx">02</span><h2>Featured projects</h2></div>
       <article class="project">
         <div class="project-top">
           <span class="status">Personal project · live snapshot updated hourly, full stack runs via Docker Compose</span>
@@ -259,18 +268,48 @@
         </div>
       </article>
 
-      <article class="project" style="margin-top:18px">
-        <div class="project-top" style="padding-bottom:22px">
+      <article class="project" id="governance" style="margin-top:22px">
+        <div class="project-top">
           <span class="status">Synthetic data · rebuilt for this portfolio</span>
-          <h3>Data governance dashboard</h3>
-          <p class="summary">Six connected modules over one synthetic warehouse: storage and cost by project, pipeline compute cost with
-            optimization recommendations, table usage with cleanup candidates, a row-count anomaly monitor (robust z-score),
-            table-level lineage with impact analysis, and a data dictionary with documentation coverage and PII flags. Rebuilt
-            from a governance suite I built at work, with deterministic synthetic data and no employer code, design, or data.</p>
+          <h3>Data Governance Dashboard</h3>
+          <p class="summary">Six connected modules over one synthetic data warehouse: 3,494 objects across 18 projects, 1.85 PB. It
+            answers the questions a data platform lead asks every month: where storage and compute money goes, which tables nobody
+            reads, which loads are broken, what breaks downstream if a table changes, and what the data means. A re-implementation
+            of a governance suite I built at work, with deterministic synthetic data and no employer code, design, or data.</p>
         </div>
+
+        <div class="modules" role="list">
+          <a class="mod" role="listitem" href="governance.html"><div class="mn">Storage &amp; cost</div><div class="mv">1.85 PB · $29,954/mo</div>
+            <div class="md">Storage by project, active vs long-term, 90-day trend, cleanup impact.</div></a>
+          <a class="mod" role="listitem" href="pipeline.html"><div class="mn">Pipeline cost</div><div class="mv">$24,223/mo · 50 jobs</div>
+            <div class="md">Compute per job, reliability, and rule-based savings of $6,261/mo without double counting.</div></a>
+          <a class="mod" role="listitem" href="usage.html"><div class="mn">Table usage</div><div class="mv">400 unused tables · 249 TB</div>
+            <div class="md">Reads from downstream jobs plus user queries over 90 days; tiered cleanup recommendations.</div></a>
+          <a class="mod" role="listitem" href="anomaly.html"><div class="mn">Anomaly &amp; missing</div><div class="mv">23 of 23 detected · 0 false alarms</div>
+            <div class="md">Row-count heatmap with a robust z-score (median/MAD), same-weekday baselines, SLA lateness.</div></a>
+          <a class="mod" role="listitem" href="lineage.html"><div class="mn">Data lineage</div><div class="mv">4,788 edges · 50 jobs</div>
+            <div class="md">Upstream and downstream graph with impact analysis: what breaks if this table changes.</div></a>
+          <a class="mod" role="listitem" href="dictionary.html"><div class="mn">Data dictionary</div><div class="mv">29,428 columns · 87% described</div>
+            <div class="md">Search across tables, columns and descriptions; documentation coverage and PII flags.</div></a>
+        </div>
+
+        <div class="highlights">
+          <div class="hl"><h4>One warehouse, six views</h4>
+            <p>Every module reads the same generated warehouse, so a job in Pipeline cost is the writer in Lineage, and its unread
+              tables come from Table usage.</p></div>
+          <div class="hl"><h4>Detection that was tested</h4>
+            <p>The first version raised hundreds of false alarms because the baseline froze after a level shift. Keeping past
+              anomalies in a median/MAD baseline fixed it: 23 injected anomalies, 23 found, 0 false positives.</p></div>
+          <div class="hl"><h4>Deterministic by design</h4>
+            <p>A seeded generator with a Fisher–Yates shuffle gives identical numbers in every browser, so screenshots and
+              walkthroughs always match the live page.</p></div>
+        </div>
+
         <div class="project-foot">
-          <div class="chips"><span class="chip">Storage &amp; cost</span><span class="chip">Pipeline cost</span><span class="chip">Table usage</span><span class="chip">Anomaly detection</span><span class="chip">Lineage &amp; impact</span><span class="chip">Data dictionary</span></div>
-          <div class="plinks"><a class="btn dark" href="governance.html">Open dashboard</a><a class="btn line" href="pipeline.html">Pipeline</a><a class="btn line" href="anomaly.html">Anomaly</a><a class="btn line" href="lineage.html">Lineage</a></div>
+          <div class="chips"><span class="chip">JavaScript</span><span class="chip">Chart.js</span><span class="chip">SVG</span>
+            <span class="chip">Robust statistics</span><span class="chip">Data governance</span><span class="chip">FinOps</span></div>
+          <div class="plinks"><a class="btn dark" href="governance.html">Open dashboard</a>
+            <a class="btn line" href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor/tree/main/site" target="_blank" rel="noopener noreferrer">Source</a></div>
         </div>
       </article>
     </div>
