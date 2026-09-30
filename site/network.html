@@ -62,6 +62,17 @@
   .wv{font-size:.8rem;color:var(--muted);white-space:nowrap}
   .wn{font-family:"Barlow Condensed",sans-serif;font-size:.95rem}
   .modal{position:fixed;inset:0;background:rgba(21,33,42,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:1000;overflow-y:auto}
+  .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;margin-bottom:8px}
+  .mc{padding:10px 12px}
+  .mc .mh{display:flex;justify-content:space-between;gap:8px;font-weight:600;font-size:.9rem}
+  .mc .mv{font-family:"Barlow Condensed",sans-serif;font-size:1.1rem;font-variant-numeric:tabular-nums}
+  .mc .mt{font-size:.76rem;margin-bottom:2px}
+  .chart.sm{height:150px}
+  .wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+  .wgrid.v4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  @media (max-width:1300px){ .wgrid.v4{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media (max-width:700px){ .wgrid.v4{grid-template-columns:1fr} }
+  .wgrid .card{padding:10px 12px} .wgrid td,.wgrid th{padding:5px 6px}
   .modal[hidden]{display:none}
   .modal .box{background:#fff;border-radius:12px;max-width:1100px;width:100%;padding:18px 22px}
   .modal .cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
@@ -127,7 +138,7 @@ const COLORS = ['#2E5E8C', '#B3261E', '#3E8E5E', '#C9901D', '#8F3F97', '#1D8A99'
 
 // ------------------------------------------------------------------ status & format
 const status = (kp, v) => { if(kp.tgt == null || !isFinite(v)) return ''; const ok = kp.dir === 'min' ? v >= kp.tgt : v <= kp.tgt; if(!ok) return 'fail';
-  const margin = kp.u === '%' && kp.tgt >= 90 ? .3 : Math.abs(kp.tgt) * .1; return Math.abs(v - kp.tgt) < margin ? 'near' : ''; };
+  const margin = kp.u === '%' && kp.tgt >= 90 ? .3 : kp.u === 'dBm' ? 2 : Math.abs(kp.tgt) * .1; return Math.abs(v - kp.tgt) < margin ? 'near' : ''; };
 const fmtv = (kp, v) => !isFinite(v) ? '–' : kp.u === '%' ? v.toFixed(2) : kp.u === 'dBm' ? v.toFixed(1) : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString('id-ID') : v.toFixed(Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2);
 const unit = kp => kp.u === '%' ? '%' : kp.u ? ' ' + kp.u : '';
 const tgtTxt = kp => kp.tgt == null ? '–' : `${kp.dir === 'min' ? '≥' : '≤'} ${fmtv(kp, kp.tgt)}${unit(kp)}`;
@@ -138,7 +149,7 @@ const okDen = (kp, s) => !kp.minDen || s[kp.minDen[0]] >= kp.minDen[1];
 const state = {view: 'summary', vendor: '', branch: '', cluster: '', q: '', tech: '4G', kpi: {'2G': 'cssr', '4G': 'cssr', '5G': 'sn'}, month: 7, pk: 'av4g', map: '4G:cssr', mapKab: null, mapSites: true};
 $('snap').textContent = `Laporan harian ${dl(LAST)} 2026 (tren ${dl(dates[0])} – ${dl(LAST)}) · productivity Jan–Agu 2026 · ${SITES.length.toLocaleString('id-ID')} site · `
   + `${TECHS.reduce((a, t) => a + CELLS[t].length, 0).toLocaleString('id-ID')} cell · EID + ZTE`;
-$('f-vendor').innerHTML = '<option value="">Semua vendor</option><option>Ericsson</option><option>ZTE</option>';
+$('f-vendor').innerHTML = '<option value="">Semua vendor (KAL)</option><option>EID</option><option>ZTE</option>';
 $('f-branch').innerHTML = '<option value="">Semua branch</option>' + BRANCHES.map(b => `<option>${esc(b.name)}</option>`).join('');
 function fillClusters(){ $('f-cluster').innerHTML = '<option value="">Semua cluster</option>' + BRANCHES.filter(b => !state.branch || b.name === state.branch)
   .flatMap(b => b.clusters).map(c => `<option${c === state.cluster ? ' selected' : ''}>${esc(c)}</option>`).join(''); }
@@ -162,39 +173,80 @@ const cellRank = (t, kp) => cellsOf(t).map(c => ({c, o: cellO(t, c)})).filter(x 
 const failCount = (t, kp) => cellsOf(t).filter(c => { const o = cellO(t, c); return okDen(kp, o) && status(kp, kp.f(o)) === 'fail'; }).length;
 
 // ------------------------------------------------------------------ Ringkasan KPI
-function summaryTable(t){
-  const now = areaSum(t, LD), prev = areaSum(t, LD - 1); let fam = '';
-  const rows = KPI[t].map(kp => {
-    const v = kp.f(now), p = prev ? kp.f(prev) : NaN, st = status(kp, v), dv = v - p;
-    const head = kp.fam !== fam ? (fam = kp.fam, `<tr class="fam"><td colspan="8">${esc(fam)}</td></tr>`) : '';
-    if(kp.tgt == null) return head + `<tr><td>${esc(kp.l)}</td><td class="k">${fmtv(kp, v)}${unit(kp)}</td><td class="muted">–</td><td class="k muted">${isFinite(dv) ? (dv >= 0 ? '+' : '') + fmtv(kp, dv) : ''}</td><td colspan="4" class="muted">nilai volume, tanpa target</td></tr>`;
-    const br = branchRows(t, kp)[0], si = siteRank(t, kp)[0], ce = cellRank(t, kp)[0], nf = failCount(t, kp);
-    const cell = x => x ? `<span class="wn">${esc(x.name)}</span> <span class="wv">${fmtv(kp, x.v)}${unit(kp)}</span>` : '–';
-    return head + `<tr class="row" data-t="${t}" data-k="${kp.k}" tabindex="0"><td>${esc(kp.l)}</td><td class="k ${st}">${fmtv(kp, v)}${unit(kp)}</td><td class="muted">${tgtTxt(kp)}</td>
-      <td class="k ${isFinite(dv) && worse(kp, v, p) < 0 ? 'fail' : ''}" style="background:none">${isFinite(dv) ? (dv >= 0 ? '+' : '') + (Math.abs(dv) < .01 ? dv.toFixed(3) : fmtv(kp, dv)) : ''}</td>
-      <td>${br ? `${esc(br.name)} <span class="wv">${fmtv(kp, br.v)}${unit(kp)}</span>` : '–'}</td><td>${cell(si)}</td><td>${cell(ce)}</td><td class="k">${nf.toLocaleString('id-ID')}</td></tr>`;
-  }).join('');
-  return `<h2 class="sec">${t} <span class="muted" style="font-weight:400;font-size:.9rem">${cellsOf(t).length.toLocaleString('id-ID')} cell · ${sitesOf(t).length.toLocaleString('id-ID')} site</span></h2>
-    <div class="card"><div class="tw"><table class="ktable"><thead><tr><th>KPI</th><th class="r">Nilai</th><th>Target</th><th class="r">Δ kemarin</th><th>Branch terburuk</th>
-      <th>Site terburuk</th><th>Cell terburuk</th><th class="r">Cell di luar target</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
-}
+const VENDORS = [['EID', '#2E5E8C'], ['ZTE', '#C9901D'], ['KAL', '#1D2A33']];
+const vendorSet = v => { const base = kabSet(); return v === 'KAL' ? base : new Set([...base].filter(i => N.VENDOR_OF[KABS[i].pk] === v)); };
+const vendorsShown = () => VENDORS.filter(([v]) => !state.vendor || v === state.vendor || v === 'KAL');
+const branchesShown = () => BRANCHES.filter(b => (!state.vendor || b.vendor === state.vendor) && (!state.branch || b.name === state.branch));
+const branchSet = b => new Set([...kabSet()].filter(i => KABS[i].p === b.name));
+function daily(t, set){ return dates.map((_, d) => N.sumKab(t, set, d)); }
+const PAYKEY = {'2G': 'payload', '4G': 'payload', '5G': 'payload'};
+function payloadTB(t, s){ const kp = KPI[t].find(k => k.k === PAYKEY[t]); const v = kp.f(s); return t === '2G' ? v / 1024 : v; }   // 2G dalam GB -> TB
 function viewSummary(){
-  $('view').innerHTML = `<p class="note">Klik baris KPI untuk melihat 10 branch, site, dan cell terburuk. Peringkat site dan cell hanya menyertakan objek dengan
-    penyebut minimal (lihat Rumus &amp; target) agar cell bertrafik sangat kecil tidak mendominasi urutan. Warna: merah = di luar target, kuning = mendekati batas.</p>`
-    + TECHS.map(summaryTable).join('');
-  bindRows();
+  state.sumTech ||= '4G'; state.payTech ||= 'all';
+  const t = state.sumTech, kps = KPI[t], tk = kps.filter(k => k.tgt != null);
+  if(!tk.some(k => k.k === state.worstK?.[t])) (state.worstK ||= {})[t] = tk[1]?.k || tk[0].k;
+  const wk = tk.find(k => k.k === state.worstK[t]);
+  $('view').innerHTML = `<div class="ctl">
+      <div><label for="s-tech">Teknologi untuk grafik KPI</label><select id="s-tech">${TECHS.map(x => `<option${x === t ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
+      <div><label for="s-pay">Teknologi untuk grafik payload</label><select id="s-pay"><option value="all"${state.payTech === 'all' ? ' selected' : ''}>2G + 4G + 5G</option>
+        ${TECHS.map(x => `<option${x === state.payTech ? ' selected' : ''}>${x}</option>`).join('')}</select></div></div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="card"><h3>Payload harian: EID, ZTE, dan KAL <span>TB · ${dl(dates[0])} – ${dl(LD_DATE)}</span></h3><div class="chart"><canvas id="c-payv"></canvas></div></div>
+      <div class="card"><h3>Payload harian per branch <span>TB</span></h3><div class="chart"><canvas id="c-payb"></canvas></div></div></div>
+    <h2 class="sec">KPI ${t} <span class="muted" style="font-weight:400;font-size:.9rem">garis: EID, ZTE, KAL (gabungan) dan target · ${DAYS} hari</span></h2>
+    <div class="mgrid" id="mgrid">${kps.map(kp => `<div class="card mc"><div class="mh"><span>${esc(kp.l)}</span><span class="mv" id="mv-${kp.k}"></span></div>
+      <div class="mt muted">${kp.tgt != null ? 'target ' + tgtTxt(kp) : ['TB', 'GB', 'Erl', 'user'].includes(kp.u) ? 'volume' : 'tanpa target'}</div><div class="chart sm"><canvas id="m-${kp.k}"></canvas></div></div>`).join('')}</div>
+    <h2 class="sec">Nilai KPI ${t} per vendor <span class="muted" style="font-weight:400;font-size:.9rem">${dl(LD_DATE)}</span></h2>
+    <div class="card"><div class="tw" id="vtable"></div></div>
+    <h2 class="sec">Top worst ${t}</h2>
+    <div class="ctl"><div><label for="s-wk">KPI</label><select id="s-wk">${tk.map(k => `<option value="${k.k}"${k.k === wk.k ? ' selected' : ''}>${esc(k.l)}</option>`).join('')}</select></div>
+      <p class="note" style="margin:0 0 6px">Target ${tgtTxt(wk)} · peringkat hanya untuk site/cell dengan penyebut minimal ${wk.minDen ? wk.minDen[1] : '–'}</p></div>
+    <h3 style="margin:6px 0 8px">Per vendor</h3><div class="wgrid v4" id="w-vendor"></div>
+    <h3 style="margin:16px 0 8px">Per branch</h3><div class="wgrid" id="w-branch"></div>`;
+  // payload
+  const techs = state.payTech === 'all' ? TECHS : [state.payTech];
+  const pay = set => dates.map((_, d) => techs.reduce((a, tt) => a + payloadTB(tt, N.sumKab(tt, set, d)), 0));
+  const line = (label, data, color, extra = {}) => ({label, data, borderColor: color, backgroundColor: color, pointRadius: 2, tension: .2, ...extra});
+  const lbl = dates.map(dl), opts = {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, plugins: {legend: {labels: {boxWidth: 10}}}, scales: {y: {title: {display: true, text: 'TB'}}}};
+  chart($('c-payv'), {type: 'line', data: {labels: lbl, datasets: vendorsShown().map(([v, c]) => line(v, pay(vendorSet(v)), c, v === 'KAL' ? {borderWidth: 3} : {}))}, options: opts});
+  chart($('c-payb'), {type: 'line', data: {labels: lbl, datasets: branchesShown().map((b, i) => line(b.name, pay(branchSet(b)), COLORS[i]))}, options: opts});
+  // grafik kecil per KPI
+  const series = Object.fromEntries(vendorsShown().map(([v]) => [v, daily(t, vendorSet(v))]));
+  kps.forEach(kp => {
+    const ds = vendorsShown().map(([v, c]) => line(v, series[v].map(s => kp.f(s)), c, {pointRadius: 0, borderWidth: v === 'KAL' ? 2.5 : 1.5}));
+    if(kp.tgt != null) ds.push({label: 'Target', data: dates.map(() => kp.tgt), borderColor: '#B3261E', borderDash: [4, 4], borderWidth: 1, pointRadius: 0});
+    const cur = kp.f(series.KAL[LD]), st = status(kp, cur);
+    $('mv-' + kp.k).innerHTML = `<span class="${st === 'fail' ? 'fail' : st === 'near' ? 'near' : ''}">${fmtv(kp, cur)}${unit(kp)}</span>`;
+    chart($('m-' + kp.k), {type: 'line', data: {labels: lbl, datasets: ds}, options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+      plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => `${c.dataset.label}: ${fmtv(kp, c.parsed.y)}${unit(kp)}`}}},
+      scales: {x: {ticks: {maxTicksLimit: 4, font: {size: 10}}}, y: {ticks: {font: {size: 10}, maxTicksLimit: 5}}}}});
+  });
+  // tabel per vendor
+  const vs = vendorsShown(), cellsBad = kp => Object.fromEntries(vs.map(([v]) => [v, cellsOf(t).filter(c => (v === 'KAL' || c.site.vendor === v) && okDen(kp, cellO(t, c)) && status(kp, kp.f(cellO(t, c))) === 'fail').length]));
+  let fam = '';
+  $('vtable').innerHTML = `<table class="ktable"><thead><tr><th>KPI</th>${vs.map(([v]) => `<th class="r">${v}</th>`).join('')}<th>Target</th>${vs.map(([v]) => `<th class="r">Cell di luar target ${v}</th>`).join('')}</tr></thead><tbody>`
+    + kps.map(kp => { const head = kp.fam !== fam ? (fam = kp.fam, `<tr class="fam"><td colspan="${2 + vs.length * 2}">${esc(fam)}</td></tr>`) : '';
+      const bad = kp.tgt != null ? cellsBad(kp) : null;
+      return head + `<tr><td>${esc(kp.l)}</td>${vs.map(([v]) => { const x = kp.f(series[v][LD]); return `<td class="k ${status(kp, x)}">${fmtv(kp, x)}${unit(kp)}</td>`; }).join('')}
+        <td class="muted">${tgtTxt(kp)}</td>${vs.map(([v]) => `<td class="k">${bad ? bad[v].toLocaleString('id-ID') : '–'}</td>`).join('')}</tr>`; }).join('') + '</tbody></table>';
+  // top worst
+  const sR = siteRank(t, wk), cR = cellRank(t, wk);
+  const bySite = new Map(SITES.map(s => [s.id, s])), byCell = new Map(CELLS[t].map(c => [c.id, c]));
+  const short = s => String(s).replace('Kabupaten ', 'Kab. ');
+  const tbl = (title, rows, sub) => `<div class="card"><h4 style="margin:0 0 6px">${title}</h4>${rows.length ? `<div class="tw"><table><thead><tr><th>#</th><th>Nama</th><th class="r">Nilai</th><th>${sub}</th></tr></thead><tbody>
+    ${rows.map((x, i) => `<tr><td class="muted">${i + 1}</td><td class="wn">${esc(x.name)}</td><td class="k ${status(wk, x.v)}">${fmtv(wk, x.v)}${unit(wk)}</td>
+      <td class="muted" style="max-width:150px;overflow:hidden;text-overflow:ellipsis" title="${esc(x.sub)}">${esc(short(x.sub))}</td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="empty">Tidak ada data.</div>'}</div>`;
+  $('w-vendor').innerHTML = VENDORS.filter(([v]) => v !== 'KAL' && (!state.vendor || v === state.vendor)).map(([v]) =>
+    tbl(`${v}: 10 site terburuk`, sR.filter(x => bySite.get(x.name).vendor === v).slice(0, 10), 'Kabupaten')
+    + tbl(`${v}: 10 cell terburuk`, cR.filter(x => byCell.get(x.name).site.vendor === v).slice(0, 10), 'Kabupaten')).join('');
+  $('w-branch').innerHTML = branchesShown().map(b => tbl(`${esc(b.name)} (${b.vendor}): 5 cell terburuk`, cR.filter(x => byCell.get(x.name).site.branch === b.name).slice(0, 5), 'Kabupaten')).join('');
+  $('s-tech').onchange = () => { state.sumTech = $('s-tech').value; render(); };
+  $('s-pay').onchange = () => { state.payTech = $('s-pay').value; render(); };
+  $('s-wk').onchange = () => { state.worstK[t] = $('s-wk').value; render(); };
 }
-function bindRows(){ $('view').querySelectorAll('tr.row').forEach(r => { const go = () => openTop(r.dataset.t, r.dataset.k); r.onclick = go; r.onkeydown = e => { if(e.key === 'Enter') go(); }; }); }
-function openTop(t, k){
-  const kp = KPI[t].find(x => x.k === k), list = (rows, sub) => rows.length ? `<table><thead><tr><th>#</th><th>Nama</th>${sub ? '<th>Kabupaten</th>' : ''}<th class="r">${esc(kp.l)}</th></tr></thead><tbody>`
-    + rows.slice(0, 10).map((x, i) => `<tr><td class="muted">${i + 1}</td><td class="wn">${esc(x.name)}</td>${sub ? `<td class="muted">${esc(x.sub)}</td>` : ''}<td class="k ${status(kp, x.v)}">${fmtv(kp, x.v)}${unit(kp)}</td></tr>`).join('') + '</tbody></table>' : '<div class="empty">Tidak ada data.</div>';
-  $('modal-box').innerHTML = `<div style="display:flex;align-items:baseline;gap:12px"><h2 id="m-title" style="margin:0">${t} · ${esc(kp.l)}</h2><span class="muted">target ${tgtTxt(kp)} · ${dl(LAST)}</span>
-      <button class="btn" id="m-close" style="margin-left:auto">Tutup</button></div>
-    <div class="cols3" style="margin-top:12px"><div><h3>Branch</h3>${list(branchRows(t, kp))}</div><div><h3>Site</h3><div class="tw">${list(siteRank(t, kp), true)}</div></div>
-      <div><h3>Cell</h3><div class="tw">${list(cellRank(t, kp), true)}</div></div></div>`;
-  $('modal').hidden = false; $('m-close').focus();
-  $('m-close').onclick = closeModal;
-}
+const LD_DATE = dates[DAYS - 1];
+function bindRows(){}
 const closeModal = () => { $('modal').hidden = true; };
 $('modal').onclick = e => { if(e.target === $('modal')) closeModal(); };
 addEventListener('keydown', e => { if(e.key === 'Escape' && !$('modal').hidden) closeModal(); });

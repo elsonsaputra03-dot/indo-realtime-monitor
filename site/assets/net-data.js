@@ -13,7 +13,7 @@ const dates = Array.from({length: DAYS}, (_, i) => new Date(+LAST - (DAYS - 1 - 
 
 // ------------------------------------------------------------------ topologi
 const KALI = window.KALI;
-const VENDOR_OF = {'61': 'ZTE', '62': 'ZTE', '63': 'Ericsson', '64': 'Ericsson', '65': 'Ericsson'};     // pembagian fiktif
+const VENDOR_OF = {'61': 'ZTE', '62': 'ZTE', '63': 'EID', '64': 'EID', '65': 'EID'};     // pembagian fiktif
 const KABS = KALI.kabs, KAB_IDX = Object.fromEntries(KABS.map((k, i) => [k.k, i]));
 const BRANCHES = [...new Set(KABS.map(k => k.p))].map(p => { const ks = KABS.filter(k => k.p === p);
   return {name: p, vendor: VENDOR_OF[ks[0].pk], clusters: [...new Set(ks.map(k => k.c))].sort()}; });
@@ -54,11 +54,12 @@ function counters(c, d, out){
   const load = c.load * ([0, 6].includes(dates[d].getUTCDay()) ? .93 : 1) * n();
   const outage = c.site.down && d >= DAYS - 2 ? .6 + r() * .4 : t === 'avail' ? .03 + sev * .3 : r() < .0015 ? r() * .08 : 0, up = 1 - outage;
   const I = CI[c.tech], set = (k, v) => { out[I[k]] = v; };
+  const zte = c.site.vendor === 'ZTE', vb = (e, z) => zte ? z : e;       // karakter vendor fiktif: sedikit berbeda antar-vendor
   set('avail_n', 86400 * up); set('avail_d', 86400);
   if(c.tech === '2G'){
     const att = Math.round(900 * load * up), sd = Math.round(att * 1.6);
     const tchB = t === 'cap' ? .03 + sev * .08 : .002 * n(), sdB = t === 'cap' ? .01 + sev * .03 : .0012 * n();
-    const sdF = t === 'intf' ? .02 + sev * .05 : .004 * n(), dropR = t === 'cov' ? .015 + sev * .04 : t === 'intf' ? .01 + sev * .02 : .005 * n();
+    const sdF = (t === 'intf' ? .02 + sev * .05 : .004 * n()) * vb(.85, 1.3), dropR = (t === 'cov' ? .015 + sev * .04 : t === 'intf' ? .01 + sev * .02 : .005 * n()) * vb(.9, 1.25);
     set('sdb_d', sd); set('sdb_n', Math.round(sd * sdB)); set('sdsr_d', sd); set('sdsr_n', Math.round(sd * (1 - sdF)));
     set('tchb_d', att); set('tchb_n', Math.round(att * tchB)); set('tchd_d', Math.round(att * (1 - tchB))); set('tchd_n', Math.round(att * (1 - tchB) * dropR));
     set('cssr_d', att); set('cssr_n', Math.round(att * (1 - sdB) * (1 - sdF) * (1 - tchB)));
@@ -76,26 +77,26 @@ function counters(c, d, out){
   }
   if(c.tech === '4G'){
     const bandF = {L900: .7, L1800: 1.2, L2100: 1, L2300: 1.3}[c.band];
-    const rrc = Math.round(52000 * load * bandF * up), erab = Math.round(rrc * 1.05);
-    const rrcF = t === 'intf' ? .015 + sev * .05 : t === 'cap' ? .005 + sev * .02 : .0015 * n(), erabF = t === 'intf' ? .008 + sev * .03 : .001 * n();
-    const dropR = t === 'cov' ? .012 + sev * .03 : t === 'intf' ? .006 + sev * .015 : .0022 * n();
+    const rrc = Math.round(52000 * load * bandF * up * vb(1.04, .93)), erab = Math.round(rrc * 1.05);
+    const rrcF = (t === 'intf' ? .015 + sev * .05 : t === 'cap' ? .005 + sev * .02 : .0015 * n()) * vb(.85, 1.35), erabF = (t === 'intf' ? .008 + sev * .03 : .001 * n()) * vb(.9, 1.3);
+    const dropR = (t === 'cov' ? .012 + sev * .03 : t === 'intf' ? .006 + sev * .015 : .0022 * n()) * vb(.9, 1.22);
     set('rrc_d', rrc); set('rrc_n', Math.round(rrc * (1 - rrcF))); set('erab_d', erab); set('erab_n', Math.round(erab * (1 - erabF)));
     set('cssr_d', rrc); set('cssr_n', Math.round(rrc * (1 - rrcF) * (1 - erabF)));
     set('drop_d', erab); set('drop_n', Math.round(erab * dropR));
-    const ho = Math.round(rrc * .35); set('ifho_d', ho); set('ifho_n', Math.round(ho * (t === 'cov' ? .9 - sev * .12 : .985 + r() * .012)));
+    const ho = Math.round(rrc * .35); set('ifho_d', ho); set('ifho_n', Math.round(ho * (t === 'cov' ? .9 - sev * .12 : vb(.987, .979) + r() * .01)));
     const ie = Math.round(rrc * .12); set('iefho_d', ie); set('iefho_n', Math.round(ie * (t === 'cov' ? .88 - sev * .1 : .97 + r() * .02)));
-    const prb = Math.min(.99, t === 'cap' ? .78 + sev * .2 : Math.max(.05, .16 * load * bandF + .05 + (r() - .5) * .04));
+    const prb = Math.min(.99, t === 'cap' ? .78 + sev * .2 : Math.max(.05, (.16 * load * bandF + .05) * vb(.96, 1.07) + (r() - .5) * .04));
     const prbu = Math.min(.95, prb * (.45 + r() * .2));
     set('prbdl_d', 1e4 * up); set('prbdl_n', prb * 1e4 * up); set('prbul_d', 1e4 * up); set('prbul_n', prbu * 1e4 * up);
-    const udl = Math.max(.8, (t === 'cap' ? 2.4 - sev * 1.2 : 17 * (1 - prb * .75) * bandF) * (t === 'intf' ? .6 : 1) * n());
+    const udl = Math.max(.8, (t === 'cap' ? 2.4 - sev * 1.2 : 17 * (1 - prb * .75) * bandF * vb(1.06, .9)) * (t === 'intf' ? .6 : 1) * n());
     set('udl_s', 3600 * up); set('udl_k', udl * 1000 * 3600 * up); set('uul_s', 3600 * up); set('uul_k', udl * (.12 + r() * .05) * 1000 * 3600 * up);
     set('cdl_s', 3600 * up); set('cdl_k', udl * (2.2 + prb * 2) * 1000 * 3600 * up); set('cul_s', 3600 * up); set('cul_k', udl * .35 * 1000 * 3600 * up);
-    const cqi = t === 'intf' ? 6.3 - sev : 9.4 + (r() - .5) * 1.2;
+    const cqi = (t === 'intf' ? 6.3 - sev : 9.4 + (r() - .5) * 1.2) + vb(.12, -.35);
     set('cqi_d', 1e3 * up); set('cqi_n', cqi * 1e3 * up); set('cqi7_d', 1e3 * up); set('cqi7_n', Math.min(.98, (cqi - 4) / 6.5) * 1e3 * up);
     set('se_d', 1e3 * up); set('se_n', (t === 'intf' ? .9 : 1.6 + r() * .6) * 1e3 * up);
     set('ulint_d', 1); set('ulint_n', t === 'intf' ? -98 + sev * 6 : -112 + r() * 5);
     const v = Math.round(1800 * load * up); set('vcssr_d', v); set('vcssr_n', Math.round(v * (t === 'intf' ? .96 : .993 + r() * .006)));
-    set('verab_d', v); set('verab_n', Math.round(v * (t === 'intf' ? .97 : .995 + r() * .004))); set('vcdr_d', v); set('vcdr_n', Math.round(v * (t === 'cov' ? .02 + sev * .02 : .003 + r() * .003)));
+    set('verab_d', v); set('verab_n', Math.round(v * (t === 'intf' ? .97 : .995 + r() * .004))); set('vcdr_d', v); set('vcdr_n', Math.round(v * (t === 'cov' ? .02 + sev * .02 : (.003 + r() * .003) * vb(.9, 1.35))));
     const pk = Math.round(8e5 * load); set('pl_d', pk); set('pl_n', Math.round(pk * (tx ? .004 + r() * .01 : .0002 * n())));
     const vol = 26000 * load * bandF * up * n(); set('dl_mb', vol * .88); set('ul_mb', vol * .12); set('volte_erl', 6 * load * up);
     set('rrc_max', 90 * load * bandF * up); set('rrc_avg', 35 * load * bandF * up); set('act_user', 14 * load * bandF * up);
@@ -103,7 +104,7 @@ function counters(c, d, out){
   }
   const att = Math.round(9000 * load * up), f = t === 'intf' ? .02 + sev * .06 : .004 * n(), ret = t === 'cov' ? .015 + sev * .04 : .003 * n();
   const prb = Math.min(.99, t === 'cap' ? .8 + sev * .18 : .12 * load + .04);
-  const tput = Math.max(15, (t === 'cap' ? 45 - sev * 20 : 260 * (1 - prb * .6)) * (t === 'intf' ? .55 : 1) * n());
+  const tput = Math.max(15, (t === 'cap' ? 45 - sev * 20 : 260 * (1 - prb * .6) * vb(1.05, .9)) * (t === 'intf' ? .55 : 1) * n());
   set('sn_d', att); set('sn_n', Math.round(att * (1 - f))); set('ret_d', att); set('ret_n', Math.round(att * (1 - ret)));
   set('udl_s', 3600 * up); set('udl_k', tput * 1000 * 3600 * up); set('uul_s', 3600 * up); set('uul_k', tput * .11 * 1000 * 3600 * up);
   set('cdl_s', 3600 * up); set('cdl_k', tput * 2.4 * 1000 * 3600 * up);
