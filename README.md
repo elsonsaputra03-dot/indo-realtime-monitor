@@ -6,7 +6,7 @@ people ask questions about it in plain Indonesian through a local LLM.
 
 **Live demo (free, rebuilt hourly):** https://elsonsaputra03-dot.github.io/indo-realtime-monitor/demo.html
 **Portfolio:** https://elsonsaputra03-dot.github.io/indo-realtime-monitor/
-**Network KPI monitor (synthetic data, Kalimantan map):** https://elsonsaputra03-dot.github.io/indo-realtime-monitor/network.html
+**Network KPI monitor (synthetic data, Kalimantan):** https://elsonsaputra03-dot.github.io/indo-realtime-monitor/network.html
 **Governance dashboard (synthetic data):** https://elsonsaputra03-dot.github.io/indo-realtime-monitor/governance.html
 
 <!-- Screenshots: save PNGs to docs/img/ and uncomment.
