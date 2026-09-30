@@ -110,6 +110,79 @@ const delta = (now, prev, fmt, invert) => { if(!prev) return ''; const d = (now 
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const PALETTE = ['#2E5E8C', '#E9B44C', '#3E8E5E', '#8F3F97', '#D9722E', '#5D6D78', '#1D8A99', '#B3261E'];
 
+// ------------------------------------------------------------------ metadata: domain, kolom, lineage
+// Memakai RNG terpisah per nama objek (hash), sehingga urutan TABLES di atas tidak berubah.
+const hashStr = s => { let h = 2166136261; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const DOMAIN_OF = {cdr: 'usage', usage: 'usage', probe: 'usage', recharge: 'billing', billing: 'billing', revenue: 'billing', finance: 'billing',
+  crm: 'customer', subscriber: 'customer', churn: 'customer', campaign: 'customer', features: 'customer', training: 'ml', predictions: 'ml',
+  embeddings: 'ml', network: 'network', kpi: 'network', site: 'network', coverage: 'geo', geo: 'geo', geography: 'geo', region: 'geo',
+  ref: 'reference', product: 'reference', device: 'device', monitoring: 'ops', audit: 'ops', shared: 'reporting', archive: 'archive',
+  scratch: 'sandbox', tmp: 'sandbox', poc: 'sandbox', adhoc: 'sandbox', backup: 'sandbox', core: 'customer'};
+function domainOf(t){ for(const tok of t.dataset.split('_')) if(DOMAIN_OF[tok]) return DOMAIN_OF[tok];
+  for(const tok of t.table.split('_')) if(DOMAIN_OF[tok]) return DOMAIN_OF[tok]; return 'other'; }
+const CATEGORY = {customer: 'Pelanggan & segmentasi', usage: 'Penggunaan & CDR', network: 'Jaringan & performa site', billing: 'Billing & revenue',
+  device: 'Perangkat', geo: 'Geografi & cakupan', ml: 'Model & fitur ML', reference: 'Data referensi', ops: 'Operasional & audit',
+  reporting: 'Pelaporan bersama', archive: 'Arsip', sandbox: 'Sandbox & sementara', other: 'Lainnya'};
+const COLS = {
+  customer: [['subscriber_id', 'STRING', 'ID pelanggan (hash, stabil lintas sistem)'], ['msisdn', 'STRING', 'Nomor pelanggan', 1],
+    ['activation_date', 'DATE', 'Tanggal aktivasi kartu'], ['segment', 'STRING', 'Segmen nilai pelanggan (hasil model)'],
+    ['region_code', 'STRING', 'Kode region layanan'], ['arpu_3m', 'NUMERIC', 'Rata-rata pendapatan per pelanggan 3 bulan (IDR)'],
+    ['tenure_month', 'INT64', 'Lama berlangganan dalam bulan'], ['status', 'STRING', 'Status kartu: aktif, grace, churn'],
+    ['nik_hash', 'STRING', 'Hash nomor identitas pelanggan', 1], ['churn_score', 'FLOAT64', 'Probabilitas churn 30 hari']],
+  usage: [['event_ts', 'TIMESTAMP', 'Waktu kejadian (UTC)'], ['msisdn', 'STRING', 'Nomor pelanggan', 1], ['imsi', 'STRING', 'IMSI perangkat', 1],
+    ['cell_id', 'STRING', 'ID sel yang melayani'], ['event_type', 'STRING', 'Jenis kejadian: voice, sms, data'],
+    ['duration_sec', 'INT64', 'Durasi panggilan (detik)'], ['bytes_up', 'INT64', 'Volume unggah (byte)'], ['bytes_down', 'INT64', 'Volume unduh (byte)'],
+    ['rat', 'STRING', 'Teknologi akses: 2G, 4G, 5G'], ['charge_idr', 'NUMERIC', 'Biaya yang dikenakan (IDR)']],
+  network: [['kpi_date', 'DATE', 'Tanggal KPI'], ['site_id', 'STRING', 'ID site'], ['cell_id', 'STRING', 'ID sel'], ['vendor', 'STRING', 'Vendor perangkat radio'],
+    ['technology', 'STRING', 'Teknologi: 2G, 4G, 5G'], ['availability_pct', 'FLOAT64', 'Ketersediaan sel (%)'], ['traffic_gb', 'FLOAT64', 'Trafik data (GB)'],
+    ['call_drop_rate', 'FLOAT64', 'Rasio panggilan terputus (%)'], ['prb_util_pct', 'FLOAT64', 'Utilisasi PRB rata-rata (%)'], ['kabupaten_code', 'STRING', 'Kode kabupaten/kota']],
+  billing: [['txn_id', 'STRING', 'ID transaksi'], ['subscriber_id', 'STRING', 'ID pelanggan (hash)'], ['txn_ts', 'TIMESTAMP', 'Waktu transaksi (UTC)'],
+    ['amount_idr', 'NUMERIC', 'Nilai transaksi (IDR)'], ['product_code', 'STRING', 'Kode produk/paket'], ['channel', 'STRING', 'Kanal pembelian'],
+    ['payment_method', 'STRING', 'Metode pembayaran'], ['msisdn', 'STRING', 'Nomor pelanggan', 1], ['is_refund', 'BOOL', 'Transaksi pengembalian dana']],
+  device: [['tac', 'STRING', 'Type Allocation Code'], ['brand', 'STRING', 'Merek perangkat'], ['model', 'STRING', 'Model perangkat'],
+    ['os', 'STRING', 'Sistem operasi'], ['is_5g', 'BOOL', 'Mendukung 5G'], ['launch_year', 'INT64', 'Tahun rilis']],
+  geo: [['h3_index', 'STRING', 'Sel H3 resolusi 8'], ['lat', 'FLOAT64', 'Lintang'], ['lon', 'FLOAT64', 'Bujur'], ['kabupaten_code', 'STRING', 'Kode kabupaten/kota'],
+    ['province_code', 'STRING', 'Kode provinsi'], ['population', 'INT64', 'Estimasi penduduk'], ['coverage_4g_pct', 'FLOAT64', 'Cakupan 4G (%)'], ['poi_count', 'INT64', 'Jumlah POI']],
+  ml: [['subscriber_id', 'STRING', 'ID pelanggan (hash)'], ['feature_date', 'DATE', 'Tanggal fitur'], ['model_version', 'STRING', 'Versi model'],
+    ['score', 'FLOAT64', 'Skor prediksi'], ['label', 'INT64', 'Label aktual (bila tersedia)'], ['feature_vector', 'ARRAY<FLOAT64>', 'Vektor fitur']],
+  reference: [['code', 'STRING', 'Kode referensi'], ['name', 'STRING', 'Nama'], ['valid_from', 'DATE', 'Berlaku sejak'], ['valid_to', 'DATE', 'Berlaku hingga'], ['parent_code', 'STRING', 'Kode induk']],
+  ops: [['job_name', 'STRING', 'Nama job/DAG'], ['run_id', 'STRING', 'ID eksekusi'], ['status', 'STRING', 'Status eksekusi'], ['started_at', 'TIMESTAMP', 'Waktu mulai'],
+    ['duration_sec', 'INT64', 'Durasi (detik)'], ['rows_written', 'INT64', 'Baris ditulis'], ['user_email', 'STRING', 'Pengguna yang menjalankan', 1]],
+};
+COLS.reporting = COLS.customer; COLS.archive = COLS.usage; COLS.sandbox = COLS.usage; COLS.other = COLS.reference;
+const COMMON = [['partition_date', 'DATE', 'Tanggal partisi'], ['load_ts', 'TIMESTAMP', 'Waktu data dimuat ke warehouse']];
+function columnsFor(t){
+  const r = rng(hashStr(t.full)), base = COLS[domainOf(t)] || COLS.other, n = Math.min(base.length, 4 + Math.floor(r() * base.length));
+  const cols = base.slice(0, n).map(([name, type, desc, pii]) => ({name, type, desc: r() < .86 ? desc : '', pii: !!pii}));
+  if(t.parts) cols.push(...COMMON.map(([name, type, desc]) => ({name, type, desc: r() < .95 ? desc : '', pii: false})));
+  return cols;
+}
+const LAYER = p => p.startsWith('raw-') ? 0 : /^(dwh-core-prd|geo-|archive-)/.test(p) ? 1 : /^(mart-|ml-features)/.test(p) ? 2 : 3;
+let _lineage = null;
+function lineage(){
+  if(_lineage) return _lineage;
+  const objs = TABLES.filter(t => t.type !== 'EXTERNAL' || LAYER(t.project) === 0);
+  const byLayer = [[], [], [], []];
+  objs.forEach(t => { t.layer = LAYER(t.project); t.domain = domainOf(t); byLayer[t.layer].push(t); });
+  const up = new Map(), down = new Map(), edges = [];
+  const add = (src, dst, job) => { edges.push({src, dst, job}); (up.get(dst) || up.set(dst, []).get(dst)).push(src); (down.get(src) || down.set(src, []).get(src)).push(dst); };
+  for(const t of objs){
+    if(t.layer === 0) continue;
+    const r = rng(hashStr('lin:' + t.full));
+    const pool = byLayer[t.layer - 1].length ? byLayer[t.layer - 1] : byLayer[0];
+    const same = pool.filter(x => x.domain === t.domain), cand = same.length >= 2 ? same : pool;
+    const n = 1 + Math.floor(r() * (t.layer === 3 ? 2 : 4)), chosen = new Set();
+    for(let k = 0; k < n * 3 && chosen.size < n; k++) chosen.add(cand[Math.floor(r() * cand.length)]);
+    if(r() < .25 && t.layer >= 2){ const x = byLayer[t.layer - 2]; if(x.length) chosen.add(x[Math.floor(r() * x.length)]); }   // lompat lapisan
+    const job = `dag_${t.project.split('-')[0]}_${t.dataset}`;
+    chosen.forEach(s => add(s.full, t.full, job));
+  }
+  const byName = new Map(objs.map(t => [t.full, t]));
+  _lineage = {edges, up, down, byName, jobs: new Set(edges.map(e => e.job))};
+  return _lineage;
+}
+
 window.GOV = {rng, GiB, TiB, PRICE, SNAP, DAY, PROJECTS, TABLES, HIST_DAYS, CLEAN_DAY, history,
+  hashStr, domainOf, CATEGORY, columnsFor, lineage, LAYER,
   $, esc, fmtBytes, fmtNum, usd, date, pct, delta, css, PALETTE};
 })();

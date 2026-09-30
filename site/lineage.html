@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Governance — Data lineage (synthetic data)</title>
+<meta name="description" content="Table-level data lineage with impact analysis, rebuilt for a portfolio with synthetic data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/gov.css">
+<style>
+  :root{--l0:#8F3F97; --l1:#2E5E8C; --l2:#3E8E5E; --l3:#D9722E}
+  .lin{display:grid;grid-template-columns:320px minmax(0,1fr);gap:14px;align-items:start}
+  .side{position:sticky;top:12px}
+  .side input,.side select{width:100%;border:1px solid var(--rule);border-radius:6px;padding:7px 9px;background:#fff;margin-bottom:8px}
+  .list{max-height:62vh;overflow-y:auto;margin:0 -6px}
+  .item{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 6px;border-bottom:1px solid #EDF1F3;cursor:pointer;border-left:3px solid transparent}
+  .item:hover{background:#FAFBFC}
+  .item[aria-current="true"]{background:#EEF4FA;border-left-color:var(--active)}
+  .item .n{font-family:"Barlow Condensed",sans-serif;font-size:.95rem;overflow-wrap:anywhere}
+  .item .m{font-size:.78rem;color:var(--muted)}
+  .more{width:100%;margin-top:8px}
+  .graph-head{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;margin-bottom:6px}
+  .graph-head h3{margin:0;font-family:"Barlow Condensed",sans-serif;font-size:1.25rem;overflow-wrap:anywhere}
+  .impact{background:#F7F9FA;border:1px solid var(--rule);border-radius:8px;padding:9px 12px;font-size:.9rem;margin:8px 0 12px}
+  .impact strong{font-variant-numeric:tabular-nums}
+  .depth{display:flex;gap:6px;align-items:center;margin-left:auto;font-size:.85rem;color:var(--muted)}
+  .depth button{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 10px;cursor:pointer}
+  .depth button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .canvas{position:relative;overflow-x:auto;padding-bottom:6px}
+  .cols{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(165px,1fr);gap:40px;position:relative;z-index:1;min-width:min-content}
+  .col h4{margin:0 0 8px;font-size:.8rem;font-weight:600;color:var(--muted)}
+  .node{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--rule);border-left:4px solid var(--l1);border-radius:6px;
+        padding:6px 8px;margin-bottom:8px;cursor:pointer;font-size:.8rem}
+  .node:hover,.node:focus-visible{border-color:var(--ink)}
+  .node .p{color:var(--muted);font-size:.74rem;overflow-wrap:anywhere}
+  .node .t{font-family:"Barlow Condensed",sans-serif;font-size:.92rem;overflow-wrap:anywhere;line-height:1.2}
+  .node.focus{border:2px solid var(--ink);border-left-width:5px;box-shadow:0 0 0 3px rgba(233,180,76,.35)}
+  .node.l0{border-left-color:var(--l0)} .node.l1{border-left-color:var(--l1)} .node.l2{border-left-color:var(--l2)} .node.l3{border-left-color:var(--l3)}
+  .node.dim{opacity:.35}
+  .overflow{font-size:.8rem;color:var(--muted);padding:2px 4px}
+  svg.edges{position:absolute;left:0;top:0;pointer-events:none;z-index:0;overflow:visible}
+  svg.edges path{fill:none;stroke:#B8C6CE;stroke-width:1.4}
+  svg.edges path.hot{stroke:var(--ink);stroke-width:2.2}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted);margin-top:10px}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .none{padding:20px;color:var(--muted);font-size:.9rem;border:1px dashed var(--rule);border-radius:8px;text-align:center}
+  @media (max-width:980px){ .lin{grid-template-columns:1fr} .side{position:static} .list{max-height:40vh} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Modul">
+    <div class="brand"><strong>Data Governance</strong><span>Warehouse contoh · data sintetis</span></div>
+    <h2>Biaya &amp; storage</h2>
+    <a href="governance.html">Storage &amp; cost</a>
+    <a class="soon" href="#" aria-disabled="true">Pipeline cost <small>segera</small></a>
+    <a class="soon" href="#" aria-disabled="true">Table usage <small>segera</small></a>
+    <h2>Kualitas data</h2>
+    <a href="anomaly.html">Anomaly &amp; missing</a>
+    <h2>Metadata</h2>
+    <a href="lineage.html" aria-current="page">Data lineage</a>
+    <a href="dictionary.html">Data dictionary</a>
+    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+  </nav>
+
+  <main>
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Relasi antar tabel dibangkitkan dari warehouse tiruan yang sama
+      dengan modul lain: data mentah mengalir ke core, lalu ke mart dan fitur ML, lalu ke pelaporan dan sandbox.</div>
+
+    <div class="head"><div><h1>Data lineage</h1><p id="snap"></p></div></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="lin">
+      <aside class="card side" aria-label="Daftar tabel">
+        <label for="q" class="muted" style="font-size:.8rem">Cari tabel</label>
+        <input id="q" type="search" placeholder="nama project, dataset, atau tabel">
+        <label for="proj" class="muted" style="font-size:.8rem">Project</label>
+        <select id="proj"></select>
+        <div class="muted" style="font-size:.8rem;margin:2px 0 6px" id="list-info"></div>
+        <div class="list" id="list" role="list"></div>
+        <button class="btn more" id="more" hidden>Tampilkan lebih banyak</button>
+      </aside>
+
+      <section class="card" aria-live="polite">
+        <div class="graph-head">
+          <h3 id="g-title"></h3><span class="muted" id="g-meta"></span>
+          <div class="depth" role="group" aria-label="Kedalaman">Kedalaman
+            <button data-d="1" aria-pressed="false">1 lapis</button><button data-d="2" aria-pressed="true">2 lapis</button></div>
+        </div>
+        <div class="impact" id="impact"></div>
+        <div class="canvas" id="canvas"><svg class="edges" id="edges"></svg><div class="cols" id="cols"></div></div>
+        <div class="legend"><span><i style="background:var(--l0)"></i>Data mentah</span><span><i style="background:var(--l1)"></i>Core &amp; arsip</span>
+          <span><i style="background:var(--l2)"></i>Mart &amp; fitur ML</span><span><i style="background:var(--l3)"></i>Pelaporan, sandbox &amp; dev</span>
+          <span>Klik node untuk memusatkan lineage pada tabel itu. Arahkan kursor untuk menyorot relasinya.</span></div>
+      </section>
+    </div>
+
+    <footer>Dibuat oleh <a href="index.html">Elson Saputra</a>. Data sintetis; tidak mencerminkan sistem produksi mana pun.</footer>
+  </main>
+</div>
+
+<script src="assets/gov-common.js"></script>
+<script>
+(() => {
+'use strict';
+const {TABLES, PROJECTS, SNAP, $, esc, fmtBytes, date, lineage} = window.GOV;
+const L = lineage();
+const {up, down, byName, edges, jobs} = L;
+const MAX_PER_COL = 10, PAGE = 120;
+
+// dampak hilir total (semua lapis) untuk mengurutkan daftar
+function reach(start, map){
+  const seen = new Set(), stack = [start];
+  while(stack.length){ const x = stack.pop(); for(const y of map.get(x) || []) if(!seen.has(y)){ seen.add(y); stack.push(y); } }
+  return seen;
+}
+const withLineage = [...byName.values()].filter(t => up.has(t.full) || down.has(t.full));
+const impact = new Map(withLineage.map(t => [t.full, reach(t.full, down).size]));
+withLineage.sort((a, b) => impact.get(b.full) - impact.get(a.full) || a.full.localeCompare(b.full));
+
+$('snap').textContent = `Snapshot ${date(SNAP)} · lineage tingkat tabel dari ${jobs.size} job terjadwal`;
+$('kpis').innerHTML = [[edges.length.toLocaleString('id-ID'), 'Relasi sumber → tujuan', 'dari job terjadwal'],
+  [up.size.toLocaleString('id-ID'), 'Tabel tujuan', 'punya minimal satu sumber'],
+  [down.size.toLocaleString('id-ID'), 'Tabel sumber', 'dipakai minimal satu tabel lain'],
+  [jobs.size, 'Job / DAG', 'penulis tabel tujuan']]
+  .map(([v, k, d]) => `<div class="kpi"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${d}</div></div>`).join('');
+$('proj').innerHTML = '<option value="">Semua project</option>' + PROJECTS.map(p => `<option>${esc(p[0])}</option>`).join('');
+
+// ------------------------------------------------------------------ daftar
+let shown = PAGE, current = null, depth = 2;
+function listRows(){
+  const q = $('q').value.trim().toLowerCase(), pj = $('proj').value;
+  return withLineage.filter(t => (!pj || t.project === pj) && (!q || t.full.toLowerCase().includes(q)));
+}
+function renderList(){
+  const rows = listRows(), view = rows.slice(0, shown);
+  $('list-info').textContent = `${rows.length.toLocaleString('id-ID')} tabel, diurutkan menurut dampak hilir`;
+  $('list').innerHTML = view.map(t => `<button class="item" role="listitem" data-k="${esc(t.full)}" aria-current="${t.full === current}">
+      <div class="n">${esc(t.dataset)}.${esc(t.table)}</div>
+      <div class="m">${esc(t.project)} · ${(up.get(t.full) || []).length} sumber · ${impact.get(t.full)} hilir</div></button>`).join('')
+    || '<div class="none">Tidak ada tabel yang cocok. Ubah kata kunci atau pilih project lain.</div>';
+  $('more').hidden = rows.length <= shown;
+  $('list').querySelectorAll('.item').forEach(b => b.onclick = () => select(b.dataset.k));
+}
+
+// ------------------------------------------------------------------ graf
+function layers(center){
+  const cols = new Map([[0, [center]]]), seen = new Set([center]);
+  for(const [dir, map] of [[-1, up], [1, down]]){
+    let frontier = [center];
+    for(let d = 1; d <= depth; d++){
+      const next = [];
+      for(const x of frontier) for(const y of map.get(x) || []) if(!seen.has(y)){ seen.add(y); next.push(y); }
+      if(!next.length) break;
+      cols.set(dir * d, next); frontier = next;
+    }
+  }
+  return cols;
+}
+function nodeHtml(full, focus){
+  const t = byName.get(full);
+  return `<button class="node l${t.layer}${focus ? ' focus' : ''}" data-k="${esc(full)}" title="${esc(full)}${t.bytes ? ' · ' + fmtBytes(t.bytes) : ''}">
+    <div class="p">${esc(t.project)}</div><div class="t">${esc(t.dataset)}.${esc(t.table)}</div></button>`;
+}
+function select(full){
+  if(!byName.has(full)) return;
+  current = full; history.replaceState(null, '', '#' + encodeURIComponent(full));
+  const t = byName.get(full), cols = layers(full);
+  $('g-title').textContent = `${t.dataset}.${t.table}`;
+  $('g-meta').textContent = `${t.project} · ${t.owner}${t.bytes ? ' · ' + fmtBytes(t.bytes) : ''}`;
+  const allDown = reach(full, down), allUp = reach(full, up);
+  const projs = new Set([...allDown].map(x => byName.get(x).project));
+  const roots = [...allUp].filter(x => !(up.get(x) || []).length).length;
+  const writer = edges.find(e => e.dst === full);
+  $('impact').innerHTML = allDown.size
+    ? `Mengubah atau menghapus tabel ini berdampak ke <strong>${allDown.size.toLocaleString('id-ID')} tabel</strong> di
+       <strong>${projs.size} project</strong> hilir. Tabel ini dibangun dari <strong>${roots}</strong> sumber data mentah${writer ? `, ditulis oleh job <code>${esc(writer.job)}</code>` : ''}.`
+    : `Tabel ini tidak dipakai tabel lain (ujung lineage)${allUp.size ? `; dibangun dari <strong>${roots}</strong> sumber data mentah` : ''}${writer ? `, ditulis oleh job <code>${esc(writer.job)}</code>` : ''}. Aman diubah dari sisi hilir.`;
+  const keys = [...cols.keys()].sort((a, b) => a - b);
+  const head = k => k === 0 ? 'Tabel terpilih' : k < 0 ? `Hulu ${-k} lapis` : `Hilir ${k} lapis`;
+  $('cols').innerHTML = keys.map(k => { const items = cols.get(k), view = items.slice(0, MAX_PER_COL);
+    return `<div class="col"><h4>${head(k)} <span class="muted">(${items.length})</span></h4>${view.map(f => nodeHtml(f, k === 0)).join('')}
+      ${items.length > view.length ? `<div class="overflow">+${items.length - view.length} tabel lain</div>` : ''}</div>`; }).join('');
+  $('cols').querySelectorAll('.node').forEach(n => {
+    n.onclick = () => { if(n.dataset.k !== current){ select(n.dataset.k); renderList(); } };
+    n.onmouseenter = n.onfocus = () => hot(n.dataset.k); n.onmouseleave = n.onblur = () => hot(null);
+  });
+  requestAnimationFrame(drawEdges);
+  document.querySelectorAll('.item').forEach(b => b.setAttribute('aria-current', b.dataset.k === full));
+}
+let paths = [];
+function drawEdges(){
+  const box = $('canvas').getBoundingClientRect(), sx = $('canvas').scrollLeft, svg = $('edges');
+  const pos = new Map();
+  $('cols').querySelectorAll('.node').forEach(n => { const r = n.getBoundingClientRect();
+    pos.set(n.dataset.k, {l: r.left - box.left + sx, r: r.right - box.left + sx, y: r.top - box.top + r.height / 2}); });
+  svg.setAttribute('width', $('cols').scrollWidth); svg.setAttribute('height', $('cols').scrollHeight + 10);
+  paths = [];
+  const out = [];
+  for(const [dst, srcs] of up) if(pos.has(dst)) for(const src of srcs) if(pos.has(src)){
+    const a = pos.get(src), b = pos.get(dst);
+    if(a.r > b.l) continue;                                  // hanya kiri → kanan
+    const mx = (a.r + b.l) / 2;
+    out.push(`<path data-s="${esc(src)}" data-d="${esc(dst)}" d="M${a.r},${a.y} C${mx},${a.y} ${mx},${b.y} ${b.l},${b.y}"/>`);
+  }
+  svg.innerHTML = out.join('');
+  paths = [...svg.querySelectorAll('path')];
+}
+function hot(k){
+  paths.forEach(p => p.classList.toggle('hot', !!k && (p.dataset.s === k || p.dataset.d === k)));
+  const rel = new Set(k ? [k, ...paths.filter(p => p.dataset.s === k || p.dataset.d === k).flatMap(p => [p.dataset.s, p.dataset.d])] : []);
+  $('cols').querySelectorAll('.node').forEach(n => n.classList.toggle('dim', !!k && !rel.has(n.dataset.k)));
+}
+
+// ------------------------------------------------------------------ interaksi
+let qT;
+$('q').oninput = () => { clearTimeout(qT); qT = setTimeout(() => { shown = PAGE; renderList(); }, 200); };
+$('proj').onchange = () => { shown = PAGE; renderList(); };
+$('more').onclick = () => { shown += PAGE; renderList(); };
+document.querySelectorAll('.depth button').forEach(b => b.onclick = () => {
+  depth = +b.dataset.d; document.querySelectorAll('.depth button').forEach(x => x.setAttribute('aria-pressed', x === b)); select(current); });
+$('canvas').addEventListener('scroll', () => requestAnimationFrame(drawEdges));
+let rT; addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(drawEdges, 120); });
+
+const fromHash = decodeURIComponent(location.hash.slice(1));
+const start = byName.has(fromHash) ? fromHash
+  : (withLineage.find(t => t.project.startsWith('mart-') && (up.get(t.full) || []).length >= 2 && impact.get(t.full) >= 3) || withLineage[0]).full;
+current = start; renderList(); select(start);
+if(document.fonts) document.fonts.ready.then(drawEdges);
+})();
+</script>
+</body>
+</html>

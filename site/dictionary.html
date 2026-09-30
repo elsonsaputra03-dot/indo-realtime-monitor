@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Governance — Data dictionary (synthetic data)</title>
+<meta name="description" content="Searchable data dictionary with documentation coverage and PII flags, rebuilt for a portfolio with synthetic data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/gov.css">
+<style>
+  .dict{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:14px;align-items:start}
+  .search{display:flex;gap:10px;margin-bottom:14px}
+  .search input{flex:1;border:1px solid var(--rule);border-radius:8px;padding:10px 12px;background:#fff;font-size:1rem}
+  details.cat{border:1px solid var(--rule);border-radius:8px;margin-bottom:8px;background:#fff}
+  details.cat summary{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;list-style:none;font-weight:600}
+  details.cat summary::-webkit-details-marker{display:none}
+  details.cat summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+  details.cat[open] summary::before{transform:rotate(90deg)}
+  details.cat summary .cnt{margin-left:auto;font-weight:500;font-size:.82rem;color:var(--muted)}
+  .cov{display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--soft);overflow:hidden;vertical-align:middle;margin-left:8px}
+  .cov b{display:block;height:6px;background:var(--down)}
+  .tlist{border-top:1px solid #EDF1F3;max-height:320px;overflow-y:auto}
+  .trow{display:grid;grid-template-columns:1fr auto;gap:8px;width:100%;text-align:left;border:0;background:none;padding:7px 12px;border-bottom:1px solid #F1F4F6;cursor:pointer}
+  .trow:hover{background:#FAFBFC}
+  .trow[aria-current="true"]{background:#EEF4FA}
+  .trow .n{font-family:"Barlow Condensed",sans-serif;font-size:.95rem;overflow-wrap:anywhere}
+  .trow .m{font-size:.78rem;color:var(--muted)}
+  .hit{font-size:.8rem;color:var(--ink-2);margin-top:2px}
+  mark{background:#FBEFD2;padding:0 1px;border-radius:2px}
+  .detail{position:sticky;top:12px}
+  .detail h3{font-family:"Barlow Condensed",sans-serif;font-size:1.3rem;margin:0 0 2px;overflow-wrap:anywhere}
+  .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 16px;margin:12px 0;font-size:.88rem}
+  .facts dt{font-size:.76rem;color:var(--muted)} .facts dd{margin:0;font-weight:600}
+  .desc{font-size:.93rem;margin:6px 0 10px;max-width:72ch}
+  td.col{font-family:"Barlow Condensed",sans-serif;font-size:.95rem}
+  td.type{font-size:.8rem;color:var(--muted)}
+  td.d{white-space:normal;min-width:200px}
+  .undoc{color:#8E5A0F;font-style:italic}
+  .pii{background:#F6DEDB;color:#8E2A22;font-size:.72rem;font-weight:600;border-radius:10px;padding:1px 7px;margin-left:6px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  @media (max-width:980px){ .dict{grid-template-columns:1fr} .detail{position:static} .facts{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Modul">
+    <div class="brand"><strong>Data Governance</strong><span>Warehouse contoh · data sintetis</span></div>
+    <h2>Biaya &amp; storage</h2>
+    <a href="governance.html">Storage &amp; cost</a>
+    <a class="soon" href="#" aria-disabled="true">Pipeline cost <small>segera</small></a>
+    <a class="soon" href="#" aria-disabled="true">Table usage <small>segera</small></a>
+    <h2>Kualitas data</h2>
+    <a href="anomaly.html">Anomaly &amp; missing</a>
+    <h2>Metadata</h2>
+    <a href="lineage.html">Data lineage</a>
+    <a href="dictionary.html" aria-current="page">Data dictionary</a>
+    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+  </nav>
+
+  <main>
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Skema dan deskripsi kolom dibangkitkan dari template per domain
+      untuk warehouse tiruan yang sama dengan modul lain. Sebagian deskripsi sengaja kosong untuk menunjukkan metrik cakupan dokumentasi.</div>
+
+    <div class="head"><div><h1>Data dictionary</h1><p id="snap"></p></div></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="search">
+      <label for="q" style="position:absolute;left:-9999px">Cari</label>
+      <input id="q" type="search" placeholder="Cari tabel, kolom, atau deskripsi, mis. msisdn, churn, availability">
+      <label class="muted" style="display:flex;align-items:center;gap:6px;font-size:.88rem;white-space:nowrap">
+        <input type="checkbox" id="only-pii"> Hanya berisi PII</label>
+    </div>
+
+    <div class="dict">
+      <section aria-label="Kategori" id="cats"></section>
+      <section class="card detail" id="detail" aria-live="polite"></section>
+    </div>
+
+    <footer>Dibuat oleh <a href="index.html">Elson Saputra</a>. Data sintetis; tidak mencerminkan sistem produksi mana pun.</footer>
+  </main>
+</div>
+
+<script src="assets/gov-common.js"></script>
+<script>
+(() => {
+'use strict';
+const {TABLES, SNAP, $, esc, fmtBytes, fmtNum, date, domainOf, CATEGORY, columnsFor, lineage} = window.GOV;
+const L = lineage();
+
+// objek terdokumentasi: tabel & view (eksternal dan sandbox tetap tercatat)
+const DOCS = TABLES.map(t => {
+  const cols = columnsFor(t), cat = CATEGORY[domainOf(t)];
+  return {t, cat, cols, pii: cols.some(c => c.pii), documented: cols.filter(c => c.desc).length,
+    desc: `${t.type === 'VIEW' ? 'View' : 'Tabel'} kategori ${cat} di ${t.project}, dikelola ${t.owner}.`
+      + (t.parts ? ` Dipartisi harian (${t.parts} partisi).` : '') + (t.ageDays >= 180 ? ` Tidak diubah ${t.ageDays} hari.` : '')};
+});
+const totalCols = DOCS.reduce((s, d) => s + d.cols.length, 0), docCols = DOCS.reduce((s, d) => s + d.documented, 0);
+const piiCols = DOCS.reduce((s, d) => s + d.cols.filter(c => c.pii).length, 0);
+const cats = [...new Set(DOCS.map(d => d.cat))];
+$('snap').textContent = `Snapshot ${date(SNAP)} · ${DOCS.length.toLocaleString('id-ID')} objek dalam ${cats.length} kategori`;
+$('kpis').innerHTML = [
+  [cats.length, 'Kategori', 'dikelompokkan menurut domain bisnis'],
+  [totalCols.toLocaleString('id-ID'), 'Kolom', `di ${DOCS.length.toLocaleString('id-ID')} tabel dan view`],
+  [Math.round(docCols / totalCols * 100) + '%', 'Cakupan deskripsi', `${(totalCols - docCols).toLocaleString('id-ID')} kolom belum dideskripsikan`],
+  [piiCols.toLocaleString('id-ID'), 'Kolom PII', `di ${DOCS.filter(d => d.pii).length.toLocaleString('id-ID')} tabel, perlu kontrol akses`]]
+  .map(([v, k, d]) => `<div class="kpi"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${d}</div></div>`).join('');
+
+// ------------------------------------------------------------------ pencarian & daftar
+let current = null;
+const hl = (text, q) => { if(!q) return esc(text); const i = text.toLowerCase().indexOf(q); if(i < 0) return esc(text);
+  return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length)); };
+function match(d, q){
+  if(!q) return {ok: true};
+  if(d.t.full.toLowerCase().includes(q)) return {ok: true};
+  const c = d.cols.find(c => c.name.includes(q) || c.desc.toLowerCase().includes(q));
+  return c ? {ok: true, col: c} : {ok: false};
+}
+function render(){
+  const q = $('q').value.trim().toLowerCase(), onlyPii = $('only-pii').checked;
+  const rows = DOCS.map(d => ({d, m: match(d, q)})).filter(x => x.m.ok && (!onlyPii || x.d.pii));
+  const byCat = new Map(cats.map(c => [c, []]));
+  rows.forEach(x => byCat.get(x.d.cat).push(x));
+  const order = [...byCat.entries()].filter(([, v]) => v.length).sort((a, b) => b[1].length - a[1].length);
+  $('cats').innerHTML = order.length ? order.map(([cat, items]) => {
+    const tc = items.reduce((s, x) => s + x.d.cols.length, 0), dc = items.reduce((s, x) => s + x.d.documented, 0);
+    const sorted = items.slice().sort((a, b) => b.d.t.bytes - a.d.t.bytes).slice(0, 200);
+    return `<details class="cat" ${q || onlyPii || order.length === 1 ? 'open' : ''}><summary>${esc(cat)}
+        <span class="cnt">${items.length.toLocaleString('id-ID')} objek · deskripsi ${Math.round(dc / tc * 100)}%<span class="cov"><b style="width:${(dc / tc * 100).toFixed(0)}%"></b></span></span></summary>
+      <div class="tlist">${sorted.map(({d, m}) => `<button class="trow" data-k="${esc(d.t.full)}" aria-current="${d.t.full === current}">
+          <div><div class="n">${hl(d.t.dataset + '.' + d.t.table, q)}</div><div class="m">${esc(d.t.project)}${d.pii ? ' · <span class="pii">PII</span>' : ''}</div>
+          ${m.col ? `<div class="hit">kolom <strong>${hl(m.col.name, q)}</strong>${m.col.desc ? ': ' + hl(m.col.desc, q) : ''}</div>` : ''}</div>
+          <div class="m">${d.cols.length} kolom</div></button>`).join('')}
+        ${items.length > sorted.length ? `<div class="m muted" style="padding:8px 12px">+${items.length - sorted.length} objek lain; persempit pencarian.</div>` : ''}</div></details>`;
+  }).join('') : '<div class="card empty">Tidak ada tabel atau kolom yang cocok. Coba kata kunci lain, mis. <em>msisdn</em> atau <em>revenue</em>.</div>';
+  $('cats').querySelectorAll('.trow').forEach(b => b.onclick = () => show(b.dataset.k));
+  if(!current || !rows.some(x => x.d.t.full === current)) show(rows.length ? rows.sort((a, b) => b.d.t.bytes - a.d.t.bytes)[0].d.t.full : null);
+}
+function show(full){
+  current = full;
+  document.querySelectorAll('.trow').forEach(b => b.setAttribute('aria-current', b.dataset.k === full));
+  if(!full){ $('detail').innerHTML = '<div class="empty">Pilih tabel di kiri untuk melihat skemanya.</div>'; return; }
+  const d = DOCS.find(x => x.t.full === full), t = d.t;
+  const nUp = (L.up.get(full) || []).length, nDown = (L.down.get(full) || []).length;
+  $('detail').innerHTML = `<div class="muted" style="font-size:.82rem">${esc(d.cat)} · ${esc(t.project)}.${esc(t.dataset)}</div>
+    <h3>${esc(t.table)}</h3><p class="desc">${esc(d.desc)}</p>
+    <dl class="facts"><div><dt>Pemilik</dt><dd>${esc(t.owner)}</dd></div><div><dt>Jenis</dt><dd>${t.type.replace('_', ' ').toLowerCase()}</dd></div>
+      <div><dt>Terakhir diubah</dt><dd>${date(t.lastMod)}</dd></div><div><dt>Ukuran</dt><dd>${t.bytes ? fmtBytes(t.bytes) : '–'}</dd></div>
+      <div><dt>Baris</dt><dd>${t.rows ? fmtNum(t.rows) : '–'}</dd></div>
+      <div><dt>Deskripsi kolom</dt><dd>${d.documented} dari ${d.cols.length}</dd></div></dl>
+    <div class="tw"><table><thead><tr><th>Kolom</th><th>Tipe</th><th>Deskripsi</th></tr></thead><tbody>
+      ${d.cols.map(c => `<tr><td class="col">${esc(c.name)}${c.pii ? '<span class="pii">PII</span>' : ''}</td><td class="type">${esc(c.type)}</td>
+        <td class="d">${c.desc ? esc(c.desc) : '<span class="undoc">Belum ada deskripsi</span>'}</td></tr>`).join('')}</tbody></table></div>
+    <div class="actions">${nUp || nDown ? `<a class="btn" href="lineage.html#${encodeURIComponent(full)}">Lihat lineage (${nUp} sumber, ${nDown} hilir)</a>` : '<span class="muted" style="font-size:.85rem">Tidak punya relasi lineage.</span>'}</div>`;
+}
+let qT; $('q').oninput = () => { clearTimeout(qT); qT = setTimeout(render, 200); };
+$('only-pii').onchange = render;
+render();
+})();
+</script>
+</body>
+</html>
