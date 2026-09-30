@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Governance — Pipeline cost (synthetic data)</title>
+<meta name="description" content="Pipeline compute cost, reliability, and optimization recommendations, rebuilt for a portfolio with synthetic data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/gov.css">
+<style>
+  .kpis.five{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .rec{border:1px solid var(--rule);border-left:4px solid var(--up);border-radius:8px;padding:10px 12px;background:#fff}
+  .rec.warn{border-left-color:var(--lt)} .rec.info{border-left-color:var(--active)}
+  .rec .rt{font-size:.8rem;color:var(--muted)}
+  .rec .rn{font-family:"Barlow Condensed",sans-serif;font-size:1rem;margin:2px 0;overflow-wrap:anywhere}
+  .rec .rd{font-size:.86rem}
+  .rec .rs{font-weight:700;color:var(--down);margin-top:4px;font-size:.9rem}
+  .filters.pc{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.6fr) auto}
+  .st{display:inline-block;font-size:.75rem;font-weight:600;border-radius:10px;padding:1px 8px}
+  .st.active{background:#DCEFE3;color:#2F6B47} .st.paused{background:#E6EDF1;color:#34454F}
+  .tier{font-size:.75rem;border-radius:10px;padding:1px 7px;background:#E6EDF1}
+  .tier.t1{background:#F6DEDB;color:#8E2A22} .tier.t2{background:#FBEFD2;color:#6B4B0F}
+  .succ.low{color:var(--up);font-weight:600}
+  @media (max-width:1100px){ .kpis.five{grid-template-columns:repeat(2,minmax(0,1fr))} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Modul">
+    <div class="brand"><strong>Data Governance</strong><span>Warehouse contoh · data sintetis</span></div>
+    <h2>Biaya &amp; storage</h2>
+    <a href="governance.html">Storage &amp; cost</a>
+    <a href="pipeline.html" aria-current="page">Pipeline cost</a>
+    <a href="usage.html">Table usage</a>
+    <h2>Kualitas data</h2>
+    <a href="anomaly.html">Anomaly &amp; missing</a>
+    <h2>Metadata</h2>
+    <a href="lineage.html">Data lineage</a>
+    <a href="dictionary.html">Data dictionary</a>
+    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+  </nav>
+
+  <main>
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> 50 job di sini adalah job yang sama dengan penulis tabel di modul Lineage.
+      Biaya compute memakai asumsi ilustrasi $0.06 per slot-hour.</div>
+
+    <div class="head"><div><h1>Pipeline cost</h1><p id="snap"></p></div></div>
+    <div class="kpis five" id="kpis"></div>
+
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="card"><h3>Biaya compute bulanan <span>12 bulan</span></h3><div class="chart"><canvas id="c-trend"></canvas></div></div>
+      <div class="card"><h3>15 job termahal <span>bulan ini</span></h3><div class="chart"><canvas id="c-top"></canvas></div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px"><h3>Rekomendasi optimasi <span id="rec-total"></span></h3><div class="recs" id="recs"></div></div>
+
+    <div class="filters pc">
+      <div><label for="f-status">Status</label><select id="f-status"><option value="">Semua status</option><option value="active">Aktif</option><option value="paused">Dijeda</option></select></div>
+      <div><label for="f-tier">Tier</label><select id="f-tier"><option value="">Semua tier</option><option value="1">Tier 1 (kritis)</option>
+        <option value="2">Tier 2</option><option value="3">Tier 3</option><option value="4">Tier 4</option></select></div>
+      <div><label for="f-sched">Jadwal</label><select id="f-sched"><option value="">Semua jadwal</option><option value="hourly">Per jam</option>
+        <option value="daily">Harian</option><option value="weekly">Mingguan</option></select></div>
+      <div><label for="f-q">Cari job</label><input id="f-q" type="search" placeholder="nama job atau project"></div>
+      <div><button class="btn" id="reset">Reset</button></div>
+    </div>
+    <div class="card"><h3>Semua job <span id="tb-count"></span></h3><div class="tw"><table id="tb"></table></div></div>
+
+    <footer>Dibuat oleh <a href="index.html">Elson Saputra</a>. Data sintetis; tidak mencerminkan sistem produksi mana pun.</footer>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="assets/gov-common.js"></script>
+<script>
+(() => {
+'use strict';
+const {SNAP, $, esc, usd, date, pipelines, SLOT_PRICE} = window.GOV;
+const P = pipelines();
+if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; }
+const SCHED = {hourly: 'per jam', daily: 'harian', weekly: 'mingguan'};
+const months = Array.from({length: 12}, (_, i) => new Date(Date.UTC(SNAP.getUTCFullYear(), SNAP.getUTCMonth() - 11 + i, 1)));
+const mLabel = d => d.toLocaleDateString('id-ID', {month: 'short', year: '2-digit'});
+const num = n => Math.round(n).toLocaleString('id-ID');
+
+// ------------------------------------------------------------------ rekomendasi (aturan eksplisit)
+const recs = [];
+for(const p of P){
+  if(p.success < .92 && p.cost > 50) recs.push({kind: 'bad', rule: 'Biaya tinggi, keandalan rendah', p,
+    text: `Sukses ${(p.success * 100).toFixed(1)}% dari ${p.runsMonth} run/bulan; run gagal diulang dan membakar slot.`, save: p.cost * (1 - p.success)});
+  const share = p.unusedOut / p.tables.length;
+  if(share >= .2 && p.cost > 20) recs.push({kind: 'warn', rule: 'Menulis tabel yang tidak dibaca', p,
+    text: `${p.unusedOut} dari ${p.tables.length} tabel tujuan tidak dibaca 90 hari. Hentikan penulisan tabel itu.`, save: p.cost * share});
+  if(p.status === 'paused' && p.cost > 0) recs.push({kind: 'warn', rule: 'Dijeda tetapi masih berbiaya', p,
+    text: 'Job dijeda di scheduler tetapi masih dipicu manual. Pastikan pemicu lain dimatikan.', save: p.cost});
+  if(p.duration > 60) recs.push({kind: 'info', rule: 'Runtime panjang', p,
+    text: `Rata-rata ${Math.round(p.duration)} menit per run. Kandidat partisi/clustering atau pemrosesan inkremental.`, save: p.cost * .3});
+}
+recs.sort((a, b) => b.save - a.save);
+// total tanpa hitung ganda: satu job bisa kena beberapa aturan, penghematan per job dibatasi biaya job itu
+const saveByJob = new Map(); recs.forEach(r => saveByJob.set(r.p.name, (saveByJob.get(r.p.name) || 0) + r.save));
+const totalSave = [...saveByJob].reduce((s, [n, v]) => s + Math.min(v, P.find(p => p.name === n).cost), 0);
+
+// ------------------------------------------------------------------ KPI & grafik
+const cost = P.reduce((s, p) => s + p.cost, 0), prev = P.reduce((s, p) => s + p.monthly[10], 0);
+const slot = P.reduce((s, p) => s + p.slotMonth, 0);
+const runs = P.filter(p => p.status === 'active').reduce((s, p) => s + p.runsMonth, 0);
+const succ = P.filter(p => p.status === 'active').reduce((s, p) => s + p.runsMonth * p.success, 0) / runs;
+const d = (cost - prev) / prev * 100;
+$('snap').textContent = `Snapshot ${date(SNAP)} · ${P.length} job · ${num(runs)} run terjadwal per bulan`;
+$('kpis').innerHTML = [
+  [usd(cost), 'Biaya compute bulan ini', `<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}%</span> dari bulan lalu`],
+  [num(slot), 'Slot-hour per bulan', `$${SLOT_PRICE}/slot-hour (asumsi)`],
+  [(succ * 100).toFixed(1) + '%', 'Tingkat sukses', 'tertimbang jumlah run'],
+  [`${P.filter(p => p.status === 'active').length} / ${P.filter(p => p.status === 'paused').length}`, 'Job aktif / dijeda', 'di scheduler'],
+  [usd(totalSave), 'Potensi penghematan', `per bulan, ${saveByJob.size} job, tanpa hitung ganda`]]
+  .map(([v, k, x]) => `<div class="kpi"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${x}</div></div>`).join('');
+
+if(window.Chart){
+  new Chart($('c-trend'), {type: 'line', data: {labels: months.map(mLabel), datasets: [{label: 'Biaya compute (USD)',
+    data: months.map((_, i) => P.reduce((s, p) => s + p.monthly[i], 0)), borderColor: '#2E5E8C', backgroundColor: 'rgba(46,94,140,.12)', fill: true, tension: .3, pointRadius: 3}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => usd(c.parsed.y)}}}, scales: {y: {ticks: {callback: v => usd(v)}}}}});
+  const top = P.slice(0, 15);
+  new Chart($('c-top'), {type: 'bar', data: {labels: top.map(p => p.name), datasets: [{label: 'USD/bulan', data: top.map(p => p.cost),
+    backgroundColor: top.map(p => p.status === 'paused' ? '#B8C6CE' : p.tier === 1 ? '#B3261E' : '#E9B44C')}]},
+    options: {indexAxis: 'y', maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => usd(c.parsed.x)}}},
+      scales: {x: {ticks: {callback: v => usd(v)}}, y: {ticks: {font: {size: 11}}}}}});
+}
+
+$('rec-total').textContent = `${recs.length} temuan · ${usd(totalSave)}/bulan`;
+$('recs').innerHTML = recs.slice(0, 9).map(r => `<div class="rec ${r.kind}"><div class="rt">${r.rule}</div><div class="rn">${esc(r.p.name)}</div>
+  <div class="rd">${r.text}</div><div class="rs">Potensi hemat ${usd(r.save)}/bulan</div></div>`).join('')
+  + (recs.length > 9 ? `<div class="muted" style="align-self:center;font-size:.88rem">+${recs.length - 9} temuan lain terlihat di tabel di bawah.</div>` : '');
+
+// ------------------------------------------------------------------ tabel job
+const state = {k: 'cost', dir: -1};
+const COLS = [['name', 'Job'], ['project', 'Project'], ['schedule', 'Jadwal'], ['tier', 'Tier'], ['status', 'Status'], ['cost', 'Biaya/bulan', 'r'],
+  ['slotMonth', 'Slot-hour', 'r'], ['success', 'Sukses', 'r'], ['duration', 'Durasi rata-rata', 'r'], ['tables', 'Tabel tujuan', 'r'], ['trend', 'Tren 12 bulan']];
+function spark(m){ const max = Math.max(...m, 1e-9), W = 90, H = 22, st = W / (m.length - 1);
+  return `<svg width="${W}" height="${H}" viewBox="-2 0 ${W + 4} ${H}" aria-hidden="true"><polyline fill="none" stroke="#2E5E8C" stroke-width="1.4"
+    points="${m.map((v, i) => `${(i * st).toFixed(1)},${(H - 2 - v / max * (H - 4)).toFixed(1)}`).join(' ')}"/></svg>`; }
+function render(){
+  const q = $('f-q').value.trim().toLowerCase(), fs = $('f-status').value, ft = $('f-tier').value, fsc = $('f-sched').value;
+  const rows = P.filter(p => (!fs || p.status === fs) && (!ft || p.tier === +ft) && (!fsc || p.schedule === fsc) && (!q || (p.name + ' ' + p.project).includes(q)));
+  const val = p => state.k === 'tables' ? p.tables.length : state.k === 'trend' ? p.monthly[11] / (p.monthly[0] || 1) : p[state.k];
+  rows.sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * state.dir; });
+  $('tb-count').textContent = `${rows.length} job`;
+  $('tb').innerHTML = `<thead><tr>${COLS.map(([k, l, c]) => `<th class="${c || ''}" data-k="${k}" ${k === state.k ? `aria-sort="${state.dir < 0 ? 'descending' : 'ascending'}"` : ''}>${l}</th>`).join('')}</tr></thead><tbody>`
+    + (rows.length ? rows.map(p => `<tr><td class="name">${esc(p.name)}</td><td class="muted">${esc(p.project)}</td><td>${SCHED[p.schedule]}</td>
+      <td><span class="tier t${p.tier}">Tier ${p.tier}</span></td><td><span class="st ${p.status}">${p.status === 'active' ? 'aktif' : 'dijeda'}</span></td>
+      <td class="r">${usd(p.cost)}</td><td class="r">${num(p.slotMonth)}</td><td class="r succ ${p.success < .92 ? 'low' : ''}">${(p.success * 100).toFixed(1)}%</td>
+      <td class="r">${Math.round(p.duration)} mnt</td><td class="r">${p.tables.length}${p.unusedOut ? ` <span class="badge bad" title="tidak dibaca 90 hari">${p.unusedOut} tak dibaca</span>` : ''}</td>
+      <td>${spark(p.monthly)}</td></tr>`).join('') : `<tr><td colspan="${COLS.length}" class="empty">Tidak ada job untuk filter ini. Ubah atau reset filter.</td></tr>`) + '</tbody>';
+  $('tb').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const k = th.dataset.k;
+    state.dir = state.k === k ? -state.dir : (['name', 'project', 'schedule', 'status', 'tier'].includes(k) ? 1 : -1); state.k = k; render(); });
+}
+['f-status', 'f-tier', 'f-sched'].forEach(id => $(id).onchange = render);
+let qT; $('f-q').oninput = () => { clearTimeout(qT); qT = setTimeout(render, 200); };
+$('reset').onclick = () => { ['f-status', 'f-tier', 'f-sched', 'f-q'].forEach(id => $(id).value = ''); render(); };
+render();
+})();
+</script>
+</body>
+</html>

@@ -182,7 +182,64 @@ function lineage(){
   return _lineage;
 }
 
+// ------------------------------------------------------------------ pemakaian tabel (90 hari)
+let _usage = null;
+function usage(){
+  if(_usage) return _usage;
+  const L = lineage(), out = new Map();
+  for(const t of TABLES){
+    const r = rng(hashStr('use:' + t.full)), layer = LAYER(t.project), downstream = (L.down.get(t.full) || []).length;
+    const sandbox = /sandbox|-dev$/.test(t.project), archive = t.project.startsWith('archive');
+    let user = layer === 3 && !sandbox ? r() * 1400 : layer === 2 ? r() * 520 : layer === 1 ? r() * 160 : r() * 35;
+    if(sandbox) user = r() < .45 ? 0 : r() * 28;
+    if(archive) user = r() < .8 ? 0 : r() * 4;
+    if(t.ageDays >= 180) user = r() < .6 ? 0 : user * .1;
+    if(/tmp|backup|scratch/.test(t.full) && r() < .55) user = 0;
+    user = Math.round(user);
+    const job = t.type === 'VIEW' ? 0 : downstream * 90;
+    const reads = user + job, users = user ? 1 + Math.floor(r() * Math.min(40, 2 + user / 12)) : 0;
+    const lastRead = reads ? new Date(SNAP - Math.floor(r() * (user ? Math.min(60, 900 / (user + 1)) : 1)) * DAY) : null;
+    out.set(t.full, {reads, userReads: user, jobReads: job, users, lastRead,
+      status: !reads ? 'unused' : reads < 10 ? 'rare' : 'active'});
+  }
+  _usage = out;
+  return out;
+}
+
+// ------------------------------------------------------------------ pipeline (job/DAG dari lineage)
+const SLOT_PRICE = 0.06;                          // USD per slot-hour (asumsi ilustrasi)
+let _pipes = null;
+function pipelines(){
+  if(_pipes) return _pipes;
+  const L = lineage(), U = usage(), byJob = new Map();
+  for(const e of L.edges){ (byJob.get(e.job) || byJob.set(e.job, new Set()).get(e.job)).add(e.dst); }
+  const list = [];
+  for(const [name, dsts] of byJob){
+    const r = rng(hashStr('dag:' + name)), tables = [...dsts].map(d => L.byName.get(d)).filter(Boolean);
+    const project = tables[0].project, layer = LAYER(project), sandbox = /sandbox|-dev$/.test(project);
+    const schedule = /bi-|ops-/.test(project) && r() < .6 ? 'hourly' : sandbox ? 'weekly' : r() < .12 ? 'weekly' : 'daily';
+    const runsMonth = schedule === 'hourly' ? 720 : schedule === 'daily' ? 30 : 4;
+    const bytes = tables.reduce((s, t) => s + t.bytes, 0);
+    const slotPerRun = Math.max(.5, Math.pow(bytes / 1e12, .72) * (.6 + r() * 1.4) * 55 * (schedule === 'hourly' ? .05 : 1));
+    let slotMonth = slotPerRun * runsMonth;
+    const tier = /finance|core-prd|network-prd/.test(project) ? 1 : layer <= 1 ? 2 : sandbox ? 4 : 3;
+    const status = sandbox && r() < .35 ? 'paused' : r() < .08 ? 'paused' : 'active';
+    const success = r() < .15 ? .7 + r() * .2 : .95 + r() * .05;
+    if(status === 'paused') slotMonth *= r() < .5 ? .15 : 0;          // dijeda tapi kadang masih dipicu manual
+    const duration = Math.max(1, slotPerRun * 60 / (300 + r() * 1500) + r() * 8);                  // menit, 300-1800 slot paralel
+    const growth = (r() - .3) * .06, spike = r() < .15 ? Math.floor(r() * 12) : -1;
+    const monthly = Array.from({length: 12}, (_, i) => slotMonth * SLOT_PRICE * Math.pow(1 + growth, i - 11) * (i === spike ? 1.8 : 1) * (1 + (r() - .5) * .08));
+    monthly[11] = slotMonth * SLOT_PRICE;
+    const unusedOut = tables.filter(t => U.get(t.full).status === 'unused').length;
+    list.push({name, project, owner: tables[0].owner, tables, schedule, runsMonth, tier, status, success, duration, slotMonth,
+      cost: slotMonth * SLOT_PRICE, monthly, unusedOut});
+  }
+  list.sort((a, b) => b.cost - a.cost);
+  _pipes = list;
+  return list;
+}
+
 window.GOV = {rng, GiB, TiB, PRICE, SNAP, DAY, PROJECTS, TABLES, HIST_DAYS, CLEAN_DAY, history,
-  hashStr, domainOf, CATEGORY, columnsFor, lineage, LAYER,
+  hashStr, domainOf, CATEGORY, columnsFor, lineage, LAYER, usage, pipelines, SLOT_PRICE,
   $, esc, fmtBytes, fmtNum, usd, date, pct, delta, css, PALETTE};
 })();
