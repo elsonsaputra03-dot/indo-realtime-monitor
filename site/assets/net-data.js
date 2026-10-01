@@ -12,25 +12,49 @@ const DAYS = 14, DAY = 864e5, LAST = new Date('2026-08-31T00:00:00Z');
 const dates = Array.from({length: DAYS}, (_, i) => new Date(+LAST - (DAYS - 1 - i) * DAY));
 
 // ------------------------------------------------------------------ topologi
+// Branch berbasis kota (format laporan count site); pembagian kabupaten ke branch & vendor per branch FIKTIF.
 const KALI = window.KALI;
-const VENDOR_OF = {'61': 'ZTE', '62': 'ZTE', '63': 'EID', '64': 'EID', '65': 'EID'};     // pembagian fiktif
-const KABS = KALI.kabs, KAB_IDX = Object.fromEntries(KABS.map((k, i) => [k.k, i]));
-const BRANCHES = [...new Set(KABS.map(k => k.p))].map(p => { const ks = KABS.filter(k => k.p === p);
-  return {name: p, vendor: VENDOR_OF[ks[0].pk], clusters: [...new Set(ks.map(k => k.c))].sort()}; });
+const BRANCH_OF = k => k.startsWith('61.') ? 'PONTIANAK' : ['62.01', '62.02', '62.07', '62.08', '62.09'].includes(k) ? 'PANGKALAN BUN'
+  : k.startsWith('62.') ? 'PALANGKARAYA' : k.startsWith('63.') ? 'BANJARMASIN' : ['64.01', '64.07', '64.09', '64.11', '64.71'].includes(k) ? 'BALIKPAPAN'
+  : k.startsWith('64.') ? 'SAMARINDA' : 'TARAKAN';
+const BRANCH_VENDOR = {PONTIANAK: 'ZTE', 'PANGKALAN BUN': 'ZTE', PALANGKARAYA: 'ZTE', BANJARMASIN: 'EID', BALIKPAPAN: 'EID', SAMARINDA: 'EID', TARAKAN: 'EID'};
+const KABS = KALI.kabs.map(k => ({...k, prov: k.p, p: BRANCH_OF(k.k), v: BRANCH_VENDOR[BRANCH_OF(k.k)]}));
+// cluster: 1-2 kelompok per branch menurut bujur
+[...new Set(KABS.map(k => k.p))].forEach(b => { const ks = KABS.filter(k => k.p === b).sort((x, y) => x.lng - y.lng), n = ks.length >= 6 ? 2 : 1, size = Math.ceil(ks.length / n);
+  for(let i = 0; i < n; i++){ const g = ks.slice(i * size, (i + 1) * size); if(!g.length) continue;
+    const a = g.find(x => x.n.startsWith('Kota')) || g[0], name = `${b.replace(' ', '')}-0${i + 1} ${a.n.replace('Kabupaten ', '').replace('Kota ', '')}`; g.forEach(x => x.c = name); } });
+const VENDOR_OF = Object.fromEntries(KABS.map(k => [k.pk, k.v]));          // kompatibilitas lama (tidak dipakai untuk pembagian)
+const KAB_IDX = Object.fromEntries(KABS.map((k, i) => [k.k, i]));
+const BRANCH_ORDER = ['BALIKPAPAN', 'BANJARMASIN', 'PALANGKARAYA', 'PANGKALAN BUN', 'PONTIANAK', 'SAMARINDA', 'TARAKAN'];
+const BRANCHES = BRANCH_ORDER.map(name => ({name, vendor: BRANCH_VENDOR[name], clusters: [...new Set(KABS.filter(k => k.p === name).map(k => k.c))].sort()}));
 const SITES = KALI.sites.map(([kk, lat, lng, urban, dprov], i) => { const k = KABS[KAB_IDX[kk]];
-  return {i, id: 'SYN-' + String(i + 1).padStart(4, '0'), branch: k.p, vendor: VENDOR_OF[k.pk], cluster: k.c, kab: k.n, kabKode: kk, kabI: KAB_IDX[kk],
-    lat, lng, urban: !!urban, dprov, txIssue: R() < .025 ? {start: Math.floor(between(0, DAYS - 1))} : null, down: R() < .006, cells: []}; });
+  return {i, id: 'SYN-' + String(i + 1).padStart(4, '0'), branch: k.p, vendor: k.v, cluster: k.c, kab: k.n, kabKode: kk, kabI: KAB_IDX[kk],
+    lat, lng, urban: !!urban, dprov, txIssue: R() < .025 ? {start: Math.floor(between(0, DAYS - 1))} : null, down: R() < .006, cells: [],
+    type: urban && R() < .08 ? 'Indoor' : R() < .05 ? 'Micro' : 'Macro'}; });
 
 const CELLS = {'2G': [], '4G': [], '5G': []};
+const BAND_TECH = {GSM: '2G', DCS: '2G', L9: '4G', L18: '4G', L21: '4G', L23: '4G', NR21: '5G', NR23: '5G'};
+const BAND_CODE = {GSM: 'MG', DCS: 'MD', L9: 'ML', L18: 'MT', L21: 'MR', L23: 'ME', NR21: 'NR', NR23: 'NE'};
 function mkIssue(){ if(R() > .045) return null;
   return {type: ['avail', 'intf', 'cov', 'cap'][Math.floor(R() * 4)], start: R() < .45 ? Math.floor(between(DAYS - 3, DAYS)) : Math.floor(between(0, DAYS - 3)), sev: between(.5, 1)}; }
+const shortKab = n => n.replace('Kabupaten ', '').replace('Kota ', '').toUpperCase().replace(/\s+/g, '').slice(0, 10);
 for(const s of SITES){
-  const add = (tech, band) => { for(let k = 1; k <= 3; k++){ const c = {tech, site: s, band, sector: k, issue: mkIssue(),
-    load: Math.min(3, Math.exp(gauss() * .5) * (s.urban ? 1.4 : .8))}; c.id = `${s.id.replace('-', '')}_${band}_${k}`; c.i = CELLS[tech].length; CELLS[tech].push(c); s.cells.push(c); } };
-  if(R() < .82) add('2G', 'G900');
-  for(const [band, p] of [['L900', .4], ['L1800', .92], ['L2100', s.urban ? .75 : .4], ['L2300', s.urban ? .45 : .1]]) if(R() < p) add('4G', band);
-  if(s.urban && R() < .16) add('5G', 'N2300');
+  const add = band => { const tech = BAND_TECH[band]; for(let k = 1; k <= 3; k++){
+    const c = {tech, site: s, band, sector: k, issue: mkIssue(), load: Math.min(3, Math.exp(gauss() * .5) * (s.urban ? 1.4 : .8))};
+    c.id = `${s.id.replace('-', '')}_${band}_${k}`; c.bts = `${s.id.replace('-', '')}${BAND_CODE[band]}1_${shortKab(s.kab)}_${k}`;
+    c.ci = tech === '2G' ? String(10000 + Math.floor(R() * 89999)) : String({L9: 30, L18: 20, L21: 10, L23: 40, NR21: 60, NR23: 50}[band] + k);
+    c.i = CELLS[tech].length; CELLS[tech].push(c); s.cells.push(c); } };
+  if(R() < .7) add('GSM');
+  if(R() < .93) add('DCS');
+  if(R() < .7) add('L9');
+  if(R() < .97) add('L18');
+  if(R() < (s.urban ? .97 : .9)) add('L21');
+  if(R() < (s.urban ? .7 : .4)) add('L23');
+  if(s.urban && R() < .14) add('NR23');
+  if(s.urban && R() < .003) add('NR21');
+  s.bands = [...new Set(s.cells.map(c => c.band))];
   s.has = {'2G': s.cells.some(c => c.tech === '2G'), '4G': s.cells.some(c => c.tech === '4G'), '5G': s.cells.some(c => c.tech === '5G')};
+  s.techs = ['2G', '4G', '5G'].filter(t => s.has[t]);
 }
 
 // ------------------------------------------------------------------ counter per teknologi (nama mengikuti laporan harian EID/ZTE yang digabung)
@@ -76,7 +100,7 @@ function counters(c, d, out){
     return out;
   }
   if(c.tech === '4G'){
-    const bandF = {L900: .7, L1800: 1.2, L2100: 1, L2300: 1.3}[c.band];
+    const bandF = {L9: .7, L18: 1.2, L21: 1, L23: 1.3}[c.band];
     const rrc = Math.round(52000 * load * bandF * up * vb(1.04, .93)), erab = Math.round(rrc * 1.05);
     const rrcF = (t === 'intf' ? .015 + sev * .05 : t === 'cap' ? .005 + sev * .02 : .0015 * n()) * vb(.85, 1.35), erabF = (t === 'intf' ? .008 + sev * .03 : .001 * n()) * vb(.9, 1.3);
     const dropR = (t === 'cov' ? .012 + sev * .03 : t === 'intf' ? .006 + sev * .015 : .0022 * n()) * vb(.9, 1.22);
@@ -258,6 +282,7 @@ const P_BR_D = new Float64Array(NB * P_DAYS * NP), P_BR_DC = new Float32Array(NB
   }
 })();
 
-window.NET = {rng, DAYS, LAST, dates, KABS, KAB_IDX, BRANCHES, VENDOR_OF, SITES, CELLS, C, KPI, sumKab, sumCells, cellObj, DIURNAL,
+const cellDay = (c, d) => toObj(c.tech, counters(c, d, new Float64Array(C[c.tech].length)), 0);
+window.NET = {rng, DAYS, LAST, dates, KABS, KAB_IDX, BRANCHES, VENDOR_OF, BRANCH_VENDOR, SITES, CELLS, C, KPI, sumKab, sumCells, cellObj, cellDay, DIURNAL,
   PROD, MONTHS, P_START, P_DAYS, P_SITE_M, P_SITE_MC, P_BR_D, P_BR_DC, B_IDX, NP};
 })();

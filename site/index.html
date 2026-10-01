@@ -316,12 +316,13 @@
       <article class="project" id="network" style="margin-top:22px">
         <div class="project-top">
           <span class="status">Synthetic data · no operator data used</span>
-          <h3>Network KPI Monitor: 2G, 4G, 5G, productivity and transport</h3>
-          <p class="summary">An OSS-style KPI report for a synthetic two-vendor (Ericsson + ZTE) network laid over the public map of Kalimantan:
-            2,137 generated sites and 18,432 cells. Every KPI of the daily report (accessibility, retainability, mobility, integrity,
-            utilization, quality, VoLTE, availability) is shown against its target with the worst branch, site and cell, alongside a
-            productivity &amp; availability report for January to August, a regency KPI map and hourly TWAMP. Like an OSS report, it displays
-            the data; it does not diagnose it. Modeled on the multi-vendor KPI reporting I did for mobile operators for about a decade.</p>
+          <h3>Network KPI Monitor: 2G, 4G, 5G, WPC and site map</h3>
+          <p class="summary">An OSS-style KPI report for a synthetic two-vendor (EID + ZTE) network laid over the public map of Kalimantan:
+            7 branches, 2,137 generated sites and 30,435 cells on GSM, DCS, L9, L18, L21, L23, NR21 and NR23. It has a site-count summary
+            per branch and band, daily payload and availability since January for KAL, EID, ZTE, each branch and each technology, a site map
+            with per-site technology and productivity, a daily worst-performing-cell (WPC) list, and 2G/4G/5G KPIs at vendor, site and cell
+            level with searchable drill-down. Like an OSS report, it displays the data; it does not diagnose it. Modeled on the multi-vendor KPI
+            reporting I did for mobile operators for about a decade.</p>
         </div>
         <div class="highlights">
           <div class="hl"><h4>Counters, not averaged percentages</h4>
@@ -335,8 +336,8 @@
               list. Volume metrics compare branches per site, not by total.</p></div>
         </div>
         <div class="project-foot">
-          <div class="chips"><span class="chip">2G / 4G / 5G KPIs</span><span class="chip">Ericsson &amp; ZTE</span><span class="chip">Productivity &amp; availability</span>
-            <span class="chip">Regency KPI map</span><span class="chip">TWAMP</span><span class="chip">Leaflet</span><span class="chip">Chart.js</span></div>
+          <div class="chips"><span class="chip">2G / 4G / 5G KPIs</span><span class="chip">EID &amp; ZTE</span><span class="chip">Site count by band</span>
+            <span class="chip">Daily WPC</span><span class="chip">Site &amp; cell drill-down</span><span class="chip">Leaflet</span><span class="chip">Chart.js</span></div>
           <div class="plinks"><a class="btn dark" href="network.html">Open KPI monitor</a></div>
         </div>
       </article>
