@@ -37,6 +37,30 @@ people ask questions about it in plain Indonesian through a local LLM.
 
 The public demo reuses the same normalizers as the streaming producers, so both paths parse data identically.
 
+## Why GitHub Pages + GitHub Actions
+
+The public demo costs nothing to host, on purpose. A portfolio project should stay online for years without a monthly bill, and
+the data only changes on the scale of minutes to hours.
+
+| Option considered | Monthly cost | Why not (for the public demo) |
+|---|---|---|
+| VPS with the full stack (Kafka, ClickHouse, Airflow, LLM) | roughly €8–16 at 2026 small-VPS prices | Pays for 10+ containers that mostly sit idle; the 3B LLM would run on CPU, 10–30 s per answer |
+| Free cloud tier (ARM VM) | 0 | Capacity is often unavailable and idle instances can be reclaimed |
+| Laptop + tunnel | 0 | Only online while the laptop is on |
+| **GitHub Actions + Pages** | **0** | Chosen: an hourly job builds a static snapshot; Pages serves it |
+
+How it works: `.github/workflows/snapshot.yml` runs `scripts/snapshot.py` every hour. The script reuses the same normalizers as the
+streaming producers, fetches each source independently (one failing source never blocks the others), writes JSON plus a per-source
+status file, computes the regency risk index, and publishes `site/` to Pages. Twice-daily food prices and alert state survive between
+runs in the Actions cache, so the public site does not re-request Bank Indonesia every hour and alerts fire only on change.
+
+Trade-offs, stated plainly:
+- Hourly, not real time, and scheduled runs can start a few minutes late.
+- No LLM and no server-side queries on the public site; the assistant runs on the full platform.
+- Secrets (API key, SMTP) live in GitHub Secrets, and every public status message is passed through a redaction step, added after a
+  failing run showed the risk of an API key appearing inside an error URL.
+- GitHub disables scheduled workflows after 60 days without repository activity; re-enabling is one click in the Actions tab.
+
 ## Architecture
 
 ```mermaid
@@ -89,6 +113,42 @@ flowchart LR
   every AI answer.
 - **Risk index.** A composite 0–100 score per regency from hotspot density, nearby earthquakes, air quality, disaster news,
   and food-price anomalies, with a per-component breakdown for every regency.
+
+## Data quality checks
+
+A DQ service checks every source once a minute and writes results to ClickHouse (`dq_results`), where Grafana and the API read them.
+Thresholds are tuned per source, because a satellite feed, an hourly scraper and a twice-daily price survey do not share one notion of
+"late".
+
+| Check | Measures | Warn / fail |
+|---|---|---|
+| `dq_execution` | The check queries themselves ran | fail on any query error |
+| `freshness_min` | Minutes since the last successful ingest run | per source, e.g. BMKG/USGS 5 / 15, FIRMS, news, air quality, LLM 30 / 60, PIHPS 1,260 / 1,560 (runs twice a day) |
+| `run_error_rate_pct` | Share of ingest runs that failed in the last hour, with the last error message | 10% / 50% |
+| `volume_24h` | New rows in the last 24 hours | warn at 0 (some sources are legitimately quiet) |
+| `validity_invalid_pct` | Share of rows breaking the source's rules (below) | 1% / 5% |
+| `duplicate_ratio_pct` | Duplicate keys before the `ReplacingMergeTree` merge | 20% / 60%; PIHPS 80% / 95%, because two daily runs re-upsert the same key by design |
+| `event_lag_median_min` | Median minutes from event time to ingestion, recent events only | per source, e.g. BMKG 30 / 120, FIRMS 240 / 480 (satellite latency) |
+
+Validity rules per source:
+
+| Source | A row is invalid when |
+|---|---|
+| BMKG, USGS | outside Indonesia's bounding box, magnitude not in 0–10, or negative depth |
+| NASA FIRMS | outside Indonesia's bounding box, or negative fire radiative power |
+| Open-Meteo air quality | negative PM2.5 or PM10, or US AQI outside 0–500 |
+| PIHPS food prices | price ≤ 0 or above Rp2,000,000/kg, or empty province |
+| News (RSS) | empty title, link not starting with `http`, or no topic |
+| LLM enrichment | marked successful but with an empty summary or no topics |
+
+Design decisions that came from real incidents (see the engineering log below):
+- **Lag counts recently ingested events only.** A first-run backfill once produced an 8,500-minute "lag" on a healthy source.
+- **Each source declares its own ingest-time column.** The LLM table stores `enriched_at`, not `ingested_at`; a shared assumption broke
+  its check.
+- **Status changes, not states, trigger email.** Locally a check must fail for 10 minutes in a row; on the public snapshot a source must
+  fail 3 hourly runs in a row. Recovery sends an email too.
+- **The public demo shows the same idea in miniature:** each hourly snapshot records per-source status, row count and redacted error in
+  `meta.json`, and the demo map shows it with the active alerts.
 
 ## Engineering log: real issues found and fixed
 
