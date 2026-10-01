@@ -222,8 +222,7 @@
           <span class="status">Personal project · live snapshot updated hourly, full stack runs via Docker Compose</span>
           <h3>Indonesia Realtime Monitor</h3>
           <p class="summary">An end-to-end data platform that ingests public Indonesian data in near real time (earthquakes, wildfire
-            hotspots, air quality, food prices, and news), checks its quality continuously, and lets anyone ask questions about it
-            in plain Indonesian through a local AI.</p>
+            hotspots, air quality, food prices, and news), checks its quality continuously, scores risk for every regency, and sends an email when something changes.</p>
         </div>
 
         <div class="flow" role="list" aria-label="Architecture">
@@ -236,35 +235,62 @@
           <div class="stage" role="listitem"><div class="n">04</div><div class="t">Trust</div>
             <div class="d">Data quality checks per source: freshness, errors, validity, duplicates, lag</div></div>
           <div class="stage" role="listitem"><div class="n">05</div><div class="t">Serve</div>
-            <div class="d">GIS map with a regency-level risk index, FastAPI, Grafana, AI Q&amp;A</div></div>
+            <div class="d">GIS map with a regency-level risk index, FastAPI, Grafana</div></div>
         </div>
 
         <p class="summary" style="margin:0 32px 22px;font-size:.93rem;color:var(--muted)">
           The public demo is a static snapshot rebuilt every hour by GitHub Actions (zero hosting cost). The complete
-          platform, including Kafka, ClickHouse, Airflow, data quality checks, and the local AI, is in the repository and runs
+          platform, including Kafka, ClickHouse, Airflow, and the data quality checks, is in the repository and runs
           on a single machine with Docker Compose.</p>
         <div class="highlights">
           <div class="hl"><h4>Data quality that caught real issues</h4>
             <p>DQ checks flagged a misconfigured API key, duplicate events after restarts, and backfill lag, each fixed and documented.</p></div>
-          <div class="hl"><h4>Local LLM with guardrails</h4>
-            <p>News classification and geotagging on a 4 GB laptop GPU (Ollama). The model extracts place names only; coordinates
-              always come from a gazetteer of 38 provinces and 514 regencies.</p></div>
-          <div class="hl"><h4>Ask the data, safely</h4>
-            <p>Tool-calling Q&amp;A: the AI picks predefined queries, never writes SQL. Numbers are computed by the system and shown
-              next to every AI answer.</p></div>
+          <div class="hl"><h4>Free, hourly public demo</h4>
+            <p>GitHub Actions rebuilds a static snapshot every hour at zero hosting cost; secrets and URLs are redacted from every public
+              status message.</p></div>
+          <div class="hl"><h4>Geography that was checked</h4>
+            <p>24 of 514 regency polygons failed area or position checks; they are replaced with flagged approximations before the
+              regency risk index (0 to 100, with a per-component breakdown) is computed.</p></div>
         </div>
 
         <div class="project-foot">
           <div class="chips">
             <span class="chip">Python</span><span class="chip">Redpanda / Kafka</span><span class="chip">ClickHouse</span>
             <span class="chip">Airflow</span><span class="chip">FastAPI</span><span class="chip">Grafana</span>
-            <span class="chip">Ollama</span><span class="chip">Shapely / GIS</span><span class="chip">Docker</span>
+            <span class="chip">Shapely / GIS</span><span class="chip">Docker</span>
           </div>
           <div class="plinks">
             <a class="btn dark" href="demo.html">Open live map</a>
-            <a class="btn line" href="tanya.html">Ask the data (AI)</a>
             <a class="btn line" href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
           </div>
+        </div>
+      </article>
+
+      <article class="project" id="ai-project" style="margin-top:22px">
+        <div class="project-top">
+          <span class="status">Runs locally on a laptop GPU · the public page shows recorded answers</span>
+          <h3>Ask the Data: a guarded LLM assistant</h3>
+          <p class="summary">A question-answering assistant over the Indonesia Realtime Monitor data, in plain Indonesian, running a 3B model
+            locally with Ollama on a 4 GB laptop GPU. The model never writes SQL and never supplies the numbers: it picks from six predefined
+            tools, the system runs parameterized queries and computes the facts, and the model only phrases the answer. The same local model
+            classifies and geotags the news feeding the platform.</p>
+        </div>
+        <div class="highlights">
+          <div class="hl"><h4>Tools, not text-to-SQL</h4>
+            <p>Six parameterized queries (earthquakes, hotspots, air quality, food prices, news, pipeline health) with a rule-based router as a
+              safety net when the model picks badly.</p></div>
+          <div class="hl"><h4>Facts computed by code</h4>
+            <p>Every answer is built on deterministic fact sentences shown beside it, added after the small model turned "993 hotspots" into
+              "the highest value is 993".</p></div>
+          <div class="hl"><h4>Guardrails from real failures</h4>
+            <p>Parameters must appear in the question, added after the model copied "Jakarta" from a prompt example. Map coordinates always
+              come from a gazetteer, never from the model.</p></div>
+        </div>
+        <div class="project-foot">
+          <div class="chips"><span class="chip">Ollama</span><span class="chip">qwen2.5:3b</span><span class="chip">Tool calling</span>
+            <span class="chip">FastAPI</span><span class="chip">Guardrails</span><span class="chip">Prompt design</span></div>
+          <div class="plinks"><a class="btn dark" href="tanya.html">Try it</a>
+            <a class="btn line" href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor/blob/main/app/api/ask.py" target="_blank" rel="noopener noreferrer">Source</a></div>
         </div>
       </article>
 
