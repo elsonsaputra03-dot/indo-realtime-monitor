@@ -124,10 +124,6 @@
     <a data-view="2G">2G</a>
     <a data-view="4G">4G</a>
     <a data-view="5G">5G</a>
-    <h2>Pipeline</h2>
-    <a data-view="ranorm">Normalisasi vendor</a>
-    <h2>Pipeline</h2>
-    <a href="ran-normalizer.html">Normalisasi vendor (3GPP)</a>
     <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
   </nav>
   <main>
@@ -517,99 +513,8 @@ function viewTwamp(){
 
 
 
-// ------------------------------------------------------------------ NORMALISASI VENDOR (output ran-kpi-normalizer)
-const RANORM_SRC = 'https://raw.githubusercontent.com/elsonsaputra03-dot/ran-kpi-normalizer/main/published/latest.json';
-let RN = null, rnKpi = 'rrc_setup_sr';
-function viewRanorm(){
-  if(!RN){
-    $('view').innerHTML = '<div class="empty">Memuat <code>published/latest.json</code> dari repo ran-kpi-normalizer…</div>';
-    fetch(RANORM_SRC, {cache: 'no-store'}).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(d => { RN = d; if(state.view === 'ranorm') viewRanorm(); })
-      .catch(e => { $('view').innerHTML = `<div class="empty">Gagal memuat output pipeline (${esc(e.message)}). Lihat repo
-        <a href="https://github.com/elsonsaputra03-dot/ran-kpi-normalizer">ran-kpi-normalizer</a>.</div>`; });
-    return;
-  }
-  const d = RN, vendors = Object.keys(d.mappings), K = d.kpis, fmt = (v, k) => v == null ? '–' : (+v).toFixed(K[k].unit === 'percent' ? 2 : 2);
-  const unitTxt = k => K[k].unit === 'percent' ? '%' : ' ' + K[k].unit;
-  const lastDay = {}; d.vendor_day.forEach(r => { lastDay[r.vendor] = lastDay[r.vendor] && lastDay[r.vendor].period > r.period ? lastDay[r.vendor] : r; });
-  const days = [...new Set(d.vendor_day.map(r => r.period))].sort(), lastP = days[days.length - 1];
-  const cell = (v, k) => {
-    const dq = d.dq[v] || {};
-    if(dq.skipped) return `<td class="rn-skip" title="${esc(dq.skipped)}">mapping belum diisi</td>`;
-    const cov = (d.coverage[v] || {})[k] || '';
-    if(cov !== 'ok') return `<td class="rn-na" title="${esc(cov)}">tidak tersedia<br><small>${esc(cov.replace('unavailable: needs ', 'butuh '))}</small></td>`;
-    const r = d.vendor_day.find(x => x.vendor === v && x.period === lastP);
-    return `<td class="k rn-ok">${fmt(r && r[k], k)}${unitTxt(k)}</td>`;
-  };
-  const st = {}; vendors.forEach(v => { st[v] = {}; Object.values(d.mappings[v].counters).forEach(c => st[v][c.status] = (st[v][c.status] || 0) + 1); });
-  const kpiOpts = Object.keys(K).map(k => `<option value="${k}"${k === rnKpi ? ' selected' : ''}>${esc(K[k].name)}</option>`).join('');
-  $('view').innerHTML = `<div class="live" style="background:#EAF3EC;border:1px solid #B8D8C1;border-radius:8px;padding:9px 14px;font-size:.88rem;margin-bottom:12px">
-      <strong>Output pipeline nyata.</strong> Tampilan ini membaca <code>published/latest.json</code> dari repo
-      <a href="https://github.com/elsonsaputra03-dot/ran-kpi-normalizer">ran-kpi-normalizer</a>: ekspor PM vendor (sintetis, ${d.meta.cells} cell × ${d.meta.days} hari,
-      jaringan terpisah dari tampilan lain) dinormalkan ke measurement <strong>3GPP TS 32.425</strong>, lalu KPI dihitung sekali dengan rumus
-      <strong>TS 32.450</strong> untuk semua vendor. Diterbitkan ${esc(d.meta.generated_at.replace('T', ' ').slice(0, 16))} UTC.</div>
-    <div class="flow"><span>Ekspor vendor<br><small>nama, satuan, zona waktu, granularitas berbeda</small></span><b>→</b><span>mapping YAML per vendor</span><b>→</b>
-      <span>counter seragam 3GPP TS 32.425<br><small>per cell per jam</small></span><b>→</b><span>KPI TS 32.450<br><small>Σ num ÷ Σ den</small></span><b>→</b><span>laporan DQ</span></div>
-
-    <h2 class="sec">KPI per vendor <span class="muted" style="font-weight:400;font-size:.9rem">${esc(lastP)}, rumus yang sama untuk semua vendor</span></h2>
-    <div class="card"><div class="tw"><table class="ktable"><thead><tr><th>KPI</th><th>Standar</th>${vendors.map(v => `<th class="r">${v}</th>`).join('')}</tr></thead><tbody>
-      ${Object.keys(K).map(k => `<tr><td>${esc(K[k].name)}</td><td><span class="badge ${K[k].standard === '3gpp' ? 'verified_public' : 'to_verify'}"
-        title="${esc(K[k].clause || K[k].note || '')}">${K[k].standard === '3gpp' ? '3GPP' : 'konvensi'}</span></td>${vendors.map(v => cell(v, k)).join('')}</tr>`).join('')}
-      </tbody></table></div>
-      <p class="note">"Tidak tersedia" berarti counter yang dibutuhkan tidak terpetakan untuk vendor itu (mis. Huawei tidak punya padanan publik
-        <code>ERAB.SessionTimeUE</code>): pipeline melaporkannya, bukan menebak angkanya. Arahkan kursor ke sel untuk detailnya.</p></div>
-
-    <div class="grid2" style="margin-top:14px">
-      <div class="card"><h3>Tren per jam <span>UTC</span></h3><div class="ctl" style="margin:0 0 6px"><select id="rn-k">${kpiOpts}</select></div>
-        <div class="chart"><canvas id="rn-c"></canvas></div></div>
-      <div class="card"><h3>10 cell terburuk <span id="rn-wt"></span></h3><div class="tw" id="rn-w"></div></div></div>
-
-    <h2 class="sec">Jejak satu angka <span class="muted" style="font-weight:400;font-size:.9rem">counter mentah vendor → counter seragam → KPI, untuk satu cell-jam</span></h2>
-    <div class="trace">${d.trace.map(t => `<div class="card"><h3>${esc(t.vendor)} <span>${esc(t.vendor_cell_name)} → <code>${esc(t.cell_id)}</code></span></h3>
-      <div class="note" style="margin:0">Jam ${esc(t.hour_utc.replace('T', ' ').slice(0, 16))} UTC · ${t.rops} ROP × ${t.granularity_minutes} menit ·
-        ekspor dalam UTC${t.timezone_offset_hours >= 0 ? '+' : ''}${t.timezone_offset_hours}</div>
-      ${t.steps.map(s => `<div class="step"><div><strong>${esc(K[s.kpi].name)}</strong> = <span class="kv">${fmt(s.value, s.kpi)}${unitTxt(s.kpi)}</span></div>
-        <table><tbody>${s.counters.map(c => `<tr><td><code>${esc(c.canonical)}</code><br><small class="muted">TS 32.425 ${esc(c.clause)}</small></td>
-          <td>= <code>${esc(c.expr)}</code><br><small class="muted">${Object.entries(c.raw).map(([n, v]) => `${esc(n)} = ${v == null ? '–' : (+v).toLocaleString('id-ID', {maximumFractionDigits: 2})}`).join('<br>')}</small></td>
-          <td class="k">${c.value == null ? '–' : (+c.value).toLocaleString('id-ID', {maximumFractionDigits: 2})}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div>`).join('')}</div>
-
-    <div class="grid2" style="margin-top:14px">
-      <div class="card"><h3>Data quality per vendor <span>semua kerumitan yang disuntikkan generator terdeteksi</span></h3><div class="tw"><table>
-        <thead><tr><th>Vendor</th><th class="r">Baris</th><th class="r">Duplikat</th><th class="r">Counter reset</th><th class="r">Sukses &gt; attempt</th><th class="r">Jam tidak lengkap</th></tr></thead><tbody>
-        ${vendors.map(v => { const q = d.dq[v] || {}; if(q.skipped) return `<tr><td>${v}</td><td colspan="5" class="muted">dilewati: ${esc(q.skipped)}</td></tr>`;
-          const sum = o => Object.values(o || {}).reduce((a, b) => a + b, 0);
-          return `<tr><td>${v}</td><td class="k">${num(q.rows_raw)}</td><td class="k">${q.duplicates_removed}</td><td class="k">${sum(q.negative_counter_values_nulled)}</td>
-            <td class="k">${sum(q.succ_greater_than_att_rops)}</td><td class="k">${q.incomplete_cell_hours}</td></tr>`; }).join('')}</tbody></table></div></div>
-      <div class="card"><h3>Status mapping counter <span>sumber publik independen saja</span></h3><div class="tw"><table>
-        <thead><tr><th>Vendor</th><th class="r">Terverifikasi</th><th class="r">Perlu dicek</th><th class="r">Tak ada padanan</th><th>Granularitas</th></tr></thead><tbody>
-        ${vendors.map(v => `<tr><td>${v}</td><td class="k">${st[v].verified_public || 0}</td><td class="k">${st[v].to_verify || 0}</td><td class="k">${st[v].unmapped || 0}</td>
-          <td class="muted">${d.mappings[v].export.time_column ? d.mappings[v].export.granularity_minutes + ' menit, UTC' + (d.mappings[v].export.timezone_offset_hours >= 0 ? '+' : '') + d.mappings[v].export.timezone_offset_hours : 'format ekspor belum didefinisikan'}</td></tr>`).join('')}
-        </tbody></table></div><p class="note">ZTE kosong karena ID counternya hanya muncul di dokumen rahasia vendor; aturan sumbernya ada di README repo.</p></div></div>
-
-    <h2 class="sec">Mapping vendor → counter seragam</h2>
-    <div class="card"><div class="tw" style="max-height:480px;overflow-y:auto"><table><thead><tr><th>Counter 3GPP</th>${vendors.map(v => `<th>${v}</th>`).join('')}</tr></thead><tbody>
-      ${Object.keys(d.mappings[vendors[0]].counters).map(c => `<tr><td><code>${esc(c)}</code></td>${vendors.map(v => { const m = d.mappings[v].counters[c] || {};
-        return `<td style="min-width:200px">${m.expr ? `<code>${esc(m.expr)}</code><br>` : ''}<span class="badge ${esc(m.status)}" title="${esc(m.note || '')}">${esc((m.status || '').replace('_', ' '))}</span></td>`; }).join('')}</tr>`).join('')}
-      </tbody></table></div></div>`;
-  const draw = () => {
-    charts.splice(0).forEach(c => c.destroy());
-    const k = rnKpi, hours = [...new Set(d.vendor_hour.map(r => r.period))].sort();
-    const vs = vendors.filter(v => (d.coverage[v] || {})[k] === 'ok');
-    chart($('rn-c'), {type: 'line', data: {labels: hours.map(h => h.slice(5, 13).replace('T', ' ')),
-      datasets: vs.map((v, i) => line(v, hours.map(h => { const r = d.vendor_hour.find(x => x.vendor === v && x.period === h); return r ? r[k] : null; }), COLORS[i]))},
-      options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, plugins: {legend: {labels: {boxWidth: 10}}},
-        scales: {x: {ticks: {maxTicksLimit: 8}}, y: {title: {display: true, text: K[k].unit}}}}});
-    $('rn-wt').textContent = `${K[k].name}, ${K[k].better === 'higher' ? 'terendah' : 'tertinggi'}`;
-    $('rn-w').innerHTML = `<table><thead><tr><th>#</th><th>Cell</th><th>Vendor</th><th>Hari</th><th class="r">Nilai</th></tr></thead><tbody>
-      ${(d.worst_cells[k] || []).map((w, i) => `<tr><td class="muted">${i + 1}</td><td class="wn">${esc(w.cell_id)}</td><td>${esc(w.vendor)}</td>
-        <td class="muted">${esc(String(w.period || '').slice(0, 10))}</td><td class="k">${fmt(w.value, k)}${unitTxt(k)}</td></tr>`).join('')}</tbody></table>`;
-  };
-  $('rn-k').onchange = () => { rnKpi = $('rn-k').value; draw(); };
-  draw();
-}
-
 // ------------------------------------------------------------------ navigasi
-const TITLES = {ranorm: 'Normalisasi multi-vendor (ran-kpi-normalizer)', summary: 'Ringkasan', map: 'Peta site', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
+const TITLES = {summary: 'Ringkasan', map: 'Peta site', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
 const closeModal = () => { $('modal').hidden = true; };
 $('modal').onclick = e => { if(e.target === $('modal')) closeModal(); };
 addEventListener('keydown', e => { if(e.key === 'Escape' && !$('modal').hidden) closeModal(); });
@@ -617,9 +522,9 @@ function go(v){ state.view = v; document.querySelectorAll('.rail a[data-view]').
 function render(){
   charts.splice(0).forEach(c => c.destroy()); closeModal();
   if(leaf && state.view !== 'map'){ leaf.remove(); leaf = null; }
-  $('title').textContent = TITLES[state.view]; $('export').hidden = state.view !== 'wpc'; $('filters').hidden = state.view === 'ranorm';
+  $('title').textContent = TITLES[state.view]; $('export').hidden = state.view !== 'wpc';
   if(leaf && state.view === 'map'){ paintMap(); paintSites(); return; }
-  ({summary: viewSummary, map: viewMap, wpc: viewWPC, prod: viewProd, twamp: viewTwamp, ranorm: viewRanorm}[state.view] || (() => viewTech(state.view)))();
+  ({summary: viewSummary, map: viewMap, wpc: viewWPC, prod: viewProd, twamp: viewTwamp}[state.view] || (() => viewTech(state.view)))();
 }
 document.querySelectorAll('.rail a[data-view]').forEach(a => { a.tabIndex = 0; a.onclick = () => go(a.dataset.view); a.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); go(a.dataset.view); } }; });
 $('f-vendor').onchange = () => { state.vendor = $('f-vendor').value; render(); };
