@@ -306,19 +306,21 @@
         </div>
         <div class="highlights">
           <div class="hl"><h4>Bugs only real data could find</h4>
-            <p>The first runs showed that the Owner role cannot read TABLE_STORAGE, that storage collection must be enabled per project, and
-              that comparing bytes scanned with table size misses unpartitioned scans in columnar storage. Each was fixed, tested and
-              documented.</p></div>
-          <div class="hl"><h4>Cheap by construction</h4>
-            <p>Every query has a byte limit. Per-dataset metadata queries are billed a minimum each, so switching to region-level views cut
-              a full run from 178 MB to 84 MB; row counts, freshness and sample values use free API calls.</p></div>
-          <div class="hl"><h4>Safe to publish</h4>
-            <p>Emails become stable ids before a report is written, the toolkit's own jobs are excluded from the analysis, and 23 offline
-              tests run in CI against fixtures.</p></div>
+            <p>Built against fixtures, then run on a real project: the Owner role cannot read TABLE_STORAGE, byte ratios miss unpartitioned
+              scans in columnar storage, view lineage lacked project names, and the Gemini client closed itself mid-request. Nine findings,
+              each fixed with a regression test.</p></div>
+          <div class="hl"><h4>AI that is reviewed, not trusted</h4>
+            <p>Gemini drafts table and column descriptions; nothing is written until a person marks it reviewed. The first review caught
+              the model calling a view "the government marketplace", reading the dataset prefix gov_ as government. After review, 66 of 66
+              columns are documented.</p></div>
+          <div class="hl"><h4>Cheap and safe to publish</h4>
+            <p>Every query has a byte limit, region-level metadata views cut a run from 178 MB to about 100 MB, row counts and samples use free
+              API calls, emails become stable ids, and 34 offline tests run in CI.</p></div>
         </div>
         <div class="project-foot">
           <div class="chips"><span class="chip">Python</span><span class="chip">BigQuery</span><span class="chip">INFORMATION_SCHEMA</span>
-            <span class="chip">FinOps</span><span class="chip">Data lineage</span><span class="chip">Data quality</span><span class="chip">pytest</span></div>
+            <span class="chip">FinOps</span><span class="chip">Data lineage</span><span class="chip">Data quality</span><span class="chip">Gemini</span>
+            <span class="chip">pytest</span></div>
           <div class="plinks"><a class="btn dark" href="bq-live.html">Open live report</a>
             <a class="btn line" href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit" target="_blank" rel="noopener noreferrer">Source</a></div>
         </div>
@@ -332,6 +334,7 @@
             answers the questions a data platform lead asks every month: where storage and compute money goes, which tables nobody
             reads, which loads are broken, what breaks downstream if a table changes, and what the data means. A re-implementation
             of a governance suite I built at work, with deterministic synthetic data and no employer code, design, or data. The real-data
+            counterpart is the BigQuery toolkit above. The real-data
             counterpart is the BigQuery toolkit above.</p>
         </div>
 
