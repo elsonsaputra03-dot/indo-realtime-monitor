@@ -294,6 +294,36 @@
         </div>
       </article>
 
+      <article class="project" id="bq-toolkit" style="margin-top:22px">
+        <div class="project-top">
+          <span class="status">Open source · runs against a real BigQuery project</span>
+          <h3>BigQuery Governance &amp; FinOps Toolkit</h3>
+          <p class="summary">A Python toolkit that turns BigQuery metadata (INFORMATION_SCHEMA and the Tables API) into a governance and cost
+            report: storage and query cost by user, pipeline label and query pattern; partition, cluster, SELECT * and unused-table
+            recommendations, each with its evidence; table lineage from jobs and views; a data dictionary; data quality checks; and
+            LLM-drafted descriptions that are applied only after a person reviews them. The live report reads the latest snapshot from the
+            repository.</p>
+        </div>
+        <div class="highlights">
+          <div class="hl"><h4>Bugs only real data could find</h4>
+            <p>The first runs showed that the Owner role cannot read TABLE_STORAGE, that storage collection must be enabled per project, and
+              that comparing bytes scanned with table size misses unpartitioned scans in columnar storage. Each was fixed, tested and
+              documented.</p></div>
+          <div class="hl"><h4>Cheap by construction</h4>
+            <p>Every query has a byte limit. Per-dataset metadata queries are billed a minimum each, so switching to region-level views cut
+              a full run from 178 MB to 84 MB; row counts, freshness and sample values use free API calls.</p></div>
+          <div class="hl"><h4>Safe to publish</h4>
+            <p>Emails become stable ids before a report is written, the toolkit's own jobs are excluded from the analysis, and 23 offline
+              tests run in CI against fixtures.</p></div>
+        </div>
+        <div class="project-foot">
+          <div class="chips"><span class="chip">Python</span><span class="chip">BigQuery</span><span class="chip">INFORMATION_SCHEMA</span>
+            <span class="chip">FinOps</span><span class="chip">Data lineage</span><span class="chip">Data quality</span><span class="chip">pytest</span></div>
+          <div class="plinks"><a class="btn dark" href="bq-live.html">Open live report</a>
+            <a class="btn line" href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit" target="_blank" rel="noopener noreferrer">Source</a></div>
+        </div>
+      </article>
+
       <article class="project" id="governance" style="margin-top:22px">
         <div class="project-top">
           <span class="status">Synthetic data · rebuilt for this portfolio</span>
@@ -301,7 +331,8 @@
           <p class="summary">Six connected modules over one synthetic data warehouse: 3,494 objects across 18 projects, 1.85 PB. It
             answers the questions a data platform lead asks every month: where storage and compute money goes, which tables nobody
             reads, which loads are broken, what breaks downstream if a table changes, and what the data means. A re-implementation
-            of a governance suite I built at work, with deterministic synthetic data and no employer code, design, or data.</p>
+            of a governance suite I built at work, with deterministic synthetic data and no employer code, design, or data. The real-data
+            counterpart is the BigQuery toolkit above.</p>
         </div>
 
         <div class="modules" role="list">

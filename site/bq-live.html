@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BigQuery Governance &amp; FinOps — live report</title>
+<meta name="description" content="Governance and FinOps report from a real BigQuery project, produced by bq-governance-toolkit from INFORMATION_SCHEMA.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/gov.css">
+<style>
+  .live{background:#EAF3EC;border:1px solid #B8D8C1;border-radius:8px;padding:9px 14px;font-size:.88rem;margin-bottom:12px}
+  .warn{background:#FFF8EC;border:1px solid #EBD3A6;border-radius:8px;padding:8px 14px;font-size:.86rem;margin-bottom:8px}
+  .kpis{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+  .sec{margin:22px 0 10px;font-size:1.15rem}
+  .rail a{cursor:pointer}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .tag{font-size:.75rem;border-radius:10px;padding:1px 8px;background:#E6EDF1;white-space:nowrap}
+  .tag.partition{background:#DCE6F0;color:#23476A} .tag.cluster{background:#EEE2F1;color:#62296B}
+  .tag.select_star{background:#FBEFD2;color:#6B4B0F} .tag.unused{background:#F6DEDB;color:#8E2A22}
+  .tag.pass{background:#DCEFE2;color:#1E5E36} .tag.warn{background:#FBEFD2;color:#6B4B0F} .tag.fail{background:#F6DEDB;color:#8E2A22}
+  code.ddl{display:block;white-space:pre-wrap;word-break:break-word;font-size:.78rem;background:#F4F6F8;border-radius:6px;padding:6px 8px;margin-top:4px}
+  code.q{font-size:.78rem;white-space:pre-wrap;word-break:break-word}
+  #lin{width:100%;height:auto;display:block}
+  #lin .node rect{fill:#fff;stroke:#8FA1AC;rx:6}
+  #lin .node.ext rect{stroke-dasharray:4 3;fill:#F6F8F9}
+  #lin .node.sel rect{stroke:#1D2A33;stroke-width:2.5}
+  #lin .node.down rect{fill:#FBEFD2;stroke:#C9901D}
+  #lin .node text{font:12px Barlow,system-ui,sans-serif;fill:#1D2A33}
+  #lin .node text.ds{font-size:10.5px;fill:#5D6D78}
+  #lin .node{cursor:pointer}
+  #lin path{fill:none;stroke:#B9C6CE;stroke-width:1.4}
+  #lin path.view{stroke-dasharray:5 4}
+  #lin path.hot{stroke:#C9901D;stroke-width:2.2}
+  .lgd{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted);margin-top:6px}
+  .search{border:1px solid var(--rule);border-radius:6px;padding:7px 10px;min-width:260px;font:inherit}
+  .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Sections">
+    <div class="brand"><strong>BigQuery Governance</strong><span>Live report · real project</span></div>
+    <h2>Report</h2>
+    <a href="#overview">Overview</a>
+    <a href="#cost">Query cost</a>
+    <a href="#recs">Recommendations</a>
+    <a href="#lineage">Lineage</a>
+    <a href="#storage">Storage &amp; usage</a>
+    <a href="#dictionary">Data dictionary</a>
+    <a href="#dq">Data quality</a>
+    <h2>Source</h2>
+    <a href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit" target="_blank" rel="noopener noreferrer">Toolkit on GitHub</a>
+    <a href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit/blob/main/snapshots/REPORT.md" target="_blank" rel="noopener noreferrer">Markdown report</a>
+    <a href="governance.html">Synthetic governance demo</a>
+    <div class="back"><a href="index.html">Back to portfolio</a></div>
+  </nav>
+  <main>
+    <div class="live" role="note"><strong>Real data.</strong> Produced by <code>bqgov run</code> against a real BigQuery sandbox project (a small demo
+      warehouse built from <code>bigquery-public-data.thelook_ecommerce</code>), read from <code>INFORMATION_SCHEMA</code> and the Tables API.
+      Dollar amounts are tiny because the warehouse is tiny; the method is the same at any scale. Emails are replaced by stable ids.</div>
+    <div id="warnings"></div>
+    <div class="head"><div><h1>BigQuery governance &amp; FinOps</h1><p id="snap">Loading the latest snapshot…</p></div></div>
+    <div id="app"><div class="empty" id="loading">Loading <code>snapshots/latest.json</code> from GitHub…</div></div>
+    <footer>Built by <a href="index.html">Elson Saputra</a> with <a href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit">bq-governance-toolkit</a>.
+      Costs are on-demand estimates from list prices, not a billing export.</footer>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+(() => {
+'use strict';
+const SRC = 'https://raw.githubusercontent.com/elsonsaputra03-dot/bq-governance-toolkit/main/snapshots/latest.json';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const usd = x => !x ? '$0' : x < 0.0001 ? '< $0.0001' : x < 1 ? '$' + x.toFixed(4) : '$' + x.toLocaleString('en-US', {maximumFractionDigits: 2});
+const mb = b => b >= 2 ** 30 ? (b / 2 ** 30).toFixed(2) + ' GiB' : (b / 2 ** 20).toFixed(1) + ' MiB';
+const num = n => Number(n || 0).toLocaleString('en-US');
+const when = iso => iso ? new Date(iso).toLocaleString('en-GB', {day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC'}) + ' UTC' : '–';
+const short = (t, proj) => t.startsWith(proj + '.') ? t.slice(proj.length + 1) : t;
+if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; Chart.defaults.animation = false; }
+
+fetch(SRC, {cache: 'no-store'}).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(render).catch(e => {
+  $('app').innerHTML = `<div class="empty">Could not load the snapshot (${esc(e.message)}). The Markdown version is on
+    <a href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit/blob/main/snapshots/REPORT.md">GitHub</a>.</div>`;
+  $('snap').textContent = 'Snapshot unavailable';
+});
+
+function render(r){
+  const m = r.meta, s = r.summary, c = r.costs, P = m.project;
+  $('snap').innerHTML = `Project <code>${esc(P)}</code> · ${esc(m.location)} · collected ${esc(when(m.collected_at))} · job window ${m.lookback_days} days ·
+    datasets ${m.datasets.map(esc).join(', ')} · $${m.prices.on_demand_per_tib}/TiB on-demand`;
+  $('warnings').innerHTML = (m.warnings || []).map(w => `<div class="warn"><strong>Note from the toolkit:</strong> ${esc(w)}</div>`).join('');
+  const kpi = (k, v, d = '') => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="d muted">${d}</div></div>`;
+  const dq = s.dq;
+  $('app').innerHTML = `
+    <section id="overview"><div class="kpis">
+      ${kpi('Tables / columns', `${s.tables} / ${s.columns}`, `${m.datasets.length} datasets catalogued`)}
+      ${kpi('Documented columns', s.column_doc_pct + '%', `tables: ${s.table_doc_pct}%`)}
+      ${kpi('Storage', s.storage_gib + ' GiB', usd(s.storage_usd_month) + ' / month · ' + esc(m.storage_source))}
+      ${kpi('Query cost, window', usd(c.total_usd), `${num(c.jobs)} jobs · ${num(c.cache_hit_jobs)} cache hits`)}
+      ${kpi('Recommendations', r.recommendations.length, r.recommendations.map(x => x.type).join(', ') || 'none')}
+      ${kpi('Data quality', `${dq.pass} / ${dq.warn} / ${dq.fail}`, 'pass / warn / fail')}
+      ${kpi('Toolkit overhead, this run', mb(m.toolkit_bytes_billed || 0), `${num(m.toolkit_jobs_in_window)} toolkit jobs in window, excluded from analysis`)}
+    </div></section>
+
+    <h2 class="sec" id="cost">Query cost</h2>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="card"><h3>Cost per day <span>USD, on-demand estimate</span></h3><div class="chart"><canvas id="c-day"></canvas></div></div>
+      <div class="card"><h3>Cost per pipeline label <span>job label <code>pipeline</code></span></h3><div class="chart"><canvas id="c-pipe"></canvas></div></div></div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="card"><h3>By user</h3><div class="tw"><table><thead><tr><th>User</th><th class="n">Cost</th></tr></thead><tbody>
+        ${c.by_user.map(u => `<tr><td>${esc(u.user)}</td><td class="n">${usd(u.cost_usd)}</td></tr>`).join('')}</tbody></table></div></div>
+      <div class="card"><h3>By statement type</h3><div class="tw"><table><thead><tr><th>Type</th><th class="n">Cost</th></tr></thead><tbody>
+        ${c.by_statement_type.map(u => `<tr><td>${esc(u.type)}</td><td class="n">${usd(u.cost_usd)}</td></tr>`).join('')}</tbody></table></div></div></div>
+    <div class="card"><h3>Most expensive query patterns <span>literals normalized, so the same query with different values counts once</span></h3><div class="tw"><table>
+      <thead><tr><th class="n">Runs</th><th class="n">Cost</th><th class="n">Billed</th><th>Pattern</th></tr></thead><tbody>
+      ${c.top_patterns.slice(0, 12).map(p => `<tr><td class="n">${p.runs}</td><td class="n">${usd(p.cost_usd)}</td><td class="n">${mb(p.bytes_billed)}</td>
+        <td><code class="q">${esc(p.fingerprint.slice(0, 220))}${p.fingerprint.length > 220 ? '…' : ''}</code></td></tr>`).join('')}</tbody></table></div></div>
+
+    <h2 class="sec" id="recs">Recommendations</h2>
+    <div class="card"><p class="muted" style="margin-top:0">Each recommendation carries its evidence. "Addressable" is the cost the change could reduce in the window
+      (or monthly storage for unused tables), not a promised saving.</p><div class="tw"><table><thead><tr><th>Type</th><th>Table</th><th>Evidence and proposed change</th><th class="n">Addressable</th></tr></thead><tbody>
+      ${r.recommendations.map(x => `<tr><td><span class="tag ${esc(x.type)}">${esc(x.type.replace('_', ' '))}</span></td><td style="white-space:nowrap"><code>${esc(short(x.table, P))}</code></td>
+        <td style="min-width:420px">${esc(x.detail).replace(/`([^`]+)`/g, '<code>$1</code>')}${x.ddl ? `<code class="ddl">${esc(x.ddl.replaceAll(P + '.', ''))}</code>` : ''}</td>
+        <td class="n">${usd(x.addressable_usd)}</td></tr>`).join('') || '<tr><td colspan="4">No recommendations.</td></tr>'}</tbody></table></div></div>
+
+    <h2 class="sec" id="lineage">Lineage</h2>
+    <div class="card"><p class="muted" style="margin-top:0">Edges come from write jobs (CTAS, INSERT, MERGE) and view definitions. Click a table to highlight everything
+      downstream of it, which is what breaks if it changes.</p><div class="tw"><svg id="lin" role="img" aria-label="Table lineage graph"></svg></div>
+      <div class="lgd"><span>— write job</span><span>- - view</span><span><span style="border:1px dashed #8FA1AC;padding:0 6px">dashed box</span> other project</span><span id="lin-sel"></span></div></div>
+
+    <h2 class="sec" id="storage">Storage &amp; usage</h2>
+    <div>
+      <div class="card" style="margin-bottom:14px"><h3>Storage per table <span>logical bytes</span></h3><div class="tw"><table><thead><tr><th>Table</th><th class="n">Rows</th><th class="n">Size</th><th class="n">Long-term</th><th class="n">$/month</th></tr></thead><tbody>
+        ${r.storage.map(t => `<tr><td><code>${esc(short(t.table, P))}</code></td><td class="n">${num(t.rows)}</td><td class="n">${mb(t.logical_bytes)}</td>
+          <td class="n">${t.long_term_gib ? (t.long_term_gib * 1024).toFixed(1) + ' MiB' : '–'}</td><td class="n">${usd(t.cost_usd_month)}</td></tr>`).join('')}</tbody></table></div></div>
+      <div class="card"><h3>Reads per table <span>in the job window</span></h3><div class="tw"><table><thead><tr><th>Table</th><th class="n">Reads</th><th class="n">Cost</th><th>Filtered columns</th><th class="n">SELECT *</th></tr></thead><tbody>
+        ${Object.entries(r.usage).sort((a, b) => b[1].cost_usd - a[1].cost_usd).map(([t, u]) => `<tr><td><code>${esc(short(t, P))}</code></td><td class="n">${u.reads}</td>
+          <td class="n">${usd(u.cost_usd)}</td><td>${Object.entries(u.filters).map(([f, n]) => `<code>${esc(f)}</code> ${n}×`).join(', ') || '–'}</td>
+          <td class="n">${u.select_star || '–'}</td></tr>`).join('')}</tbody></table></div></div></div>
+
+    <h2 class="sec" id="dictionary">Data dictionary</h2>
+    <div class="card"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <input id="dsearch" class="search" type="search" placeholder="Search table, column or description" aria-label="Search the data dictionary">
+      <span class="muted" id="dcount"></span></div><div class="tw" style="max-height:460px;overflow-y:auto"><table><thead><tr><th>Table</th><th>Column</th><th>Type</th><th>Description</th><th>Layout</th></tr></thead>
+      <tbody id="dbody"></tbody></table></div>
+      <p class="muted">Missing descriptions can be drafted with <code>bqgov describe</code> (LLM suggestions written to a file, applied only after review).</p></div>
+
+    <h2 class="sec" id="dq">Data quality</h2>
+    <div class="card"><div class="tw"><table><thead><tr><th>Table</th><th>Check</th><th>Status</th><th class="n">Value</th><th>Threshold</th></tr></thead><tbody>
+      ${r.dq.map(d => `<tr><td><code>${esc(short(d.table, P))}</code></td><td>${esc(d.check)}</td><td><span class="tag ${esc(d.status)}">${esc(d.status)}</span></td>
+        <td class="n">${esc(d.value)}</td><td class="muted">${esc(d.threshold)}</td></tr>`).join('') || '<tr><td colspan="5">No checks configured.</td></tr>'}</tbody></table></div></div>`;
+
+  // grafik biaya
+  if(window.Chart){
+    new Chart($('c-day'), {type: 'bar', data: {labels: c.by_day.map(d => d.date), datasets: [{label: 'USD', data: c.by_day.map(d => d.cost_usd), backgroundColor: '#2E5E8C'}]},
+      options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: x => usd(x.parsed.y)}}}, scales: {y: {ticks: {callback: v => usd(v)}}}}});
+    new Chart($('c-pipe'), {type: 'bar', data: {labels: c.by_pipeline.map(d => d.pipeline), datasets: [{label: 'USD', data: c.by_pipeline.map(d => d.cost_usd), backgroundColor: '#C9901D'}]},
+      options: {indexAxis: 'y', maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: x => usd(x.parsed.x)}}}, scales: {x: {ticks: {callback: v => usd(v)}}}}});
+  }
+  lineage(r.lineage, P);
+  dictionary(r.dictionary, P);
+  document.querySelectorAll('.rail a[href^="#"]').forEach(a => a.addEventListener('click', () => {
+    document.querySelectorAll('.rail a').forEach(x => x.removeAttribute('aria-current')); a.setAttribute('aria-current', 'page'); }));
+}
+
+// lineage: lapisan menurut jalur terpanjang dari sumber; kotak putus-putus = tabel project lain
+function lineage(L, P){
+  const nodes = L.nodes, edges = L.edges, depth = Object.fromEntries(nodes.map(n => [n, 0]));
+  for(let i = 0; i < nodes.length; i++) edges.forEach(e => { depth[e.target] = Math.max(depth[e.target], depth[e.source] + 1); });
+  const layers = []; nodes.forEach(n => (layers[depth[n]] ||= []).push(n));
+  layers.forEach(l => l.sort());
+  const W = 230, H = 44, GX = 70, GY = 16, pos = {};
+  layers.forEach((l, i) => l.forEach((n, j) => { pos[n] = {x: 10 + i * (W + GX), y: 10 + j * (H + GY)}; }));
+  const width = 20 + layers.length * (W + GX) - GX, height = 20 + Math.max(...layers.map(l => l.length)) * (H + GY) - GY;
+  const svg = $('lin'); svg.setAttribute('viewBox', `0 0 ${width} ${height}`); svg.style.minWidth = width + 'px';
+  const parts = n => { const s = n.split('.'); return {ds: s.length === 3 ? (s[0] === P ? s[1] : `${s[0]}.${s[1]}`) : '', t: s[s.length - 1]}; };
+  svg.innerHTML = edges.map((e, i) => { const a = pos[e.source], b = pos[e.target], x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x, y2 = b.y + H / 2, mx = (x1 + x2) / 2;
+      return `<path data-i="${i}" class="${e.via === 'view' ? 'view' : ''}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"><title>${esc(e.source)} → ${esc(e.target)} (${e.via}${e.jobs ? ', ' + e.jobs + ' jobs' : ''})</title></path>`; }).join('')
+    + nodes.map(n => { const p = pos[n], q = parts(n), ext = !n.startsWith(P + '.');
+      return `<g class="node${ext ? ' ext' : ''}" data-n="${esc(n)}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(n)}">
+        <rect width="${W}" height="${H}" rx="6"></rect><text class="ds" x="10" y="17">${esc(q.ds)}</text><text x="10" y="34" font-weight="600">${esc(q.t)}</text></g>`; }).join('');
+  const down = n => { const out = new Set(), st = [n]; while(st.length){ const x = st.pop(); edges.forEach(e => { if(e.source === x && !out.has(e.target)){ out.add(e.target); st.push(e.target); } }); } return out; };
+  const pick = n => { const d = down(n);
+    svg.querySelectorAll('.node').forEach(g => { g.classList.toggle('sel', g.dataset.n === n); g.classList.toggle('down', d.has(g.dataset.n)); });
+    svg.querySelectorAll('path').forEach(p => { const e = edges[p.dataset.i]; p.classList.toggle('hot', (e.source === n || d.has(e.source)) && d.has(e.target)); });
+    $('lin-sel').innerHTML = `<strong>${esc(short(n, P))}</strong>: ${d.size} downstream table${d.size === 1 ? '' : 's'}`; };
+  svg.querySelectorAll('.node').forEach(g => { g.onclick = () => pick(g.dataset.n); g.onkeydown = e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); pick(g.dataset.n); } }; });
+  const widest = (L.impact || [])[0]; if(widest) pick(widest.table);
+}
+
+function dictionary(rows, P){
+  const draw = () => { const q = $('dsearch').value.trim().toLowerCase();
+    const m = rows.filter(r => !q || (r.table + ' ' + r.column + ' ' + r.description).toLowerCase().includes(q));
+    $('dcount').textContent = `${m.length} of ${rows.length} columns · ${rows.filter(r => r.description).length} described`;
+    $('dbody').innerHTML = m.map(r => `<tr><td><code>${esc(short(r.table, P))}</code></td><td><code>${esc(r.column)}</code></td><td>${esc(r.type)}</td>
+      <td>${r.description ? esc(r.description) : '<span class="muted">missing</span>'}</td>
+      <td>${r.partitioning ? '<span class="tag">partition</span>' : ''}${r.clustering ? `<span class="tag">cluster ${r.clustering}</span>` : ''}</td></tr>`).join(''); };
+  $('dsearch').addEventListener('input', draw); draw();
+}
+})();
+</script>
+</body>
+</html>
