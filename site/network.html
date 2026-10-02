@@ -412,14 +412,14 @@ function techAgg(t){
   $('tv').innerHTML = `<p class="note">${legendHtml(series)} · ${DAYS} hari · filter branch/cluster berlaku, filter vendor tidak (KAL = gabungan)</p><div class="mgrid" id="ga"></div>
     <h2 class="sec">Top worst ${t}</h2><div class="ctl"><div><label for="s-wk">KPI</label><select id="s-wk">${tk.map(k => `<option value="${k.k}"${k.k === wk.k ? ' selected' : ''}>${esc(k.l)}</option>`).join('')}</select></div>
       <p class="note" style="margin:0 0 6px">${dl(LAST)} · target ${tgtTxt(wk)} · penyebut minimal ${wk.minDen ? wk.minDen[1] : '–'}</p></div>
-    <h3 style="margin:6px 0 8px">Per vendor</h3><div class="wgrid v4" id="w-vendor"></div><h3 style="margin:16px 0 8px">Per branch</h3><div class="wgrid" id="w-branch"></div>`;
+    <h3 style="margin:6px 0 8px">Per vendor</h3><div class="wgrid" id="w-vendor"></div><h3 style="margin:16px 0 8px">Per branch</h3><div class="wgrid" id="w-branch"></div>`;
   multiples($('ga'), t, series, labels);
-  const sR = siteRank(t, wk), cR = cellRank(t, wk), short = s => String(s).replace('Kabupaten ', 'Kab. ');
+  const sR = siteRank(t, wk), short = s => String(s).replace('Kabupaten ', 'Kab. ');
   const tbl = (title, rows) => `<div class="card"><h4 style="margin:0 0 6px">${title}</h4>${rows.length ? `<div class="tw"><table><thead><tr><th>#</th><th>Nama</th><th class="r">Nilai</th><th>Kabupaten</th></tr></thead><tbody>
     ${rows.map((x, i) => `<tr><td class="muted">${i + 1}</td><td class="wn">${esc(x.name)}</td><td class="k ${status(wk, x.v)}">${fmtv(wk, x.v)}${unit(wk)}</td>
       <td class="muted" style="max-width:150px;overflow:hidden;text-overflow:ellipsis" title="${esc(x.sub)}">${esc(short(x.sub))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada data.</div>'}</div>`;
-  $('w-vendor').innerHTML = ['EID', 'ZTE'].filter(v => !state.vendor || v === state.vendor).map(v => tbl(`${v}: 10 site terburuk`, sR.filter(x => x.ven === v).slice(0, 10)) + tbl(`${v}: 10 cell terburuk`, cR.filter(x => x.ven === v).slice(0, 10))).join('');
-  $('w-branch').innerHTML = branchesShown().map(b => tbl(`${esc(b.name)} (${b.vendor}): 5 cell terburuk`, cR.filter(x => x.br === b.name).slice(0, 5))).join('');
+  $('w-vendor').innerHTML = ['EID', 'ZTE'].filter(v => !state.vendor || v === state.vendor).map(v => tbl(`${v}: 10 site terburuk`, sR.filter(x => x.ven === v).slice(0, 10))).join('');
+  $('w-branch').innerHTML = branchesShown().map(b => tbl(`${esc(b.name)} (${b.vendor}): 5 site terburuk`, sR.filter(x => x.br === b.name).slice(0, 5))).join('');
   $('s-wk').onchange = () => { state.worstK[t] = $('s-wk').value; render(); };
 }
 function techSite(t){
