@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Normalisasi vendor RAN — 3GPP TS 32.425 / 32.450</title>
+<meta name="description" content="Multi-vendor LTE counters normalized to 3GPP TS 32.425 measurements and TS 32.450 KPIs, output of ran-kpi-normalizer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/gov.css">
+<style>
+  .live{background:#EAF3EC;border:1px solid #B8D8C1;border-radius:8px;padding:9px 14px;font-size:.88rem;margin-bottom:12px}
+  .sec{margin:22px 0 10px;font-size:1.15rem}
+  .rail a{cursor:pointer}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .tag{font-size:.74rem;border-radius:10px;padding:1px 8px;white-space:nowrap;background:#E6EDF1}
+  .tag.g3{background:#DCE6F0;color:#23476A} .tag.cv{background:#FBEFD2;color:#6B4B0F}
+  .st{font-size:.72rem;border-radius:8px;padding:0 6px;white-space:nowrap}
+  .st.verified_public{background:#DCEFE2;color:#1E5E36} .st.to_verify{background:#FBEFD2;color:#6B4B0F}
+  .st.unmapped,.st.missing_in_export{background:#F6DEDB;color:#8E2A22}
+  code.x{font-size:.78rem;white-space:pre-wrap;word-break:break-word}
+  .ctl{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:12px}
+  .ctl select{border:1px solid var(--rule);border-radius:6px;padding:7px 9px;background:#fff;min-width:260px}
+  .ctl label{font-size:.78rem;color:var(--muted);display:block;margin-bottom:3px}
+  .na{color:#8E2A22;font-size:.8rem}
+  .trace{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .step{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:12px 14px}
+  .step h4{margin:0 0 6px;font-size:.92rem} .step .muted{font-size:.82rem}
+  .ok{color:#1E5E36;font-weight:600} .bad{color:#8E2A22;font-weight:600}
+  @media (max-width:1000px){ .trace{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Bagian">
+    <div class="brand"><strong>Normalisasi vendor</strong><span>LTE · 3GPP TS 32.425 / 32.450</span></div>
+    <h2>Laporan</h2>
+    <a href="#kpi">KPI per vendor</a>
+    <a href="#trend">Tren per jam</a>
+    <a href="#trace">Jejak satu KPI</a>
+    <a href="#mapping">Matriks mapping</a>
+    <a href="#dq">Data quality</a>
+    <h2>Sumber</h2>
+    <a href="https://github.com/elsonsaputra03-dot/ran-kpi-normalizer" target="_blank" rel="noopener noreferrer">Repo ran-kpi-normalizer</a>
+    <a href="network.html">Network KPI Monitor</a>
+    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+  </nav>
+  <main>
+    <div class="live" role="note"><strong>Output pipeline.</strong> Halaman ini membaca <code>published/ranorm.json</code> dari repo
+      <code>ran-kpi-normalizer</code>: ekspor counter Ericsson (ROP 15 menit, UTC, kbit) dan Huawei (per jam, WIB, bit) dinormalkan ke
+      measurement 3GPP TS 32.425, lalu KPI dihitung menurut TS 32.450. Data ekspornya sintetis dengan kerumitan lapangan yang disengaja.</div>
+    <div class="head"><div><h1>Normalisasi counter multi-vendor</h1><p id="snap">Memuat…</p></div></div>
+    <div id="app"><div class="empty">Memuat <code>published/ranorm.json</code> dari GitHub…</div></div>
+    <footer>Dibuat oleh <a href="index.html">Elson Saputra</a>. Nama counter vendor diambil dari referensi publik independen; tidak memakai dokumen
+      atau data operator.</footer>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+(() => {
+'use strict';
+const SRC = 'https://raw.githubusercontent.com/elsonsaputra03-dot/ran-kpi-normalizer/main/published/ranorm.json';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const VCOL = {ericsson: '#2E5E8C', huawei: '#B3261E', nokia: '#3E8E5E', zte: '#C9901D'};
+const NAMES = {ericsson: 'Ericsson', huawei: 'Huawei', nokia: 'Nokia', zte: 'ZTE'};
+const cap = s => NAMES[s] || s.charAt(0).toUpperCase() + s.slice(1);
+const fmt = (v, u) => v == null ? '–' : u === 'percent' ? v.toFixed(2) + '%' : u === 'Mbit/s' ? v.toFixed(2) + ' Mbit/s'
+  : /session-hour/.test(u || '') ? v.toFixed(3) + ' per jam sesi' : v.toFixed(3) + (u ? ' ' + u : '');
+if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; Chart.defaults.animation = false; }
+let chart = null;
+
+fetch(SRC, {cache: 'no-store'}).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(render).catch(e => {
+  $('app').innerHTML = `<div class="empty">Data belum bisa dimuat (${esc(e.message)}). Jalankan <code>ranorm publish</code> di repo dan push
+    <code>published/ranorm.json</code>.</div>`; $('snap').textContent = 'Data tidak tersedia';
+});
+
+function render(d){
+  const vendors = d.meta.vendors_run, allV = Object.keys(d.mappings), K = d.kpis;
+  const lastDay = d.vendor_day.map(r => r.period).sort().pop(), dayTxt = String(lastDay).slice(0, 10);
+  $('snap').innerHTML = `${d.meta.cells} cell · ${d.meta.days} hari · vendor diproses: ${vendors.map(cap).join(', ')} ·
+    dibuat ${esc(d.meta.generated_at.replace('T', ' ').replace('+00:00', ' UTC'))}`;
+  const day = v => d.vendor_day.find(r => r.vendor === v && r.period === lastDay) || {};
+  const std = k => K[k].standard === '3gpp' ? '<span class="tag g3">3GPP</span>' : '<span class="tag cv">konvensi</span>';
+  $('app').innerHTML = `
+    <h2 class="sec" id="kpi">KPI per vendor <span class="muted" style="font-weight:400;font-size:.9rem">${esc(dayTxt)}</span></h2>
+    <div class="card"><div class="tw"><table><thead><tr><th>KPI</th><th>Standar</th>${vendors.map(v => `<th class="n">${cap(v)}</th>`).join('')}<th>Sumber</th></tr></thead><tbody>
+      ${Object.keys(K).map(k => `<tr><td>${esc(K[k].name)}</td><td>${std(k)}</td>${vendors.map(v => { const val = day(v)[k], cov = d.kpi_coverage[v][k];
+        return `<td class="n">${val == null ? `<span class="na" title="${esc(cov)}">tidak tersedia</span>` : fmt(val, K[k].unit)}</td>`; }).join('')}
+        <td class="muted" style="font-size:.8rem">${esc(K[k].clause || K[k].note || '')}</td></tr>`).join('')}</tbody></table></div>
+      <p class="muted" style="font-size:.84rem">Setiap KPI = Σ pembilang ÷ Σ penyebut pada level vendor. "Tidak tersedia" berarti counter yang dibutuhkan belum
+        terpetakan untuk vendor itu; arahkan kursor untuk melihat counter yang kurang. Angka tidak pernah ditebak.</p></div>
+
+    <h2 class="sec" id="trend">Tren per jam</h2>
+    <div class="ctl"><div><label for="t-k">KPI</label><select id="t-k">${Object.keys(K).map(k => `<option value="${k}">${esc(K[k].name)}</option>`).join('')}</select></div></div>
+    <div class="card"><div class="chart" style="height:300px"><canvas id="c-trend"></canvas></div></div>
+
+    <h2 class="sec" id="trace">Jejak satu KPI: dari counter vendor ke angka</h2>
+    <div class="ctl"><div><label for="tr-k">KPI</label><select id="tr-k">${Object.keys(K).map(k => `<option value="${k}">${esc(K[k].name)}</option>`).join('')}</select></div></div>
+    <div id="trace-box"></div>
+
+    <h2 class="sec" id="mapping">Matriks mapping: counter vendor → measurement 3GPP</h2>
+    <div class="card"><div class="tw"><table><thead><tr><th>Measurement 3GPP</th><th>Satuan</th>${allV.map(v => `<th>${cap(v)}</th>`).join('')}</tr></thead><tbody>
+      ${Object.entries(d.counters).filter(([c]) => c !== 'period_s').map(([c, m]) => `<tr><td><code class="x">${esc(c)}</code><div class="muted" style="font-size:.74rem">${esc(m.clause)}</div></td>
+        <td class="muted">${esc(m.unit)}</td>${allV.map(v => { const x = d.mappings[v].counters[c] || {};
+          return `<td>${x.expr ? `<code class="x">${esc(x.expr)}</code>` : ''} <span class="st ${esc(x.status)}">${esc((x.status || '').replace('_', ' '))}</span></td>`; }).join('')}</tr>`).join('')}
+      </tbody></table></div>
+      <p class="muted" style="font-size:.84rem">Status <strong>verified public</strong>: nama counter muncul di referensi publik independen. <strong>to verify</strong>: belum,
+        atau berbeda antar-rilis. ZTE kosong karena ID counter ZTE hanya muncul di dokumen rahasia vendor.</p></div>
+
+    <h2 class="sec" id="dq">Data quality: kerumitan yang disuntikkan vs terdeteksi</h2>
+    <div class="card"><div class="tw"><table><thead><tr><th>Vendor</th><th class="n">Baris</th><th class="n">Duplikat</th><th class="n">Counter reset</th>
+      <th class="n">Sukses &gt; attempt</th><th class="n">ROP hilang</th><th class="n">Cell-jam tidak lengkap</th><th>Status</th></tr></thead><tbody>
+      ${allV.map(v => { const q = d.dq[v] || {}, inj = (d.injected || {})[v];
+        if(q.skipped) return `<tr><td>${cap(v)}</td><td colspan="6" class="muted">${esc(q.skipped)}</td><td>dilewati</td></tr>`;
+        const resets = Object.values(q.negative_counter_values_nulled || {}).reduce((a, b) => a + b, 0), sga = Object.values(q.succ_greater_than_att_rops || {}).reduce((a, b) => a + b, 0);
+        const cell = (det, want) => `${det}${inj ? ` <span class="${det === want ? 'ok' : 'bad'}">/ ${want}</span>` : ''}`;
+        return `<tr><td>${cap(v)}</td><td class="n">${q.rows_raw}</td><td class="n">${cell(q.duplicates_removed, inj?.duplicates)}</td><td class="n">${cell(resets, inj?.resets)}</td>
+          <td class="n">${cell(sga, inj?.succ_gt_att)}</td><td class="n">${cell(q.missing_rops, inj?.dropped_rops)}</td><td class="n">${q.incomplete_cell_hours}</td>
+          <td>${inj && q.duplicates_removed === inj.duplicates && resets === inj.resets && sga === inj.succ_gt_att && q.missing_rops === inj.dropped_rops
+            ? '<span class="ok">semua terdeteksi</span>' : '<span class="bad">periksa</span>'}</td></tr>`; }).join('')}
+      </tbody></table></div>
+      <p class="muted" style="font-size:.84rem">Angka setelah garis miring adalah jumlah yang disuntikkan generator. ROP hilang dihitung dari ROP yang seharusnya ada
+        (cell × periode): pada ekspor per jam, jam yang hilang tidak meninggalkan baris "tidak lengkap". Reset ditangani dengan mengeluarkan
+        pembilang <em>dan</em> penyebut ROP itu, supaya success rate tidak bias.</p></div>`;
+
+  const drawTrend = () => {
+    const k = $('t-k').value, hours = [...new Set(d.vendor_hour.map(r => r.period))].sort();
+    if(chart) chart.destroy();
+    if(!window.Chart) return;
+    chart = new Chart($('c-trend'), {type: 'line', data: {labels: hours.map(h => h.slice(5, 16).replace('T', ' ')),
+      datasets: vendors.map(v => ({label: cap(v), data: hours.map(h => (d.vendor_hour.find(r => r.vendor === v && r.period === h) || {})[k] ?? null),
+        borderColor: VCOL[v], backgroundColor: VCOL[v], pointRadius: 0, borderWidth: 2, tension: .2, spanGaps: false}))},
+      options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, plugins: {legend: {labels: {boxWidth: 10}},
+        tooltip: {callbacks: {label: c => `${c.dataset.label}: ${fmt(c.parsed.y, K[k].unit)}`}}},
+        scales: {x: {ticks: {maxTicksLimit: 12}, title: {display: true, text: 'jam (UTC)'}}, y: {title: {display: true, text: K[k].unit}}}}});
+  };
+  const drawTrace = () => {
+    const k = $('tr-k').value, kp = K[k];
+    const parts = kp.product_of ? kp.product_of : [k];
+    const used = new Set();
+    parts.forEach(p => { const x = K[p]; [x.num, x.den].flat().filter(Boolean).forEach(c => used.add(c));
+      if(x.num_expr) (x.num_expr.match(/[A-Za-z][\w.\-]*\w/g) || []).filter(t => d.counters[t]).forEach(t => used.add(t)); });
+    const formula = kp.product_of ? `${kp.product_of.map(p => esc(K[p].name)).join(' × ')}`
+      : `${kp.num_expr ? esc(kp.num_expr) : [kp.num].flat().map(esc).join(' + ')} ÷ ${[kp.den].flat().map(esc).join(' + ')}${kp.scale && kp.scale !== 1 ? ' × ' + kp.scale : ''}`;
+    $('trace-box').innerHTML = `<div class="trace">
+      <div class="step"><h4>1. Definisi ${kp.standard === '3gpp' ? '3GPP' : '(konvensi)'}</h4><div>${esc(kp.name)}</div>
+        <div class="muted" style="margin-top:6px"><code class="x">${formula}</code></div><div class="muted" style="margin-top:6px">${esc(kp.clause || kp.note || '')}</div></div>
+      <div class="step"><h4>2. Measurement 3GPP yang dipakai</h4>${[...used].filter(c => c !== 'period_s').map(c => `<div><code class="x">${esc(c)}</code>
+        <span class="muted">${esc(d.counters[c].unit)}, TS 32.425 ${esc(d.counters[c].clause)}</span></div>`).join('')}
+        ${used.has('period_s') ? '<div class="muted">period_s: panjang periode, dari stempel waktu</div>' : ''}</div>
+      <div class="step"><h4>3. Hasil per vendor (${esc(dayTxt)})</h4>${vendors.map(v => { const val = day(v)[k];
+        return `<div style="margin-bottom:4px"><strong style="color:${VCOL[v]}">${cap(v)}</strong>: ${val == null ? `<span class="na">${esc(d.kpi_coverage[v][k])}</span>` : fmt(val, kp.unit)}</div>`; }).join('')}</div></div>
+      <div class="card" style="margin-top:12px"><h3>Ekspresi counter vendor untuk measurement di atas</h3><div class="tw"><table><thead><tr><th>Measurement</th>${allV.map(v => `<th>${cap(v)}</th>`).join('')}</tr></thead><tbody>
+        ${[...used].filter(c => c !== 'period_s').map(c => `<tr><td><code class="x">${esc(c)}</code></td>${allV.map(v => { const x = d.mappings[v].counters[c] || {};
+          return `<td>${x.expr ? `<code class="x">${esc(x.expr)}</code>` : '<span class="muted">–</span>'} <span class="st ${esc(x.status)}">${esc((x.status || '').replace('_', ' '))}</span>
+            ${x.note ? `<div class="muted" style="font-size:.74rem">${esc(x.note)}</div>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  };
+  $('t-k').value = 'erab_accessibility'; $('tr-k').value = 'ip_thp_dl';
+  $('t-k').onchange = drawTrend; $('tr-k').onchange = drawTrace; drawTrend(); drawTrace();
+}
+})();
+</script>
+</body>
+</html>
