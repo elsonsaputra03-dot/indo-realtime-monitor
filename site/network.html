@@ -52,6 +52,7 @@
   .kpanel .facts2{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:.85rem;margin:8px 0 10px}
   .kpanel .facts2 span{color:var(--muted)}
   .kpanel table td,.kpanel table th{padding:5px 6px}
+  .tower-ico{background:none;border:0}
   .leaflet-container{font-family:Barlow,system-ui,sans-serif}
   @media (max-width:1100px){ .mapwrap{grid-template-columns:1fr} #map{height:480px} }
   @media (max-width:1100px){ .tech-row{grid-template-columns:repeat(2,minmax(0,1fr))} }
@@ -330,11 +331,20 @@ function paintMap(){
     let fill = NONE, tip = `<strong>${esc(kb.n)}</strong><br>${esc(kb.p)} · ${kb.v}`;
     if(kp && inF && CELLS[t].some(c => c.site.kabI === i)){ const v = kp.f(N.sumKab(t, new Set([i]), LD)); fill = colorOf(kp, v); tip += `<br>${esc(kp.l)}: ${fmtv(kp, v)}${unit(kp)}`; }
     l.setStyle({fillColor: fill, fillOpacity: kp ? (inF ? .75 : .25) : (inF ? .35 : .15), dashArray: kb.approx ? '3 3' : null}); l.bindTooltip(tip, {sticky: true}); });
-  const combos = Object.entries(COMBO_COL).map(([k, c]) => `<span><i style="background:${c};border-radius:50%"></i>${k}</span>`).join('');
+  const combos = Object.entries(COMBO_COL).map(([k, c]) => `<span style="display:inline-flex;align-items:center;gap:3px">${towerSvg(c, 14)}${k}</span>`).join('');
   $('m-legend').innerHTML = `<span>Teknologi site:</span>${combos}` + (kp ? `<span style="margin-left:14px">Wilayah: ${esc(kp.l)}, target ${tgtTxt(kp)}:</span><span><i style="background:${GREEN[1]}"></i>sesuai</span><span><i style="background:${NEAR}"></i>mendekati</span><span><i style="background:${RED[1]}"></i>di luar target</span>` : '');
 }
+// ikon tower: menara rangka dengan gelombang sinyal, digambar sebagai SVG; warna = kombinasi teknologi site
+const towerSvg = (c, w = 18) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${Math.round(w * 26 / 24)}" viewBox="0 0 24 26" aria-hidden="true">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">${['#fff', c].map((k, i) => `<g stroke="${k}" stroke-width="${i ? 1.7 : 3.6}">
+    <path d="M8.6 5.6a4.6 4.6 0 0 0 0 5.6M15.4 5.6a4.6 4.6 0 0 1 0 5.6M6 3.2a8 8 0 0 0 0 10.4M18 3.2a8 8 0 0 1 0 10.4"/>
+    <path d="M12 9.8 7.6 24M12 9.8 16.4 24M5.8 24h12.4M10.6 14.6h2.8M9.4 18.8h5.2M10.6 14.6l4 4.2M13.4 14.6l-4 4.2M9.4 18.8l5.6 5.2M14.6 18.8 9 24"/></g>`).join('')}
+  </g><circle cx="12" cy="8.4" r="1.6" fill="${c}" stroke="#fff" stroke-width="1"/></svg>`;
+const TOWER_ICONS = {};
+const towerIcon = (c, big) => TOWER_ICONS[c + big] ||= L.divIcon({className: 'tower-ico', html: towerSvg(c, big ? 22 : 17),
+  iconSize: big ? [22, 24] : [17, 18], iconAnchor: big ? [11, 24] : [8.5, 18], tooltipAnchor: [0, -18], popupAnchor: [0, -20]});
 function paintSites(){ siteLayer.clearLayers();
-  SITES.filter(s => siteOk(s) && qOk(s.id)).forEach(s => L.circleMarker([s.lat, s.lng], {radius: s.has['5G'] ? 5 : 3.5, weight: 1, color: '#fff', fillColor: COMBO_COL[s.techs.join('')] || '#5D6D78', fillOpacity: .9})
+  SITES.filter(s => siteOk(s) && qOk(s.id)).forEach(s => L.marker([s.lat, s.lng], {icon: towerIcon(COMBO_COL[s.techs.join('')] || '#5D6D78', s.has['5G']), keyboard: false})
     .bindTooltip(`${s.id} · ${s.techs.join('')}`).bindPopup(() => sitePopup(s), {maxWidth: 340}).addTo(siteLayer)); }
 
 // ------------------------------------------------------------------ WPC (worst performing cell harian)
@@ -387,11 +397,12 @@ function searchBox(id, label, items, value, onPick){
       inp.addEventListener('change', () => { if(set.has(inp.value) && inp.value !== value) onPick(inp.value); }); }};
 }
 function viewTech(t){
+  if(!['agg', 'site'].includes(state.sub[t])) state.sub[t] = 'agg';
   const sub = state.sub[t];
-  $('view').innerHTML = `<div class="subtabs" role="tablist">${[['agg', 'Agregat KAL, EID, ZTE'], ['site', 'Agregat per site'], ['cell', 'Level cell']].map(([k, l]) =>
+  $('view').innerHTML = `<div class="subtabs" role="tablist">${[['agg', 'Agregat KAL, EID, ZTE'], ['site', 'Agregat per site']].map(([k, l]) =>
     `<button class="st2" role="tab" aria-selected="${k === sub}" data-s="${k}">${l}</button>`).join('')}</div><div id="tv"></div>`;
   $('view').querySelectorAll('.st2').forEach(b => b.onclick = () => { state.sub[t] = b.dataset.s; render(); });
-  ({agg: techAgg, site: techSite, cell: techCell})[sub](t);
+  ({agg: techAgg, site: techSite})[sub](t);
 }
 function techAgg(t){
   const labels = dates.map(dl), vs = vendorsShown();
@@ -425,18 +436,6 @@ function techSite(t){
     <div class="card" style="margin-bottom:12px"><strong>${s.id}</strong> · ${esc(s.branch)} · ${esc(s.cluster)} · ${esc(s.kab)} · vendor ${s.vendor} · ${s.type} · teknologi ${s.techs.join('')} ·
       ${cells.length} cell ${t} (${[...new Set(cells.map(c => c.band))].join(', ')})<div class="note" style="margin-top:4px">${legendHtml(series)}</div></div><div class="mgrid" id="gs"></div>`;
   sb.bind(); multiples($('gs'), t, series, labels);
-}
-function techCell(t){
-  const list = cellsOf(t).map(c => c.id).sort();
-  if(!list.includes(state.cell[t])) state.cell[t] = list[0];
-  const sb = searchBox('cell-in', `Cell (${t})`, list, state.cell[t] || '', v => { state.cell[t] = v; render(); });
-  const c = CELLS[t].find(x => x.id === state.cell[t]);
-  if(!c){ $('tv').innerHTML = sb.html + '<div class="empty">Tidak ada cell untuk filter ini.</div>'; sb.bind(); return; }
-  const series = [{label: c.id, color: TECH_COL[t], width: 2.4, data: dates.map((_, d) => N.cellDay(c, d))}];
-  $('tv').innerHTML = `<div class="ctl">${sb.html}</div>
-    <div class="card" style="margin-bottom:12px"><strong>${c.id}</strong> · BTS ${esc(c.bts)} · CI ${c.ci} · band ${c.band} · sektor ${c.sector} · site ${c.site.id} · ${esc(c.site.branch)} · ${esc(c.site.kab)} · vendor ${c.site.vendor}</div>
-    <div class="mgrid" id="gc"></div>`;
-  sb.bind(); multiples($('gc'), t, series, dates.map(dl));
 }
 
 // ------------------------------------------------------------------ Productivity & availability
@@ -523,6 +522,13 @@ function render(){
   charts.splice(0).forEach(c => c.destroy()); closeModal();
   if(leaf && state.view !== 'map'){ leaf.remove(); leaf = null; }
   $('title').textContent = TITLES[state.view]; $('export').hidden = state.view !== 'wpc';
+  $('filters').hidden = state.view === 'summary';                     // Ringkasan selalu menampilkan seluruh data
+  if(state.view === 'summary'){
+    const keep = {vendor: state.vendor, branch: state.branch, cluster: state.cluster, q: state.q};
+    Object.assign(state, {vendor: '', branch: '', cluster: '', q: ''});
+    try { viewSummary(); } finally { Object.assign(state, keep); }
+    return;
+  }
   if(leaf && state.view === 'map'){ paintMap(); paintSites(); return; }
   ({summary: viewSummary, map: viewMap, wpc: viewWPC, prod: viewProd, twamp: viewTwamp}[state.view] || (() => viewTech(state.view)))();
 }
