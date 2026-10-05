@@ -116,7 +116,22 @@ def send(subject: str, text: str, body: str, smtp_factory=smtplib.SMTP_SSL) -> N
         s.send_message(msg)
 
 
+REQUIRED = ("GOATCOUNTER_CODE", "GOATCOUNTER_TOKEN", "SMTP_USER", "SMTP_PASSWORD", "REPORT_TO")
+
+
+def check_env() -> None:
+    """GitHub Actions mengisi secret yang belum dibuat dengan string KOSONG, bukan menghapusnya; tanpa cek ini, kode situs
+    kosong menghasilkan host '.goatcounter.com' dan error 'label empty or too long' yang membingungkan (terjadi di run pertama)."""
+    missing = [k for k in REQUIRED if not os.getenv(k, "").strip()]
+    if missing:
+        sys.exit("secret belum diisi: " + ", ".join(missing) + " (GitHub: Settings -> Secrets and variables -> Actions)")
+    code = os.environ["GOATCOUNTER_CODE"].strip()
+    if not code.replace("-", "").isalnum() or code != code.lower():
+        sys.exit(f"GOATCOUNTER_CODE harus kode situs saja, mis. elsonsaputra (bukan URL); sekarang: {code!r}")
+
+
 def main() -> int:
+    check_env()
     start, end = window(int(os.getenv("HOURS", "24")))
     d = collect(GoatCounter(os.environ["GOATCOUNTER_CODE"], os.environ["GOATCOUNTER_TOKEN"]), start, end)
     subject, text, body = compose(d, start, end)
