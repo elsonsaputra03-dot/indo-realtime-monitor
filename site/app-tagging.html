@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App Tagging Stream — Kafka and ClickHouse snapshot</title>
+<meta name="description" content="Kafka offsets and lag, ClickHouse throughput, latency, traffic by app and storage, exported from a local run of app-tagging-stream.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/gov.css">
+<style>
+  .live{background:#EAF3EC;border:1px solid #B8D8C1;border-radius:8px;padding:9px 14px;font-size:.88rem;margin-bottom:12px}
+  .kpis{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+  .sec{margin:24px 0 10px;font-size:1.15rem}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .tag{font-size:.74rem;border-radius:10px;padding:1px 8px;background:#E6EDF1;white-space:nowrap}
+  .tag.unknown{background:#E6EDF1;color:#33424C} .tag.lookalike{background:#F6DEDB;color:#8E2A22}
+  .muted{color:var(--muted)}
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:4px 0 6px}
+  .node{flex:1 1 150px;background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px 12px}
+  .node b{display:block;font-size:.92rem} .node span{font-size:.8rem;color:var(--muted)}
+  .node.k{border-color:#2E5E8C} .node.c{border-color:#C9901D}
+  .arrow{align-self:center;color:var(--muted);font-weight:700}
+  .bar{height:8px;background:#E3E9EC;border-radius:4px;overflow:hidden;min-width:80px}
+  .bar i{display:block;height:100%;background:#2E5E8C}
+  code.h{font-size:.8rem;word-break:break-all}
+  @media (max-width:820px){ .arrow{display:none} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Sections">
+    <div class="brand"><strong>App Tagging Stream</strong><span>Kafka → ClickHouse · snapshot</span></div>
+    <h2>Report</h2>
+    <a href="#overview">Overview</a>
+    <a href="#kafka">Kafka</a>
+    <a href="#throughput">Throughput &amp; latency</a>
+    <a href="#traffic">Traffic by app</a>
+    <a href="#review">Review queue</a>
+    <a href="#storage">ClickHouse storage</a>
+    <a href="#dictionary">Dictionary versions</a>
+    <h2>Source</h2>
+    <a href="https://github.com/elsonsaputra03-dot/app-tagging-stream" target="_blank" rel="noopener noreferrer">Repository</a>
+    <a href="https://github.com/elsonsaputra03-dot/app-tagging-stream/blob/main/sql/queries.sql" target="_blank" rel="noopener noreferrer">Example queries</a>
+    <div class="back"><a href="index.html">Back to portfolio</a></div>
+  </nav>
+  <main>
+    <div class="live" role="note"><strong>Snapshot, not live.</strong> Exported by <code>apptag snapshot</code> from a local <code>docker compose</code> run:
+      Apache Kafka and ClickHouse metrics as they were at the time below. Events are synthetic hostname events generated from a public
+      dictionary; no subscriber data is used.</div>
+    <div class="head"><div><h1>Kafka to ClickHouse</h1><p id="snap">Loading the snapshot…</p></div></div>
+    <div id="app"><div class="empty">Loading <code>published/snapshot.json</code> from GitHub…</div></div>
+    <footer>Built by <a href="index.html">Elson Saputra</a> with
+      <a href="https://github.com/elsonsaputra03-dot/app-tagging-stream">app-tagging-stream</a>. Hostname dictionary from
+      <a href="https://github.com/v2fly/domain-list-community">v2fly/domain-list-community</a> (MIT).</footer>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+(() => {
+'use strict';
+const SRC = 'https://raw.githubusercontent.com/elsonsaputra03-dot/app-tagging-stream/main/published/snapshot.json';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const num = n => Number(n ?? 0).toLocaleString('en-US');
+const size = b => { b = Number(b || 0); const u = ['B', 'KiB', 'MiB', 'GiB', 'TiB']; let i = 0; while(b >= 1024 && i < u.length - 1){ b /= 1024; i++; } return (i ? b.toFixed(1) : b) + ' ' + u[i]; };
+const ms = v => v == null ? '–' : v >= 1000 ? (v / 1000).toFixed(2) + ' s' : Math.round(v) + ' ms';
+const when = iso => new Date(iso).toLocaleString('en-GB', {day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC'}) + ' UTC';
+if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; Chart.defaults.animation = false; }
+
+fetch(SRC, {cache: 'no-store'}).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(render).catch(e => {
+  $('app').innerHTML = `<div class="empty">Could not load the snapshot (${esc(e.message)}). Run <code>apptag snapshot</code> and push
+    <code>published/snapshot.json</code>.</div>`; $('snap').textContent = 'Snapshot unavailable';
+});
+
+function render(d){
+  const k = d.kafka, ch = d.clickhouse;
+  const full = ch.per_minute.slice(1, -1);                                     // menit pertama & terakhir biasanya tidak penuh
+  const rate = full.length ? full.reduce((a, m) => a + m.events, 0) / (full.length * 60) : null;
+  const methods = Object.fromEntries(ch.methods.map(m => [m.method, m.events]));
+  const mTotal = ch.methods.reduce((a, m) => a + m.events, 0) || 1;
+  const maxPart = Math.max(...k.partitions.map(p => p.high - p.low), 1);
+  const dict = ch.dictionary[0] || {};
+  $('snap').innerHTML = `Snapshot ${esc(when(d.generated_at))} · ClickHouse ${esc(ch.version)} · topic <code>${esc(k.topic)}</code> ·
+    consumer group <code>${esc(k.group)}</code>`;
+  const kpi = (label, v, sub = '') => `<div class="kpi"><div class="k">${label}</div><div class="v">${v}</div><div class="d muted">${sub}</div></div>`;
+  $('app').innerHTML = `
+    <section id="overview">
+      <div class="kpis">
+        ${kpi('Events in ClickHouse', num(ch.events.total), `${num(ch.events.duplicates)} duplicate rows`)}
+        ${kpi('Throughput', rate ? Math.round(rate) + ' / s' : '–', `full minutes in the last ${d.window_minutes} min`)}
+        ${kpi('Send to stored, p95', ms(ch.latency_ms.p95), `p50 ${ms(ch.latency_ms.p50)} · p99 ${ms(ch.latency_ms.p99)}`)}
+        ${kpi('Consumer lag', num(k.lag), `${k.partitions.length} partitions · ${k.brokers} broker(s)`)}
+        ${kpi('Precision / recall', `${(ch.accuracy.precision * 100).toFixed(1)}% / ${(ch.accuracy.recall * 100).toFixed(1)}%`, 'against synthetic labels')}
+        ${kpi('Review queue', num(ch.review_queue_hosts) + ' hosts', 'unknown and lookalike')}
+      </div>
+      <div class="card" style="margin-top:14px"><h3>Pipeline</h3>
+        <div class="flow">
+          <div class="node"><b>Producer</b><span>synthetic DNS / SNI / HTTP hostname events, keyed by subscriber id</span></div><div class="arrow">→</div>
+          <div class="node k"><b>Apache Kafka</b><span>topic ${esc(k.topic)}, ${k.partitions.length} partitions, ${num(k.messages)} messages</span></div><div class="arrow">→</div>
+          <div class="node"><b>Consumer group</b><span>${esc(k.group)}: exact → suffix → regexp → fuzzy → lookalike; commit after insert</span></div><div class="arrow">→</div>
+          <div class="node c"><b>ClickHouse</b><span>tagged_events, traffic_minute and review_queue (materialized views)</span></div>
+        </div>
+        <p class="muted" style="font-size:.84rem;margin:6px 0 0">The hostname dictionary is rebuilt from a pinned upstream commit every six hours and versioned
+          in ClickHouse; the consumer loads a new version without a restart.</p></div>
+    </section>
+
+    <h2 class="sec" id="kafka">Kafka: partitions, offsets and lag</h2>
+    <div class="card"><div class="tw"><table><thead><tr><th>Partition</th><th class="n">Earliest offset</th><th class="n">Latest offset</th>
+      <th class="n">Committed by ${esc(k.group)}</th><th class="n">Lag</th><th>Messages</th></tr></thead><tbody>
+      ${k.partitions.map(p => `<tr><td>${p.partition}</td><td class="n">${num(p.low)}</td><td class="n">${num(p.high)}</td>
+        <td class="n">${p.committed == null ? '–' : num(p.committed)}</td><td class="n">${num(p.lag)}</td>
+        <td><div class="bar" title="${num(p.high - p.low)}"><i style="width:${(100 * (p.high - p.low) / maxPart).toFixed(1)}%"></i></div></td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="muted" style="font-size:.84rem">Lag is the latest offset minus the committed offset. The consumer commits only after a batch is stored in
+        ClickHouse, so a crash replays the uncommitted batch instead of losing it.</p></div>
+
+    <h2 class="sec" id="throughput">Throughput and latency</h2>
+    <div class="grid2">
+      <div class="card"><h3>Events per minute <span>event time, from ClickHouse</span></h3><div class="chart"><canvas id="c-rate"></canvas></div></div>
+      <div class="card"><h3>Tagging method <span>share of all events</span></h3><div class="tw"><table><thead><tr><th>Method</th><th class="n">Events</th><th class="n">Share</th></tr></thead><tbody>
+        ${ch.methods.map(m => `<tr><td>${esc(m.method)}</td><td class="n">${num(m.events)}</td><td class="n">${(100 * m.events / mTotal).toFixed(1)}%</td></tr>`).join('')}
+        </tbody></table></div>
+        <p class="muted" style="font-size:.84rem">Latency is measured per event from the producer's send time to ClickHouse's insert time:
+          p50 ${ms(ch.latency_ms.p50)}, p95 ${ms(ch.latency_ms.p95)}. Most of it is the consumer's batch window.</p></div></div>
+
+    <h2 class="sec" id="traffic">Traffic by app and category</h2>
+    <div class="grid2">
+      <div class="card"><h3>Volume by category</h3><div class="chart"><canvas id="c-cat"></canvas></div></div>
+      <div class="card"><h3>Top apps by volume</h3><div class="tw"><table><thead><tr><th>App</th><th>Category</th><th class="n">Events</th><th class="n">Volume</th></tr></thead><tbody>
+        ${ch.top_apps.map(a => `<tr><td>${esc(a.app)}</td><td class="muted">${esc(a.category)}</td><td class="n">${num(a.events)}</td><td class="n">${size(a.bytes)}</td></tr>`).join('')}
+        </tbody></table></div>
+        <p class="muted" style="font-size:.84rem">The ranking comes from the event generator, which gives apps a random popularity order. It shows the
+          pipeline working, not real market share.</p></div></div>
+
+    <h2 class="sec" id="review">Review queue</h2>
+    <div class="card"><p class="muted" style="margin-top:0;font-size:.86rem">Hosts the rules would not tag. Unknown hosts may be new domains of a known app or
+      unrelated sites; lookalikes carry a brand next to bait words. Both wait for a person instead of being guessed. Sorted by volume.</p>
+      <div class="tw"><table><thead><tr><th>Method</th><th>Host</th><th class="n">Hits</th><th class="n">Volume</th><th>Hint</th></tr></thead><tbody>
+      ${ch.review_queue.map(r => `<tr><td><span class="tag ${esc(r.method)}">${esc(r.method)}</span></td><td><code class="h">${esc(r.host)}</code></td>
+        <td class="n">${num(r.hits)}</td><td class="n">${size(r.bytes)}</td><td class="muted">${esc(r.hint)}</td></tr>`).join('')}
+      </tbody></table></div></div>
+
+    <h2 class="sec" id="storage">ClickHouse storage</h2>
+    <div class="card"><div class="tw"><table><thead><tr><th>Table</th><th class="n">Rows</th><th class="n">On disk</th><th class="n">Uncompressed</th><th class="n">Compression</th><th class="n">Parts</th></tr></thead><tbody>
+      ${ch.storage.map(s => `<tr><td><code>${esc(s.table)}</code></td><td class="n">${num(s.rows)}</td><td class="n">${size(s.compressed)}</td>
+        <td class="n">${size(s.uncompressed)}</td><td class="n">${s.compressed ? (s.uncompressed / s.compressed).toFixed(1) + '×' : '–'}</td><td class="n">${s.parts}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="muted" style="font-size:.84rem">From <code>system.parts</code> (active parts). <code>traffic_minute</code> and <code>review_queue</code> are fed by
+        materialized views, so per-minute and per-host aggregates are ready without scanning raw events.</p></div>
+
+    <h2 class="sec" id="dictionary">Dictionary versions</h2>
+    <div class="card"><div class="tw"><table><thead><tr><th>Built</th><th>Version</th><th>Upstream</th><th class="n">Rules</th><th class="n">Added</th><th class="n">Removed</th><th class="n">Moved</th></tr></thead><tbody>
+      ${ch.dictionary.map(v => `<tr><td>${esc(String(v.built_at).slice(0, 19))}</td><td><code>${esc(v.version)}</code></td><td class="muted">${esc(v.upstream)}</td>
+        <td class="n">${num(v.rules)}</td><td class="n">${num(v.added)}</td><td class="n">${num(v.removed)}</td><td class="n">${num(v.moved)}</td></tr>`).join('')}
+      </tbody></table></div></div>`;
+
+  if(window.Chart){
+    new Chart($('c-rate'), {type: 'bar', data: {labels: ch.per_minute.map(m => String(m.minute).slice(11, 16)),
+      datasets: [{label: 'events', data: ch.per_minute.map(m => m.events), backgroundColor: '#2E5E8C'}]},
+      options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: x => num(x.parsed.y) + ' events'}}},
+        scales: {x: {ticks: {maxTicksLimit: 12}}, y: {ticks: {callback: v => num(v)}}}}});
+    new Chart($('c-cat'), {type: 'bar', data: {labels: ch.categories.map(c => c.category.replace('_', ' ')),
+      datasets: [{label: 'volume', data: ch.categories.map(c => c.bytes), backgroundColor: '#C9901D'}]},
+      options: {indexAxis: 'y', maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: x => size(x.parsed.x)}}},
+        scales: {x: {ticks: {callback: v => size(v)}}}}});
+  }
+}
+})();
+</script>
+</body>
+</html>
