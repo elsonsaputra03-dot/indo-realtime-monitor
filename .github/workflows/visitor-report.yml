@@ -1,0 +1,24 @@
+name: visitor-report
+on:
+  schedule:
+    - cron: "5 0 * * *"        # 07:05 WIB setiap hari (jadwal GitHub bisa terlambat beberapa menit)
+  workflow_dispatch:            # tombol "Run workflow" untuk uji manual
+    inputs:
+      send_empty:
+        description: "Kirim email walaupun tidak ada kunjungan (untuk uji)"
+        default: "0"
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12"}
+      - run: python scripts/visitor_report.py
+        env:
+          GOATCOUNTER_CODE: ${{ secrets.GOATCOUNTER_CODE }}
+          GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+          SEND_EMPTY: ${{ github.event.inputs.send_empty || '0' }}
