@@ -326,6 +326,35 @@
         </div>
       </article>
 
+      <article class="project" id="app-tagging" style="margin-top:22px">
+        <div class="project-top">
+          <span class="status">Open source · runs with Docker Compose · tested in CI against ClickHouse</span>
+          <h3>App Tagging Stream: Kafka to ClickHouse</h3>
+          <p class="summary">Tags network hostname events to applications and categories as they stream through Apache Kafka (4.1, KRaft) into
+            ClickHouse. The hostname dictionary is built from v2fly/domain-list-community, pinned to an upstream commit, versioned with a
+            diff, and re-synced every six hours; the consumer picks up a new version without a restart. A small supplement covers Indonesian
+            apps missing upstream. Events are synthetic: no subscriber data is used.</p>
+        </div>
+        <div class="highlights">
+          <div class="hl"><h4>Measured, not claimed</h4>
+            <p>On 82,200 events through the running stack: precision 1.0 and recall 96.6%, the same as the offline evaluation. Third-party
+              sites using a brand name are never tagged as the brand, and phishing lookalikes go to a review queue. A first evaluation that
+              scored 100% against its own patterns was replaced with held-out cases.</p></div>
+          <div class="hl"><h4>At-least-once, proven</h4>
+            <p>Offsets are committed only after the ClickHouse insert succeeds. A test fails an insert in the middle of the stream and
+              checks that no event is lost; every event carries an id, so duplicates are measurable (none in the run).</p></div>
+          <div class="hl"><h4>Found by testing</h4>
+            <p>Brand top-level domains (.youtube) that were never checked, appletree.com tagged as Apple, an empty-batch commit failing in
+              Kafka, a consumer that stopped before the group rebalance, and a package path that only broke inside Docker.</p></div>
+        </div>
+        <div class="project-foot">
+          <div class="chips"><span class="chip">Apache Kafka</span><span class="chip">ClickHouse</span><span class="chip">Python</span>
+            <span class="chip">Docker Compose</span><span class="chip">Stream processing</span><span class="chip">Data quality</span></div>
+          <div class="plinks"><a class="btn dark" href="https://github.com/elsonsaputra03-dot/app-tagging-stream" target="_blank" rel="noopener noreferrer">Source</a>
+            <a class="btn line" href="https://github.com/elsonsaputra03-dot/app-tagging-stream/blob/main/sql/queries.sql" target="_blank" rel="noopener noreferrer">Example queries</a></div>
+        </div>
+      </article>
+
       <article class="project" id="governance" style="margin-top:22px">
         <div class="project-top">
           <span class="status">Synthetic data · rebuilt for this portfolio</span>
