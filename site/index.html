@@ -580,7 +580,37 @@
     </div>
   </section>
 
-  <section id="contact" class="contact">
+  <!-- ask-portfolio:start -->
+<section id="ask-portfolio" data-endpoint="https://portfolio-chat.elsonsaputra.workers.dev">
+  <style>
+  #ask-portfolio form{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
+  #ask-portfolio input{flex:1 1 320px;padding:11px 13px;border:1px solid var(--rule,#d9e1e6);border-radius:8px;font:inherit}
+  #ask-portfolio button[type=submit]{padding:11px 18px;border-radius:8px;border:0;background:#1D2A33;color:#fff;font:inherit;cursor:pointer}
+  #ask-portfolio button[disabled]{opacity:.6;cursor:wait}
+  #ask-portfolio .ap-chips{display:flex;flex-wrap:wrap;gap:6px}
+  #ask-portfolio .ap-chip{border:1px solid var(--rule,#d9e1e6);background:transparent;border-radius:16px;padding:5px 11px;font:inherit;font-size:.86rem;cursor:pointer}
+  #ask-portfolio .ap-out{margin-top:14px;min-height:1em}
+  #ask-portfolio .ap-answer{font-size:1.02rem;line-height:1.6}
+  #ask-portfolio .ap-sources{font-size:.86rem;color:#5D6D78}
+  #ask-portfolio blockquote{border-left:3px solid #d9e1e6;margin:8px 0;padding:2px 12px;color:#33424C;font-size:.9rem}
+  #ask-portfolio .ap-note{font-size:.8rem;color:#5D6D78;margin-top:10px}
+  #ask-portfolio .ap-err{color:#8E2A22}
+</style>
+  <div class="wrap">
+    <div class="sec-head"><span class="idx">AI</span><h2>Ask about my work</h2></div>
+    <p>Ask in English or Indonesian. Answers come only from this portfolio and the project READMEs, with numbered sources;
+      when something isn't there, the assistant says so instead of guessing.</p>
+    <form><input name="q" maxlength="300" placeholder="e.g. Which projects use ClickHouse?" aria-label="Your question" autocomplete="off">
+      <button type="submit">Ask</button></form>
+    <div class="ap-chips"><button type="button" class="ap-chip">What did Elson build with Kafka?</button><button type="button" class="ap-chip">Is he Google Cloud certified?</button><button type="button" class="ap-chip">What is his current role?</button><button type="button" class="ap-chip">Pengalaman di Huawei dan Ericsson?</button></div>
+    <div class="ap-out" aria-live="polite"></div>
+    <p class="ap-note">Questions are sent to Google Gemini to write the answer and are not stored by this site. Please don't enter personal
+      information. <a href="https://github.com/elsonsaputra03-dot/portfolio-chat" target="_blank" rel="noopener noreferrer">How it works</a></p>
+  </div>
+</section>
+<script src="assets/ask-portfolio.js" defer></script>
+<!-- ask-portfolio:end -->
+<section id="contact" class="contact">
     <div class="wrap">
       <div class="sec-head"><span class="idx" style="color:var(--signal)">06</span><h2>Contact</h2></div>
       <p>Open to data engineering roles and collaborations around data platforms, data quality, and telecom analytics.</p>
