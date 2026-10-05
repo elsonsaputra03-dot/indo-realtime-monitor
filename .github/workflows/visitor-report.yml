@@ -16,9 +16,11 @@ jobs:
         with: {python-version: "3.12"}
       - run: python scripts/visitor_report.py
         env:
-          GOATCOUNTER_CODE: ${{ secrets.GOATCOUNTER_CODE }}
+          # Kode situs tidak rahasia (terlihat di sumber halaman): dibaca dari secret ATAU variable bila ada, jika tidak 'elsonsaputra'.
+          GOATCOUNTER_CODE: ${{ secrets.GOATCOUNTER_CODE || vars.GOATCOUNTER_CODE || 'elsonsaputra' }}
           GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          REPORT_TO: ${{ secrets.REPORT_TO }}
+          # penerima: REPORT_TO bila ada, jika tidak alamat alert yang sudah dipakai Indonesia Realtime Monitor
+          REPORT_TO: ${{ secrets.REPORT_TO || vars.REPORT_TO || secrets.ALERT_EMAIL_TO }}
           SEND_EMPTY: ${{ github.event.inputs.send_empty || '0' }}
