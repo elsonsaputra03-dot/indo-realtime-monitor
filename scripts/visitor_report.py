@@ -53,6 +53,8 @@ def collect(gc: GoatCounter, start: datetime, end: datetime) -> dict:
     hits = gc.get("/stats/hits", start, end, limit=100).get("hits", [])
     pages = [{"path": h["path"], "title": h.get("title", ""), "count": h["count"], "path_id": h["path_id"]}
              for h in hits if h.get("count") and not h.get("event")]
+    # /indo-realtime-monitor, /indo-realtime-monitor/ dan /index.html adalah halaman yang sama tetapi path berbeda di
+    # GoatCounter; digabung supaya tidak muncul dua kali di email (terlihat di email pertama)
     refs = [{"name": s.get("name") or "(langsung / tidak diketahui)", "count": s["count"]}
             for s in gc.get("/stats/toprefs", start, end, limit=100).get("stats", []) if s.get("count")]
     by_ref: dict[str, list] = {}
@@ -61,14 +63,25 @@ def collect(gc: GoatCounter, start: datetime, end: datetime) -> dict:
             if r.get("count"):
                 by_ref.setdefault(r.get("name") or "(langsung / tidak diketahui)", []).append((p["path"], r["count"]))
     for r in refs:
-        r["pages"] = sorted(by_ref.get(r["name"], []), key=lambda x: -x[1])
+        r["pages"] = _merge(by_ref.get(r["name"], []))
     locs = [{"name": s.get("name") or "?", "count": s["count"]}
             for s in gc.get("/stats/locations", start, end, limit=20).get("stats", []) if s.get("count")]
+    merged = {}
+    for p in pages:
+        merged[short(p["path"])] = merged.get(short(p["path"]), 0) + p["count"]
+    pages = [{"path": k, "count": v} for k, v in sorted(merged.items(), key=lambda x: -x[1])]
     return {"total": total, "pages": pages, "refs": refs, "locations": locs}
 
 
+def _merge(items: list) -> list:
+    out = {}
+    for path, n in items:
+        out[short(path)] = out.get(short(path), 0) + n
+    return sorted(out.items(), key=lambda x: -x[1])
+
+
 def short(path: str) -> str:
-    p = path.replace("/indo-realtime-monitor", "") or "/"
+    p = path.replace("/indo-realtime-monitor", "", 1).rstrip("/") or "/"
     return {"/": "halaman utama", "/index.html": "halaman utama"}.get(p, p.lstrip("/"))
 
 
