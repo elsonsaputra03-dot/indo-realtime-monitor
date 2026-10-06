@@ -136,6 +136,94 @@ def src_food_prices(_c: httpx.Client, out: str) -> dict:
             "note": f"komoditas gagal: {', '.join(failed)}" if failed else ""}
 
 
+# ---------------------------------------------------------------- data web (scraper baru; dipakai ulang dari airflow/dags)
+# Snapshot jalan tiap jam, tetapi sumber ini diambil sesuai tenggat yang sopan (cache dipulihkan oleh workflow):
+# cuaca BMKG 12 jam (BMKG memperbarui 2x sehari), GitHub & situs latihan 24 jam, Wikipedia 7 hari.
+def web_cached(out: str, name: str, ttl_h: float, build) -> dict:
+    path = os.path.join(out, name)
+    if os.path.exists(path):
+        try:
+            old = json.load(open(path, encoding="utf-8"))
+            age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(old["generated_at"])).total_seconds() / 3600
+            if age_h < ttl_h and old.get("count"):
+                return {"file": None, "count": old["count"], "note": f"cache {age_h:.0f} jam"}
+        except (ValueError, KeyError, json.JSONDecodeError):
+            pass
+    obj = build()
+    if not obj.get("count"):
+        raise RuntimeError(obj.get("note") or "tidak ada data")
+    obj["generated_at"] = now_iso()
+    return {"file": (name, obj), "count": obj["count"], "note": obj.get("note", "")}
+
+
+def web_weather() -> dict:
+    import src_bmkg_weather as S
+    res = S.fetch()
+    return {"rows": res["rows"], "count": len(res["rows"]), "note": "; ".join(res["errors"])[:200],
+            "attribution": "Sumber data: BMKG (Badan Meteorologi, Klimatologi, dan Geofisika)"}
+
+
+def web_github() -> dict:
+    import src_github as S
+    now = datetime.now(timezone.utc)
+    res = S.fetch(day=(now - timedelta(days=1)).date().isoformat(), snapshot_date=now.date().isoformat())
+    return {"languages": sorted(res["counts"], key=lambda r: -r["new_repos"]), "repos": res["repos"],
+            "count": len(res["counts"]) + len(res["repos"]), "note": "; ".join(res["errors"])[:200]}
+
+
+def web_wikipedia() -> dict:
+    import src_wikipedia as S
+    res = S.fetch()
+    rows = [json.loads(r["cells"]) for r in res["rows"]]
+    page = res["rows"][0]["page"] if res["rows"] else ""
+    return {"page": page, "revid": res["rows"][0]["revid"] if res["rows"] else 0,
+            "url": "https://id.wikipedia.org/wiki/" + page.replace(" ", "_") if page else "",
+            "header": list(rows[0].keys()) if rows else [], "rows": rows, "count": len(rows),
+            "note": "; ".join(res["errors"] + [f"{k} dari '{v}'" for k, v in res["used"].items()])[:200]}
+
+
+def web_news_meta(out: str) -> dict:
+    """3 artikel terbaru per situs dari news.json run ini; hasil digabung dengan file sebelumnya (maks 200, terbaru)."""
+    import src_news_meta as S
+    from urllib.parse import urlparse
+    path = os.path.join(out, "web_news_meta.json")
+    prev = []
+    if os.path.exists(path):
+        try:
+            prev = json.load(open(path, encoding="utf-8")).get("rows", [])
+        except (ValueError, json.JSONDecodeError):
+            prev = []
+    known = {r["url"] for r in prev}
+    per_site: dict[str, list] = {}
+    try:
+        news = json.load(open(os.path.join(out, "news.json"), encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        news = []
+    for it in news:
+        host = urlparse(it.get("link", "")).netloc
+        if it.get("link") and it["link"] not in known and len(per_site.setdefault(host, [])) < 3:
+            per_site[host].append(it["link"])
+    res = S.fetch([u for urls in per_site.values() for u in urls])
+    rows = {r["url"]: r for r in prev}
+    rows.update({r["url"]: r for r in res["rows"]})
+    merged = sorted(rows.values(), key=lambda r: r.get("published_at") or "", reverse=True)[:200]
+    notes = [f"{h} menolak bot (HTTP 403)" for h in res["refused"]] + \
+            ([f"{res['robots_blocked']} URL dilarang robots.txt"] if res["robots_blocked"] else []) + res["errors"][:2]
+    return {"rows": merged, "count": len(merged), "new": len(res["rows"]), "note": "; ".join(notes)[:200]}
+
+
+def web_books() -> dict:
+    import src_practice as S
+    res = S.fetch_books()
+    return {"rows": res["rows"], "count": len(res["rows"]), "pages": res["pages"], "note": "; ".join(res["errors"])[:200]}
+
+
+def web_quotes() -> dict:
+    import src_practice as S
+    res = S.fetch_quotes()
+    return {"rows": res["rows"], "count": len(res["rows"]), "pages": res["pages"], "note": "; ".join(res["errors"])[:200]}
+
+
 # ---------------------------------------------------------------- alert email
 SITE_URL = "https://elsonsaputra03-dot.github.io/indo-realtime-monitor/demo.html"
 INDONESIA_BBOX = (94.0, -12.0, 142.0, 7.0)     # lon_min, lat_min, lon_max, lat_max
@@ -185,7 +273,13 @@ def main() -> int:
     meta = {"generated_at": now_iso(), "sources": {}}
     jobs = [("gempa", "BMKG & USGS", src_earthquakes), ("titik_panas", "NASA FIRMS", src_hotspots),
             ("kualitas_udara", "Open-Meteo", src_air_quality), ("berita", "8 portal nasional (RSS)", src_news),
-            ("harga_pangan", "PIHPS Bank Indonesia", lambda c: src_food_prices(c, a.out))]
+            ("harga_pangan", "PIHPS Bank Indonesia", lambda c: src_food_prices(c, a.out)),
+            ("web_cuaca", "Cuaca BMKG (API)", lambda c: web_cached(a.out, "web_weather.json", 12, web_weather)),
+            ("web_github", "GitHub (Search API)", lambda c: web_cached(a.out, "web_github.json", 24, web_github)),
+            ("web_wikipedia", "Wikipedia (tabel)", lambda c: web_cached(a.out, "web_wikipedia.json", 24 * 7, web_wikipedia)),
+            ("web_berita", "Metadata artikel (HTML)", lambda c: web_cached(a.out, "web_news_meta.json", 0, lambda: web_news_meta(a.out))),
+            ("web_buku", "Katalog latihan (pagination)", lambda c: web_cached(a.out, "web_books.json", 24, web_books)),
+            ("web_kutipan", "Kutipan latihan (JavaScript)", lambda c: web_cached(a.out, "web_quotes.json", 24, web_quotes))]
     with client() as c:
         for key, label, fn in jobs:
             t0 = time.monotonic()

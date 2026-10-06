@@ -14,6 +14,8 @@ on:
       - "app/producers/**"
       - "airflow/dags/news_lib.py"
       - "airflow/dags/pihps_lib.py"
+      - "airflow/dags/scrape_lib.py"
+      - "airflow/dags/src_*.py"
       - ".github/workflows/snapshot.yml"
 
 permissions:
@@ -52,8 +54,16 @@ jobs:
           key: alert-state-${{ github.run_id }}
           restore-keys: alert-state-
 
+      # data web (cuaca 12 jam, GitHub & situs latihan 24 jam, Wikipedia 7 hari, metadata berita digabung tiap jam)
+      - uses: actions/cache@v6
+        with:
+          path: site/data/web_*.json
+          key: web-${{ github.run_id }}
+          restore-keys: web-
+
       - name: Build snapshot
         env:
+          GITHUB_TOKEN: ${{ github.token }}      # batas GitHub Search API 30/menit (tanpa token 10/menit)
           FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
