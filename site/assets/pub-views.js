@@ -74,7 +74,7 @@ const VIEWS = {
       outs, 'Tidak ada gangguan tercatat untuk Indonesia dalam 12 bulan terakhir.'))}
     ${card('Anomali trafik', 'penurunan trafik yang terdeteksi otomatis; belum tentu dikonfirmasi sebagai gangguan', table([
       {l: 'Mulai', h: r => tgl(r.startDate)}, {l: 'Selesai', h: r => r.endDate ? tgl(r.endDate) : '<span class="opill warn">berlangsung</span>'},
-      {l: 'Jenis', h: r => r.type === 'ASN' ? 'Operator (ASN)' : r.type === 'LOCATION' ? 'Wilayah' : esc(r.type)},
+      {l: 'Jenis', h: r => r.type === 'ASN' || r.type === 'AS' ? 'Operator (ASN)' : r.type === 'LOCATION' ? 'Wilayah' : esc(r.type)},
       {l: 'Operator / wilayah', h: r => r.asn ? asnName(d, r.asn) + (isOp(d, r.asn) ? '' : `<br><small class="muted">${esc(r.asn_name || '')}</small>`) : esc(r.location || 'Indonesia'), w: 1},
       {l: 'Status', h: r => esc(r.status || '')}],
       anos.slice(0, 80), 'Tidak ada anomali trafik tercatat.'))}`;
@@ -119,14 +119,16 @@ const VIEWS = {
   },
 
   'pub-quality'(d, el){
-    const sp = d.speed.map(x => ({...x, dl: num(x.bandwidthDownload), ul: num(x.bandwidthUpload), lat: num(x.latencyIdle), latL: num(x.latencyLoaded), jit: num(x.jitterIdle)}));
+    const sp = (d.speed_ops || []).map(x => ({...x, dl: num(x.bandwidthDownload), ul: num(x.bandwidthUpload), lat: num(x.latencyIdle), latL: num(x.latencyLoaded),
+      jit: num(x.jitterIdle), loss: num(x.packetLoss)})).sort((a, b) => (a.key === 'ID') - (b.key === 'ID') || (b.dl || 0) - (a.dl || 0));
     const bg = Object.entries(d.bgp).map(([k, s]) => ({k, ...s}));
     const pctV = s => s.routes_total ? (s.routes_valid || 0) / s.routes_total * 100 : null;
-    el.innerHTML = head(d) + `<div class="grid2" style="margin-bottom:14px">
-      ${card('Kecepatan per jaringan', 'speed test pengguna (Cloudflare speed.cloudflare.com), median 90 hari, Indonesia', table([
-        {l: 'Jaringan', h: r => isOp(d, r.clientASN) ? `<b>${asnName(d, r.clientASN)}</b>` : `${esc(r.clientASName)} <span class="muted">AS${esc(r.clientASN)}</span>`, w: 1},
+    el.innerHTML = head(d) + `<div>
+      ${card('Kecepatan per operator', 'speed test pengguna di speed.cloudflare.com, median 90 hari', table([
+        {l: 'Jaringan', h: r => r.key === 'ID' ? '<b>Indonesia (semua jaringan)</b>' : `<b>${asnName(d, r.key)}</b>`, w: 1},
         {l: 'Unduh (Mbps)', n: 1, h: r => fmt(r.dl, 1)}, {l: 'Unggah (Mbps)', n: 1, h: r => fmt(r.ul, 1)},
-        {l: 'Latensi (ms)', n: 1, h: r => fmt(r.lat, 0)}, {l: 'Latensi saat sibuk (ms)', n: 1, h: r => fmt(r.latL, 0)}, {l: 'Jitter (ms)', n: 1, h: r => fmt(r.jit, 1)}],
+        {l: 'Latensi (ms)', n: 1, h: r => fmt(r.lat, 0)}, {l: 'Latensi saat sibuk (ms)', n: 1, h: r => fmt(r.latL, 0)}, {l: 'Jitter (ms)', n: 1, h: r => fmt(r.jit, 1)},
+        {l: 'Packet loss', n: 1, h: r => r.loss == null ? '–' : fmt(r.loss, 2) + '%'}],
         sp, 'Data speed test belum tersedia.'))}
       ${card('Routing BGP per operator', 'prefix yang diumumkan dan validasi RPKI', table([
         {l: 'Operator', h: r => asnName(d, r.k)},
@@ -135,14 +137,14 @@ const VIEWS = {
         {l: 'RPKI valid', n: 1, h: r => pctV(r) == null ? '–' : fmt(pctV(r), 1) + '%'},
         {l: 'RPKI invalid', n: 1, h: r => r.routes_invalid ? `<span class="opill crit">${fmt(r.routes_invalid)}</span>` : '0'}],
         bg, 'Statistik BGP belum tersedia.'))}</div>
-    ${card('BGP hijack yang melibatkan Indonesia', '12 bulan; deteksi otomatis, skor keyakinan dari Radar', table([
+    ${card('BGP hijack yang melibatkan Indonesia', `${d.hijacks.length} kejadian terbaru; deteksi otomatis, skor keyakinan dari Radar (makin tinggi makin yakin)`, table([
       {l: 'Waktu', h: r => tgl(r.min_hijack_ts ? r.min_hijack_ts.replace(' ', 'T') + (/Z|\+/.test(r.min_hijack_ts) ? '' : 'Z') : r.detected_ts)},
       {l: 'Pembajak', h: r => `AS${esc(r.hijacker_asn)}${r.hijacker_country ? ' · ' + esc(r.hijacker_country) : ''}`},
       {l: 'Korban', h: r => (r.victim_asns || []).map(a => isOp(d, a) ? `<b>${asnName(d, a)}</b>` : 'AS' + esc(a)).join(', '), w: 1},
       {l: 'Prefix', n: 1, h: r => fmt((r.prefixes || []).length)}, {l: 'Keyakinan', n: 1, h: r => fmt(r.confidence_score)},
       {l: 'Durasi', n: 1, h: r => r.duration != null ? fmt(r.duration / 60, 0) + ' mnt' : '–'}],
       d.hijacks.slice(0, 50), 'Tidak ada BGP hijack tercatat yang melibatkan Indonesia.'))}
-    ${card('BGP route leak yang melibatkan Indonesia', '12 bulan', table([
+    ${card('BGP route leak yang melibatkan Indonesia', `${d.leaks.length} kejadian terbaru`, table([
       {l: 'Waktu', h: r => tgl(r.min_ts ? r.min_ts.replace(' ', 'T') + (/Z|\+/.test(r.min_ts) ? '' : 'Z') : r.detected_ts)},
       {l: 'AS pembocor', h: r => isOp(d, r.leak_asn) ? `<b>${asnName(d, r.leak_asn)}</b>` : 'AS' + esc(r.leak_asn)},
       {l: 'Prefix', n: 1, h: r => fmt(r.prefix_count)}, {l: 'Origin', n: 1, h: r => fmt(r.origin_count)}, {l: 'Peer', n: 1, h: r => fmt(r.peer_count)},
