@@ -59,7 +59,7 @@
 <div class="shell">
   <nav class="rail" aria-label="Modul">
     <div class="brand"><strong>Data Governance</strong><span>Warehouse contoh · data sintetis</span></div>
-    <h2>Biaya &amp; storage</h2>
+    <h2>Cost &amp; storage</h2>
     <a href="governance.html">Storage &amp; cost</a>
     <a href="pipeline.html">Pipeline cost</a>
     <a href="usage.html">Table usage</a>
@@ -70,20 +70,20 @@
     <a href="dictionary.html">Data dictionary</a>
     <h2>BigQuery nyata</h2>
     <a href="bq-live.html">Laporan live <small style="color:#8FA1AC">proyek asli</small></a>
-    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+    <div class="back"><a href="index.html">Back to portfolio</a></div>
   </nav>
 
   <main>
-    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Relasi antar tabel dibangkitkan dari warehouse tiruan yang sama
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Relasi antar table dibangkitkan dari warehouse tiruan yang sama
       dengan modul lain: data mentah mengalir ke core, lalu ke mart dan fitur ML, lalu ke pelaporan dan sandbox.</div>
 
     <div class="head"><div><h1>Data lineage</h1><p id="snap"></p></div></div>
     <div class="kpis" id="kpis"></div>
 
     <div class="lin">
-      <aside class="card side" aria-label="Daftar tabel">
-        <label for="q" class="muted" style="font-size:.8rem">Cari tabel</label>
-        <input id="q" type="search" placeholder="nama project, dataset, atau tabel">
+      <aside class="card side" aria-label="Daftar table">
+        <label for="q" class="muted" style="font-size:.8rem">Cari table</label>
+        <input id="q" type="search" placeholder="nama project, dataset, atau table">
         <label for="proj" class="muted" style="font-size:.8rem">Project</label>
         <select id="proj"></select>
         <div class="muted" style="font-size:.8rem;margin:2px 0 6px" id="list-info"></div>
@@ -94,14 +94,14 @@
       <section class="card" aria-live="polite">
         <div class="graph-head">
           <h3 id="g-title"></h3><span class="muted" id="g-meta"></span>
-          <div class="depth" role="group" aria-label="Kedalaman">Kedalaman
-            <button data-d="1" aria-pressed="false">1 lapis</button><button data-d="2" aria-pressed="true">2 lapis</button></div>
+          <div class="depth" role="group" aria-label="Depth">Depth
+            <button data-d="1" aria-pressed="false">1 hop</button><button data-d="2" aria-pressed="true">2 hop</button></div>
         </div>
         <div class="impact" id="impact"></div>
         <div class="canvas" id="canvas"><svg class="edges" id="edges"></svg><div class="cols" id="cols"></div></div>
         <div class="legend"><span><i style="background:var(--l0)"></i>Data mentah</span><span><i style="background:var(--l1)"></i>Core &amp; arsip</span>
           <span><i style="background:var(--l2)"></i>Mart &amp; fitur ML</span><span><i style="background:var(--l3)"></i>Pelaporan, sandbox &amp; dev</span>
-          <span>Klik node untuk memusatkan lineage pada tabel itu. Arahkan kursor untuk menyorot relasinya.</span></div>
+          <span>Klik node untuk memusatkan lineage pada table itu. Arahkan kursor untuk menyorot relasinya.</span></div>
       </section>
     </div>
 
@@ -118,7 +118,7 @@ const L = lineage();
 const {up, down, byName, edges, jobs} = L;
 const MAX_PER_COL = 10, PAGE = 120;
 
-// dampak hilir total (semua lapis) untuk mengurutkan daftar
+// dampak downstream total (semua hop) untuk mengurutkan daftar
 function reach(start, map){
   const seen = new Set(), stack = [start];
   while(stack.length){ const x = stack.pop(); for(const y of map.get(x) || []) if(!seen.has(y)){ seen.add(y); stack.push(y); } }
@@ -128,11 +128,11 @@ const withLineage = [...byName.values()].filter(t => up.has(t.full) || down.has(
 const impact = new Map(withLineage.map(t => [t.full, reach(t.full, down).size]));
 withLineage.sort((a, b) => impact.get(b.full) - impact.get(a.full) || a.full.localeCompare(b.full));
 
-$('snap').textContent = `Snapshot ${date(SNAP)} · lineage tingkat tabel dari ${jobs.size} job terjadwal`;
-$('kpis').innerHTML = [[edges.length.toLocaleString('id-ID'), 'Relasi sumber → tujuan', 'dari job terjadwal'],
-  [up.size.toLocaleString('id-ID'), 'Tabel tujuan', 'punya minimal satu sumber'],
-  [down.size.toLocaleString('id-ID'), 'Tabel sumber', 'dipakai minimal satu tabel lain'],
-  [jobs.size, 'Job / DAG', 'penulis tabel tujuan']]
+$('snap').textContent = `Snapshot ${date(SNAP)} · lineage tingkat table dari ${jobs.size} job terjadwal`;
+$('kpis').innerHTML = [[edges.length.toLocaleString('id-ID'), 'Source → target edges', 'dari job terjadwal'],
+  [up.size.toLocaleString('id-ID'), 'Target tables', 'punya minimal satu sumber'],
+  [down.size.toLocaleString('id-ID'), 'Source tables', 'dipakai minimal satu table lain'],
+  [jobs.size, 'Job / DAG', 'penulis target table']]
   .map(([v, k, d]) => `<div class="kpi"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${d}</div></div>`).join('');
 $('proj').innerHTML = '<option value="">Semua project</option>' + PROJECTS.map(p => `<option>${esc(p[0])}</option>`).join('');
 
@@ -144,11 +144,11 @@ function listRows(){
 }
 function renderList(){
   const rows = listRows(), view = rows.slice(0, shown);
-  $('list-info').textContent = `${rows.length.toLocaleString('id-ID')} tabel, diurutkan menurut dampak hilir`;
+  $('list-info').textContent = `${rows.length.toLocaleString('id-ID')} tables, diurutkan menurut dampak downstream`;
   $('list').innerHTML = view.map(t => `<button class="item" role="listitem" data-k="${esc(t.full)}" aria-current="${t.full === current}">
       <div class="n">${esc(t.dataset)}.${esc(t.table)}</div>
-      <div class="m">${esc(t.project)} · ${(up.get(t.full) || []).length} sumber · ${impact.get(t.full)} hilir</div></button>`).join('')
-    || '<div class="none">Tidak ada tabel yang cocok. Ubah kata kunci atau pilih project lain.</div>';
+      <div class="m">${esc(t.project)} · ${(up.get(t.full) || []).length} sumber · ${impact.get(t.full)} downstream</div></button>`).join('')
+    || '<div class="none">Tidak ada table yang cocok. Ubah kata kunci atau pilih project lain.</div>';
   $('more').hidden = rows.length <= shown;
   $('list').querySelectorAll('.item').forEach(b => b.onclick = () => select(b.dataset.k));
 }
@@ -183,14 +183,14 @@ function select(full){
   const roots = [...allUp].filter(x => !(up.get(x) || []).length).length;
   const writer = edges.find(e => e.dst === full);
   $('impact').innerHTML = allDown.size
-    ? `Mengubah atau menghapus tabel ini berdampak ke <strong>${allDown.size.toLocaleString('id-ID')} tabel</strong> di
-       <strong>${projs.size} project</strong> hilir. Tabel ini dibangun dari <strong>${roots}</strong> sumber data mentah${writer ? `, ditulis oleh job <code>${esc(writer.job)}</code>` : ''}.`
-    : `Tabel ini tidak dipakai tabel lain (ujung lineage)${allUp.size ? `; dibangun dari <strong>${roots}</strong> sumber data mentah` : ''}${writer ? `, ditulis oleh job <code>${esc(writer.job)}</code>` : ''}. Aman diubah dari sisi hilir.`;
+    ? `Mengubah atau menghapus table ini berdampak ke <strong>${allDown.size.toLocaleString('id-ID')} tables</strong> di
+       <strong>${projs.size} project</strong> downstream. Table ini dibangun dari <strong>${roots}</strong> sumber data mentah${writer ? `, ditulis oleh job <code>${esc(writer.job)}</code>` : ''}.`
+    : `Table ini tidak dipakai table lain (ujung lineage)${allUp.size ? `; dibangun dari <strong>${roots}</strong> sumber data mentah` : ''}${writer ? `, ditulis oleh job <code>${esc(writer.job)}</code>` : ''}. Aman diubah dari sisi downstream.`;
   const keys = [...cols.keys()].sort((a, b) => a - b);
-  const head = k => k === 0 ? 'Tabel terpilih' : k < 0 ? `Hulu ${-k} lapis` : `Hilir ${k} lapis`;
+  const head = k => k === 0 ? 'Table terpilih' : k < 0 ? `Upstream ${-k} hop` : `Downstream ${k} hop`;
   $('cols').innerHTML = keys.map(k => { const items = cols.get(k), view = items.slice(0, MAX_PER_COL);
     return `<div class="col"><h4>${head(k)} <span class="muted">(${items.length})</span></h4>${view.map(f => nodeHtml(f, k === 0)).join('')}
-      ${items.length > view.length ? `<div class="overflow">+${items.length - view.length} tabel lain</div>` : ''}</div>`; }).join('');
+      ${items.length > view.length ? `<div class="overflow">+${items.length - view.length} tables lain</div>` : ''}</div>`; }).join('');
   $('cols').querySelectorAll('.node').forEach(n => {
     n.onclick = () => { if(n.dataset.k !== current){ select(n.dataset.k); renderList(); } };
     n.onmouseenter = n.onfocus = () => hot(n.dataset.k); n.onmouseleave = n.onblur = () => hot(null);

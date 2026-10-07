@@ -58,7 +58,7 @@
 <div class="shell">
   <nav class="rail" aria-label="Modul">
     <div class="brand"><strong>Data Governance</strong><span>Warehouse contoh · data sintetis</span></div>
-    <h2>Biaya &amp; storage</h2>
+    <h2>Cost &amp; storage</h2>
     <a href="governance.html">Storage &amp; cost</a>
     <a href="pipeline.html">Pipeline cost</a>
     <a href="usage.html">Table usage</a>
@@ -69,11 +69,11 @@
     <a href="dictionary.html">Data dictionary</a>
     <h2>BigQuery nyata</h2>
     <a href="bq-live.html">Laporan live <small style="color:#8FA1AC">proyek asli</small></a>
-    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+    <div class="back"><a href="index.html">Back to portfolio</a></div>
   </nav>
 
   <main>
-    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Tabel, jumlah baris, dan anomali dibangkitkan oleh generator
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Table, jumlah rows, dan anomaly dibangkitkan oleh generator
       berbiji tetap untuk portofolio, dari warehouse tiruan yang sama dengan modul Storage &amp; cost. Metode deteksinya nyata dan
       dijalankan langsung di browser.</div>
 
@@ -87,20 +87,20 @@
     <div class="filters an">
       <div><label for="f-freq">Frekuensi</label><select id="f-freq"><option value="">Semua frekuensi</option>
         <option value="daily">Harian</option><option value="weekly">Mingguan</option><option value="monthly">Bulanan</option></select></div>
-      <div><label for="f-owner">Pemilik</label><select id="f-owner"></select></div>
+      <div><label for="f-owner">Owner</label><select id="f-owner"></select></div>
       <div><label for="f-status">Status terakhir</label><select id="f-status"><option value="">Semua status</option>
-        <option value="issue">Bermasalah saja</option><option value="missing">Partisi hilang</option><option value="drop">Volume turun</option>
+        <option value="issue">Bermasalah saja</option><option value="missing">Missing partition</option><option value="drop">Volume turun</option>
         <option value="spike">Volume melonjak</option><option value="late">Terlambat</option><option value="ok">Normal</option></select></div>
-      <div><label for="f-q">Cari tabel</label><input id="f-q" type="search" placeholder="nama project, dataset, atau tabel"></div>
+      <div><label for="f-q">Cari table</label><input id="f-q" type="search" placeholder="nama project, dataset, atau table"></div>
       <div><button class="btn" id="reset">Reset</button></div>
     </div>
 
     <div class="kpis" id="kpis"></div>
 
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Ringkasan</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="heatmap">Heatmap row count</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="method">Cara deteksi</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="method">Detection method</button>
     </div>
 
     <section class="card detail" id="detail" hidden aria-live="polite" style="margin-bottom:14px">
@@ -111,35 +111,35 @@
 
     <section id="t-overview" role="tabpanel">
       <div class="grid2">
-        <div class="card"><h3>Alert aktif <span id="al-count"></span></h3><div class="alerts-list" id="alerts"></div></div>
-        <div class="card"><h3>Status per tabel <span>14 periode terakhir</span></h3><div class="tw alerts-list"><table id="status-table"></table></div></div>
+        <div class="card"><h3>Active alerts <span id="al-count"></span></h3><div class="alerts-list" id="alerts"></div></div>
+        <div class="card"><h3>Status per table <span>14 periode terakhir</span></h3><div class="tw alerts-list"><table id="status-table"></table></div></div>
       </div>
     </section>
 
     <section id="t-heatmap" role="tabpanel" hidden>
       <div class="hm-legend"><span><i style="background:var(--ok-bg)"></i>Normal</span><span><i style="background:var(--drop)"></i>Volume turun</span>
-        <span><i style="background:var(--spike)"></i>Volume melonjak</span><span><i style="background:var(--miss)"></i>Partisi hilang</span>
-        <span><i style="background:var(--ok-bg);box-shadow:inset 0 0 0 2px var(--late)"></i>Terlambat dari SLA</span>
-        <span>Klik sel atau nama tabel untuk melihat detail.</span></div>
-      <div class="card" style="margin-bottom:14px"><h3>Tabel harian <span>30 hari</span></h3><div class="tw"><table class="hm" id="hm-daily"></table></div></div>
+        <span><i style="background:var(--spike)"></i>Volume melonjak</span><span><i style="background:var(--miss)"></i>Missing partition</span>
+        <span><i style="background:var(--ok-bg);box-shadow:inset 0 0 0 2px var(--late)"></i>Late vs SLA</span>
+        <span>Klik sel atau nama table untuk melihat detail.</span></div>
+      <div class="card" style="margin-bottom:14px"><h3>Table harian <span>30 hari</span></h3><div class="tw"><table class="hm" id="hm-daily"></table></div></div>
       <div class="grid2">
-        <div class="card"><h3>Tabel mingguan <span>12 minggu</span></h3><div class="tw"><table class="hm" id="hm-weekly"></table></div></div>
-        <div class="card"><h3>Tabel bulanan <span>12 bulan</span></h3><div class="tw"><table class="hm" id="hm-monthly"></table></div></div>
+        <div class="card"><h3>Table mingguan <span>12 minggu</span></h3><div class="tw"><table class="hm" id="hm-weekly"></table></div></div>
+        <div class="card"><h3>Table bulanan <span>12 bulan</span></h3><div class="tw"><table class="hm" id="hm-monthly"></table></div></div>
       </div>
     </section>
 
     <section id="t-method" role="tabpanel" hidden>
       <div class="card method">
-        <h3>Cara deteksi</h3>
-        <p><strong>Partisi hilang</strong>: partisi periode yang seharusnya sudah ada (lewat dari SLA) tidak ditemukan, atau jumlah barisnya nol.</p>
-        <p><strong>Volume turun / melonjak</strong>: jumlah baris dibandingkan dengan baseline periode sebelumnya (14 hari untuk tabel harian,
+        <h3>Detection method</h3>
+        <p><strong>Missing partition</strong>: partition periode yang seharusnya sudah ada (lewat dari SLA) tidak ditemukan, atau jumlah barisnya nol.</p>
+        <p><strong>Volume turun / melonjak</strong>: jumlah rows dibandingkan dengan baseline periode sebelumnya (14 hari untuk table harian,
           8 periode untuk mingguan dan bulanan). Skor memakai <em>robust z-score</em> berbasis median dan MAD, sehingga satu nilai ekstrem di
-          masa lalu tidak merusak baseline: <code>z = 0,6745 × (x − median) ÷ MAD</code>. Anomali bila <code>|z| ≥ 3,5</code>.
-          MAD diberi batas bawah 2% dari median, supaya tabel yang sangat stabil tidak memicu alert karena fluktuasi kecil.</p>
-        <p><strong>Pola mingguan</strong>: untuk tabel harian, baseline hanya memakai hari yang sama jenisnya (hari kerja dengan hari kerja,
-          akhir pekan dengan akhir pekan), supaya penurunan wajar di akhir pekan tidak dianggap anomali.</p>
-        <p><strong>Terlambat</strong>: partisi ada tetapi tiba melewati SLA tabel (misalnya pukul 06.00 WIB untuk tabel harian).</p>
-        <p><strong>Alert aktif</strong>: masalah pada periode terakhir setiap tabel. Masalah lama yang sudah pulih tetap terlihat di heatmap
+          masa lalu tidak merusak baseline: <code>z = 0,6745 × (x − median) ÷ MAD</code>. Anomaly bila <code>|z| ≥ 3,5</code>.
+          MAD diberi batas bawah 2% dari median, supaya table yang sangat stabil tidak memicu alert karena fluktuasi kecil.</p>
+        <p><strong>Pola mingguan</strong>: untuk table harian, baseline hanya memakai hari yang sama jenisnya (hari kerja dengan hari kerja,
+          akhir pekan dengan akhir pekan), supaya penurunan wajar di akhir pekan tidak dianggap anomaly.</p>
+        <p><strong>Terlambat</strong>: partition ada tetapi tiba melewati SLA table (misalnya pukul 06.00 WIB untuk table harian).</p>
+        <p><strong>Active alerts</strong>: masalah pada periode terakhir setiap table. Masalah lama yang sudah pulih tetap terlihat di heatmap
           sebagai riwayat, tetapi tidak dihitung sebagai alert aktif.</p>
       </div>
     </section>
@@ -157,7 +157,7 @@ const {rng, SNAP, DAY, PROJECTS, TABLES, $, esc, fmtNum, date} = window.GOV;
 const R = rng(777);
 const WIB = 7 * 36e5;
 
-// ------------------------------------------------------------------ tabel yang dimonitor (deterministik)
+// ------------------------------------------------------------------ table yang dimonitor (deterministik)
 const candidates = TABLES.filter(t => t.type === 'TABLE' && t.parts > 0 && t.bytes > 5e9 && t.ageDays < 30)
   .sort((a, b) => a.full < b.full ? -1 : 1);
 const take = (arr, n) => { const out = [], step = Math.max(1, Math.floor(arr.length / n)); for(let i = 0; i < arr.length && out.length < n; i += step) out.push(arr[i]); return out; };
@@ -179,7 +179,7 @@ function periodDates(freq, n){
 }
 const HIST_N = {daily: 30 + 21, weekly: 12 + 8, monthly: 12 + 8};  // ekstra untuk baseline awal
 
-// ------------------------------------------------------------------ deret jumlah baris + anomali tersuntik
+// ------------------------------------------------------------------ deret jumlah rows + anomaly tersuntik
 for(const t of monitored){
   const n = HIST_N[t.freq], dates = periodDates(t.freq, n);
   const perDay = Math.max(2e4, t.rows / Math.max(t.parts, 30));
@@ -190,7 +190,7 @@ for(const t of monitored){
     const wk = t.freq === 'daily' && [0, 6].includes(d.getUTCDay()) ? weekendDip : 1;
     return {date: d, value: Math.round(scale * wk * (1 + trend * i) * (1 + (R() - .5) * .06)), arrivalH: 1 + R() * 3.5, injected: null};
   });
-  // anomali: probabilitas per tabel; sebagian ditempatkan di periode terakhir supaya ada alert aktif
+  // anomaly: probabilitas per table; sebagian ditempatkan di periode terakhir supaya ada alert aktif
   const s = t.series, last = s.length - 1, recent = i => Math.max(n - PERIODS[t.freq], i);
   const r = R();
   const at = () => recent(last - Math.floor(R() * PERIODS[t.freq]));
@@ -206,7 +206,7 @@ const median = a => { const b = a.slice().sort((x, y) => x - y), m = b.length >>
 function detect(t){
   const s = t.series, isWeekend = d => [0, 6].includes(d.getUTCDay());
   s.forEach((p, i) => {
-    // median/MAD sudah kebal outlier; anomali lama tetap di baseline supaya baseline tidak 'membeku' saat level bergeser
+    // median/MAD sudah kebal outlier; anomaly lama tetap di baseline supaya baseline tidak 'membeku' saat level bergeser
     let pool = s.slice(0, i).filter(q => q.value != null);
     if(t.freq === 'daily') pool = pool.filter(q => isWeekend(q.date) === isWeekend(p.date));
     pool = pool.slice(-BASE_N[t.freq]).map(q => q.value);
@@ -225,7 +225,7 @@ monitored.forEach(detect);
 window.GOV_ANOMALY = monitored;           // untuk inspeksi di console
 
 // ------------------------------------------------------------------ tampilan
-const LABEL = {ok: 'Normal', missing: 'Partisi hilang', drop: 'Volume turun', spike: 'Volume melonjak', late: 'Terlambat'};
+const LABEL = {ok: 'Normal', missing: 'Missing partition', drop: 'Volume turun', spike: 'Volume melonjak', late: 'Terlambat'};
 const SEV = {missing: 0, drop: 1, spike: 2, late: 3, ok: 4};
 const FREQ_ID = {daily: 'harian', weekly: 'mingguan', monthly: 'bulanan'};
 const pLabel = (freq, d) => freq === 'daily' ? d.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})
@@ -233,9 +233,9 @@ const pLabel = (freq, d) => freq === 'daily' ? d.toLocaleDateString('id-ID', {da
 const hh = h => { const H = Math.floor(h), M = Math.round((h - H) * 60); return `${String(H).padStart(2, '0')}.${String(M).padStart(2, '0')} WIB`; };
 const state = {freq: '', owner: '', status: '', q: '', tab: 'overview'};
 
-$('f-owner').innerHTML = '<option value="">Semua pemilik</option>' + [...new Set(PROJECTS.map(p => p[1]))].sort().map(o => `<option>${esc(o)}</option>`).join('');
+$('f-owner').innerHTML = '<option value="">Semua owner</option>' + [...new Set(PROJECTS.map(p => p[1]))].sort().map(o => `<option>${esc(o)}</option>`).join('');
 const nIssue = monitored.filter(t => t.lastStatus !== 'ok').length;
-$('snap').textContent = `Snapshot ${date(SNAP)} · ${monitored.length} tabel dimonitor dari ${TABLES.length.toLocaleString('id-ID')} objek`;
+$('snap').textContent = `Snapshot ${date(SNAP)} · ${monitored.length} tables dimonitor dari ${TABLES.length.toLocaleString('id-ID')} objects`;
 
 function filtered(){
   const q = state.q.trim().toLowerCase();
@@ -259,29 +259,29 @@ function renderKpis(rows){
   const late = rows.reduce((s, t) => s + last7(t).filter(p => p.status === 'late').length, 0);
   const healthy = rows.filter(t => last7(t).every(p => p.status === 'ok')).length;
   $('kpis').innerHTML = [
-    [miss, 'Partisi hilang', '7 hari terakhir (harian) + periode terakhir', miss ? 'bad' : 'good'],
-    [anom, 'Anomali volume', 'turun atau melonjak, periode yang sama', anom ? 'bad' : 'good'],
-    [late, 'Terlambat dari SLA', 'partisi ada tetapi tiba terlambat', ''],
-    [rows.length ? Math.round(healthy / rows.length * 100) + '%' : '–', 'Tabel sehat', `${healthy} dari ${rows.length} tanpa masalah`, 'good']]
+    [miss, 'Missing partition', '7 hari terakhir (harian) + periode terakhir', miss ? 'bad' : 'good'],
+    [anom, 'Volume anomaly', 'turun atau melonjak, periode yang sama', anom ? 'bad' : 'good'],
+    [late, 'Late vs SLA', 'partition ada tetapi tiba terlambat', ''],
+    [rows.length ? Math.round(healthy / rows.length * 100) + '%' : '–', 'Healthy tables', `${healthy} dari ${rows.length} tanpa masalah`, 'good']]
     .map(([v, k, d, c]) => `<div class="kpi"><div class="v num ${c}">${v}</div><div class="k">${k}</div><div class="d muted">${d}</div></div>`).join('');
 }
 
 function renderOverview(rows){
   const act = rows.filter(t => t.lastStatus !== 'ok').sort((a, b) => SEV[a.lastStatus] - SEV[b.lastStatus] || a.full.localeCompare(b.full));
-  $('al-count').textContent = `${act.length} tabel`;
+  $('al-count').textContent = `${act.length} tables`;
   $('alerts').innerHTML = act.length ? act.map(t => { const p = t.view[t.view.length - 1];
-    const why = p.status === 'missing' ? `partisi ${pLabel(t.freq, p.date)} tidak ada`
+    const why = p.status === 'missing' ? `partition ${pLabel(t.freq, p.date)} tidak ada`
       : p.status === 'late' ? `tiba ${hh(p.arrivalH)}, SLA ${String(SLA_H[t.freq]).padStart(2, '0')}.00 WIB`
-      : `${fmtNum(p.value)} baris vs perkiraan ${fmtNum(p.expected)} (z = ${p.z.toFixed(1)})`;
+      : `${fmtNum(p.value)} rows vs perkiraan ${fmtNum(p.expected)} (z = ${p.z.toFixed(1)})`;
     return `<div class="al-row" data-k="${esc(t.full)}" tabindex="0"><span class="st ${p.status}">${LABEL[p.status]}</span>
       <div><div class="n">${esc(t.dataset)}.${esc(t.table)}</div><div class="m">${esc(t.project)} · ${FREQ_ID[t.freq]} · ${why}</div></div>
       <span class="m">${esc(t.owner)}</span></div>`; }).join('')
     : '<div class="empty">Tidak ada alert aktif untuk filter ini.</div>';
   const all = rows.slice().sort((a, b) => SEV[a.lastStatus] - SEV[b.lastStatus] || a.full.localeCompare(b.full));
-  $('status-table').innerHTML = `<thead><tr><th>Tabel</th><th>Frekuensi</th><th>Tren</th><th>Status</th></tr></thead><tbody>`
+  $('status-table').innerHTML = `<thead><tr><th>Table</th><th>Frekuensi</th><th>Tren</th><th>Status</th></tr></thead><tbody>`
     + (all.length ? all.map(t => `<tr data-k="${esc(t.full)}" style="cursor:pointer"><td class="name"><span class="p">${esc(t.project)}.</span>${esc(t.dataset)}.${esc(t.table)}</td>
       <td class="muted">${FREQ_ID[t.freq]}</td><td>${spark(t)}</td><td><span class="st ${t.lastStatus}">${LABEL[t.lastStatus]}</span></td></tr>`).join('')
-      : '<tr><td colspan="4" class="empty">Tidak ada tabel untuk filter ini. Ubah atau reset filter.</td></tr>') + '</tbody>';
+      : '<tr><td colspan="4" class="empty">Tidak ada table untuk filter ini. Ubah atau reset filter.</td></tr>') + '</tbody>';
   bindOpen(document.querySelectorAll('#alerts [data-k], #status-table [data-k]'));
 }
 
@@ -289,11 +289,11 @@ function renderHeatmap(rows){
   for(const f of ['daily', 'weekly', 'monthly']){
     const list = rows.filter(t => t.freq === f).sort((a, b) => SEV[a.lastStatus] - SEV[b.lastStatus] || a.full.localeCompare(b.full));
     const el = $('hm-' + f);
-    if(!list.length){ el.innerHTML = '<tbody><tr><td class="empty">Tidak ada tabel untuk filter ini.</td></tr></tbody>'; continue; }
+    if(!list.length){ el.innerHTML = '<tbody><tr><td class="empty">Tidak ada table untuk filter ini.</td></tr></tbody>'; continue; }
     const cols = list[0].view.map(p => p.date);
-    el.innerHTML = `<thead><tr><th class="tn">Tabel</th>${cols.map(d => `<th>${pLabel(f, d)}</th>`).join('')}</tr></thead><tbody>`
+    el.innerHTML = `<thead><tr><th class="tn">Table</th>${cols.map(d => `<th>${pLabel(f, d)}</th>`).join('')}</tr></thead><tbody>`
       + list.map(t => `<tr><td class="tn" data-k="${esc(t.full)}" title="${esc(t.full)}">${esc(t.dataset)}.${esc(t.table)}</td>`
-        + t.view.map((p, i) => { const tip = `${t.full}\n${pLabel(f, p.date)}: ${p.value == null ? 'tidak ada' : p.value.toLocaleString('id-ID') + ' baris'}`
+        + t.view.map((p, i) => { const tip = `${t.full}\n${pLabel(f, p.date)}: ${p.value == null ? 'tidak ada' : p.value.toLocaleString('id-ID') + ' rows'}`
             + (p.expected ? `\nperkiraan ${Math.round(p.expected).toLocaleString('id-ID')}` + (p.z != null ? `, z = ${p.z.toFixed(1)}` : '') : '')
             + `\ntiba ${hh(p.arrivalH)} · ${LABEL[p.status]}`;
           return `<td><span class="cell ${p.status}" tabindex="0" data-k="${esc(t.full)}" data-i="${i}" title="${esc(tip)}">${p.value == null ? '—' : fmtNum(p.value)}</span></td>`; }).join('')
@@ -302,7 +302,7 @@ function renderHeatmap(rows){
   bindOpen(document.querySelectorAll('#t-heatmap [data-k]'));
 }
 
-// ------------------------------------------------------------------ detail tabel
+// ------------------------------------------------------------------ detail table
 let chart;
 function openDetail(full, idx){
   const t = monitored.find(x => x.full === full); if(!t) return;
@@ -318,19 +318,19 @@ function openDetail(full, idx){
       {label: 'Batas atas', data: v.map(p => p.expected ? p.expected + p.band : null), borderColor: 'transparent', pointRadius: 0, fill: '+1', backgroundColor: 'rgba(62,142,94,.12)'},
       {label: 'Batas bawah', data: v.map(p => p.expected ? Math.max(0, p.expected - p.band) : null), borderColor: 'transparent', pointRadius: 0, fill: false},
       {label: 'Perkiraan (median)', data: v.map(p => p.expected ?? null), borderColor: '#2EB85C', borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5},
-      {label: 'Jumlah baris', data: v.map(p => p.value), borderColor: '#1D2A33', borderWidth: 2, spanGaps: false,
+      {label: 'Jumlah rows', data: v.map(p => p.value), borderColor: '#1D2A33', borderWidth: 2, spanGaps: false,
        pointRadius: v.map(p => p.status === 'ok' ? 2 : 6), pointBackgroundColor: v.map(p => COL[p.status]), pointBorderColor: v.map(p => COL[p.status])}]},
       options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
         plugins: {legend: {labels: {filter: i => !i.text.startsWith('Batas'), boxWidth: 12}},
           tooltip: {callbacks: {label: c => c.dataset.label.startsWith('Batas') ? null : `${c.dataset.label}: ${c.parsed.y == null ? 'tidak ada' : Math.round(c.parsed.y).toLocaleString('id-ID')}`,
             afterBody: it => { const p = v[it[0].dataIndex]; return `Status: ${LABEL[p.status]}` + (p.z != null ? ` (z = ${p.z.toFixed(1)})` : '') + `\nTiba ${hh(p.arrivalH)}`; }}}},
-        scales: {y: {title: {display: true, text: 'Jumlah baris'}, ticks: {callback: x => fmtNum(x)}}}}});
+        scales: {y: {title: {display: true, text: 'Jumlah rows'}, ticks: {callback: x => fmtNum(x)}}}}});
   }
   const d = pLabel(t.freq, sel.date);
-  $('d-note').innerHTML = sel.status === 'ok' ? `Periode ${d}: normal, ${sel.value.toLocaleString('id-ID')} baris, tiba ${hh(sel.arrivalH)}.`
-    : sel.status === 'missing' ? `<strong>${d}: partisi hilang.</strong> Periode ini seharusnya sudah tersedia sebelum SLA. Cek job pemuat dan sumber hulunya.`
-    : sel.status === 'late' ? `<strong>${d}: terlambat.</strong> Partisi tiba ${hh(sel.arrivalH)}, melewati SLA. Jumlah baris normal (${sel.value.toLocaleString('id-ID')}).`
-    : `<strong>${d}: ${LABEL[sel.status].toLowerCase()}.</strong> ${sel.value.toLocaleString('id-ID')} baris, perkiraan ${Math.round(sel.expected).toLocaleString('id-ID')}
+  $('d-note').innerHTML = sel.status === 'ok' ? `Periode ${d}: normal, ${sel.value.toLocaleString('id-ID')} rows, tiba ${hh(sel.arrivalH)}.`
+    : sel.status === 'missing' ? `<strong>${d}: partition hilang.</strong> Periode ini seharusnya sudah tersedia sebelum SLA. Cek job pemuat dan sumber hulunya.`
+    : sel.status === 'late' ? `<strong>${d}: terlambat.</strong> Partition tiba ${hh(sel.arrivalH)}, melewati SLA. Jumlah rows normal (${sel.value.toLocaleString('id-ID')}).`
+    : `<strong>${d}: ${LABEL[sel.status].toLowerCase()}.</strong> ${sel.value.toLocaleString('id-ID')} rows, perkiraan ${Math.round(sel.expected).toLocaleString('id-ID')}
        (${((sel.value / sel.expected - 1) * 100).toFixed(0)}%, z = ${sel.z.toFixed(1)}). Pita hijau = rentang normal dari ${BASE_N[t.freq]} periode sejenis sebelumnya.`;
   $('detail').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
 }

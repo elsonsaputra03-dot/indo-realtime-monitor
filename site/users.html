@@ -43,7 +43,7 @@
 <div class="shell">
   <nav class="rail" aria-label="Modul"><a href="governance.html">Data Governance</a></nav>
   <main>
-    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Pengguna, service account, dan job query dibangkitkan dengan biji tetap di
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> User, service account, dan job query dibangkitkan dengan biji tetap di
       atas warehouse tiruan yang sama dengan modul lain. Nama dan email fiktif. Di sistem nyata angka ini dibaca dari
       <code>INFORMATION_SCHEMA.JOBS_BY_PROJECT</code>, seperti di <a href="bq-live.html#cost">laporan BigQuery live</a>.</div>
 
@@ -52,8 +52,8 @@
     <div class="filters ua">
       <div><label for="f-project">Project</label><select id="f-project"></select></div>
       <div><label for="f-period">Periode</label><select id="f-period"><option value="30">30 hari</option><option value="7">7 hari terakhir</option><option value="1">Kemarin</option></select></div>
-      <div><label for="f-type">Jenis pengguna</label><select id="f-type"><option value="">Semua</option><option value="h">Human user</option><option value="s">Service account</option></select></div>
-      <div><label for="f-q">Cari pengguna</label><input id="f-q" type="search" placeholder="nama atau email"></div>
+      <div><label for="f-type">User type</label><select id="f-type"><option value="">Semua</option><option value="h">Human user</option><option value="s">Service account</option></select></div>
+      <div><label for="f-q">Cari user</label><input id="f-q" type="search" placeholder="nama atau email"></div>
       <div><button class="btn" id="reset">Reset</button></div>
     </div>
 
@@ -61,14 +61,14 @@
     <div class="kpis" id="kpis"></div>
 
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Ringkasan</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="users">Per pengguna</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="queries">Query termahal</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="analysis">Analisis biaya</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="users">Per user</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="queries">Most expensive queries</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="analysis">Cost analysis</button>
     </div>
     <div id="panel"></div>
 
-    <footer>Biaya = bytes billed × $6.25/TiB (harga on-demand daftar, asumsi ilustrasi); job yang memakai cache tidak ditagih. Dibuat oleh
+    <footer>Cost = bytes billed × $6.25/TiB (harga on-demand daftar, asumsi ilustrasi); job yang memakai cache tidak ditagih. Dibuat oleh
       <a href="index.html">Elson Saputra</a>. Data sintetis; tidak mencerminkan sistem produksi mana pun.</footer>
   </main>
 </div>
@@ -84,7 +84,7 @@ const lognorm = (mu, s) => Math.exp(mu + s * Math.sqrt(-2 * Math.log(R() || 1e-9
 const PRICE_TIB = 6.25, DAYS = 30, START = +SNAP - DAYS * DAY;
 if(window.Chart){ Chart.defaults.font.family = 'system-ui, "Segoe UI", Roboto, sans-serif'; Chart.defaults.color = '#6B7785'; Chart.defaults.borderColor = '#E7EAEE'; Chart.defaults.animation = false; }
 
-// ---------------------------------------------------------------- pengguna fiktif
+// ---------------------------------------------------------------- user fiktif
 const FIRST = ['Andi', 'Budi', 'Citra', 'Dewi', 'Eka', 'Fajar', 'Gita', 'Hendra', 'Indah', 'Joko', 'Kartika', 'Lukman', 'Maya', 'Nanda', 'Oki',
   'Putri', 'Rangga', 'Sari', 'Taufik', 'Utami', 'Wahyu', 'Yogi', 'Zahra', 'Bayu', 'Rina', 'Dimas', 'Ayu', 'Rizal', 'Nadia', 'Fikri', 'Laras', 'Galih'];
 const LAST = ['Pratama', 'Saputra', 'Wijaya', 'Kusuma', 'Santoso', 'Hidayat', 'Lestari', 'Nugroho', 'Permana', 'Rahmawati', 'Setiawan', 'Utomo'];
@@ -171,17 +171,17 @@ function render(){
   $('snap').textContent = `Snapshot ${date(SNAP)} · ${per} · ${n0(jobs.length)} job query · harga on-demand $${PRICE_TIB}/TiB`;
   const top3 = users.slice(0, 3), t3 = top3.reduce((s, g) => s + g.cost, 0);
   const star = jobs.filter(j => /^SELECT \* FROM `[^`]+`$/.test(j.q) && !j.cache), starCost = star.reduce((s, j) => s + j.cost, 0);
-  $('banner').innerHTML = users.length ? `<strong>${top3.length} pengguna teratas menyumbang ${pct(t3, cost).toFixed(0)}% biaya</strong> (${top3.map(g => esc(g.u.name)).join(', ')}).
-    ${star.length ? `<strong>${n0(star.length)}</strong> query <code>SELECT *</code> tanpa filter memindai tabel penuh dan menelan <strong>${usd(starCost)}</strong>;
-    filter partisi atau pilih kolom yang dipakai.` : ''}` : 'Tidak ada job untuk filter ini.';
+  $('banner').innerHTML = users.length ? `<strong>${top3.length} users teratas menyumbang ${pct(t3, cost).toFixed(0)}% cost</strong> (${top3.map(g => esc(g.u.name)).join(', ')}).
+    ${star.length ? `<strong>${n0(star.length)}</strong> query <code>SELECT *</code> tanpa filter memindai table penuh dan menelan <strong>${usd(starCost)}</strong>;
+    filter partition atau pilih column yang dipakai.` : ''}` : 'Tidak ada job untuk filter ini.';
   $('kpis').innerHTML = [
-    [n0(users.length), 'Pengguna aktif', `${users.filter(g => g.u.type === 'h').length} human · ${users.filter(g => g.u.type === 's').length} service account`, 'people'],
-    [usd(cost), 'Total biaya query', `rata-rata ${usd(cost / Math.max(1, jobs.length))} per job`, 'dollar'],
+    [n0(users.length), 'User aktif', `${users.filter(g => g.u.type === 'h').length} human · ${users.filter(g => g.u.type === 's').length} service account`, 'people'],
+    [usd(cost), 'Total cost query', `rata-rata ${usd(cost / Math.max(1, jobs.length))} per job`, 'dollar'],
     [n0(jobs.length), 'Total query', `${n0(jobs.length / state.period)} per hari`, 'bolt'],
-    [n0(failed), 'Query gagal', `${pct(failed, jobs.length).toFixed(1)}% dari semua job`, 'warning'],
+    [n0(failed), 'Failed queries', `${pct(failed, jobs.length).toFixed(1)}% dari semua job`, 'warning'],
     [fmtBytes(bytes), 'Bytes billed', `${(bytes / TiB).toFixed(1)} TiB`, 'storage'],
     [fmtNum(slotH), 'Slot hours', 'total waktu slot yang dipakai', 'clock'],
-    [usd(users[0]?.cost || 0), 'Pengguna termahal', users[0] ? esc(users[0].u.name) : '–', 'user'],
+    [usd(users[0]?.cost || 0), 'User termahal', users[0] ? esc(users[0].u.name) : '–', 'user'],
     [pct(cache, jobs.length).toFixed(1) + '%', 'Cache hit rate', `${n0(cache)} job dari cache, tidak ditagih`, 'check-circle']]
     .map(([v, k, d, ic], i) => `<div class="kpi" data-ic="${ic}" data-c="${['#5856D6', '#3399FF', '#2EB85C', '#E55353', '#F9B115', '#3399FF', '#5856D6', '#2EB85C'][i]}"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${d}</div></div>`).join('');
   ({overview, users: userTab, queries, analysis})[state.tab](jobs, users, cost);
@@ -191,15 +191,15 @@ function overview(jobs, users, cost){
   const t = k => users.filter(g => g.u.type === k), sum = a => a.reduce((s, g) => s + g.cost, 0);
   const H = sum(t('h')), S = sum(t('s'));
   $('panel').innerHTML = `<div class="grid2 wide-left">
-    <section class="card"><h3>Biaya &amp; aktivitas per pengguna <span>15 teratas</span></h3><div class="tw"><table><thead><tr><th>Pengguna</th><th>Jenis</th>
-      <th class="r">Biaya</th><th class="r">Query</th><th class="r">Slot hours</th><th class="r">Cache</th><th class="r">Gagal</th></tr></thead><tbody>
+    <section class="card"><h3>Cost &amp; aktivitas per user <span>15 teratas</span></h3><div class="tw"><table><thead><tr><th>User</th><th>Jenis</th>
+      <th class="r">Cost</th><th class="r">Query</th><th class="r">Slot hours</th><th class="r">Cache</th><th class="r">Gagal</th></tr></thead><tbody>
       ${users.slice(0, 15).map(g => `<tr>${userCell(g.u)}<td>${typeTag(g.u)}</td><td class="r">${usd(g.cost)}</td><td class="r">${n0(g.n)}</td>
         <td class="r">${(g.slot / 36e5).toFixed(1)}</td><td class="r">${pct(g.cache, g.n).toFixed(0)}%</td><td class="r">${g.failed || '–'}</td></tr>`).join('')}</tbody></table></div></section>
     <div style="display:grid;gap:16px;align-content:start">
-      <section class="card typecard"><h3>Biaya per jenis pengguna</h3>
+      <section class="card typecard"><h3>Cost per jenis user</h3>
         ${[['Human user', H, '#5856D6', t('h').length], ['Service account', S, '#3399FF', t('s').length]].map(([l, v, c, n]) => `<div class="row"><span>${l} <span class="muted">(${n})</span></span><b>${usd(v)}</b></div>
         <div class="bar"><b style="width:${pct(v, cost).toFixed(1)}%;background:${c}"></b></div><div class="muted" style="font-size:.8rem;margin-top:3px">${pct(v, cost).toFixed(1)}% dari total</div>`).join('')}</section>
-      <section class="card"><h3>Biaya per hari <span>USD</span></h3><div class="chart" style="height:220px"><canvas id="c-day"></canvas></div></section>
+      <section class="card"><h3>Cost per hari <span>USD</span></h3><div class="chart" style="height:220px"><canvas id="c-day"></canvas></div></section>
     </div></div>`;
   const days = {}; jobs.forEach(j => { const d = new Date(Math.floor(j.t / DAY) * DAY).toISOString().slice(5, 10); (days[d] ||= {h: 0, s: 0})[j.u.type] += j.cost; });
   const L = Object.keys(days).sort();
@@ -208,20 +208,20 @@ function overview(jobs, users, cost){
     options: {maintainAspectRatio: false, plugins: {legend: {position: 'bottom', labels: {boxWidth: 12}}}, scales: {x: {stacked: true, ticks: {maxTicksLimit: 10}}, y: {stacked: true, ticks: {callback: v => '$' + v}}}}});
 }
 
-const UCOLS = [['name', 'Pengguna'], ['type', 'Jenis'], ['cost', 'Biaya', 'r'], ['n', 'Query', 'r'], ['failed', 'Gagal', 'r'], ['days', 'Hari aktif', 'r'],
-  ['cache', 'Cache hit', 'r'], ['share', 'Porsi biaya', 'r'], ['last', 'Terakhir aktif']];
+const UCOLS = [['name', 'User'], ['type', 'Jenis'], ['cost', 'Cost', 'r'], ['n', 'Query', 'r'], ['failed', 'Gagal', 'r'], ['days', 'Hari aktif', 'r'],
+  ['cache', 'Cache hit', 'r'], ['share', 'Porsi cost', 'r'], ['last', 'Terakhir aktif']];
 function userTab(jobs, users, cost){
   const val = (g, k) => k === 'name' ? g.u.name : k === 'type' ? g.u.type : k === 'days' ? g.days.size : k === 'cache' ? g.cache / g.n : k === 'share' ? g.cost : g[k];
   const [k, dir] = state.sort; users.sort((a, b) => { const x = val(a, k), y = val(b, k); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
   const PAGE = 15, pages = Math.max(1, Math.ceil(users.length / PAGE)); state.page = Math.min(state.page, pages - 1);
   const view = users.slice(state.page * PAGE, state.page * PAGE + PAGE);
-  $('panel').innerHTML = `<section class="card"><h3>Ringkasan per pengguna <span>klik baris untuk detail</span></h3><div class="tw"><table id="ut"><thead><tr>
+  $('panel').innerHTML = `<section class="card"><h3>Overview per user <span>klik rows untuk detail</span></h3><div class="tw"><table id="ut"><thead><tr>
     ${UCOLS.map(([key, l, c]) => `<th class="${c || ''}" data-k="${key}" ${key === k ? `aria-sort="${dir < 0 ? 'descending' : 'ascending'}"` : ''}>${l}</th>`).join('')}</tr></thead><tbody>
     ${view.map(g => `<tr class="pick" data-u="${g.u.id}" tabindex="0" aria-selected="${state.user === g.u.id}">${userCell(g.u)}<td>${typeTag(g.u)}</td><td class="r">${usd(g.cost)}</td><td class="r">${n0(g.n)}</td>
       <td class="r">${g.failed ? `<span class="st fail">${g.failed}</span>` : '–'}</td><td class="r">${g.days.size}</td><td class="r">${pct(g.cache, g.n).toFixed(0)}%</td>
       <td class="r"><span class="share"><b style="width:${Math.min(100, pct(g.cost, users[0] ? Math.max(...users.map(x => x.cost)) : 1)).toFixed(0)}%"></b></span>${pct(g.cost, cost).toFixed(1)}%</td>
-      <td>${date(new Date(g.last))}</td></tr>`).join('') || `<tr><td colspan="9" class="empty">Tidak ada pengguna untuk filter ini.</td></tr>`}</tbody></table></div>
-    <div class="pager"><span class="muted">${users.length} pengguna · halaman ${state.page + 1} dari ${pages}</span><button class="btn" id="pg-prev" ${state.page ? '' : 'disabled'}>Sebelumnya</button>
+      <td>${date(new Date(g.last))}</td></tr>`).join('') || `<tr><td colspan="9" class="empty">Tidak ada user untuk filter ini.</td></tr>`}</tbody></table></div>
+    <div class="pager"><span class="muted">${users.length} users · halaman ${state.page + 1} dari ${pages}</span><button class="btn" id="pg-prev" ${state.page ? '' : 'disabled'}>Sebelumnya</button>
       <button class="btn" id="pg-next" ${state.page < pages - 1 ? '' : 'disabled'}>Berikutnya</button></div></section><div id="udetail"></div>`;
   $('ut').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const key = th.dataset.k;
     state.sort = [key, state.sort[0] === key ? -state.sort[1] : (key === 'name' || key === 'type' ? 1 : -1)]; render(); });
@@ -236,10 +236,10 @@ function detail(g, jobs){
   const days = {}; jobs.forEach(j => { const d = new Date(Math.floor(j.t / DAY) * DAY).toISOString().slice(5, 10); days[d] = (days[d] || 0) + j.cost; });
   const L = Object.keys(days).sort();
   $('udetail').innerHTML = `<section class="card detail"><h3>${esc(g.u.name)} <span>${esc(g.u.email)} · ${esc(g.u.team)}</span></h3>
-    <dl class="facts"><div><dt>Biaya</dt><dd>${usd(g.cost)}</dd></div><div><dt>Query</dt><dd>${n0(g.n)}</dd></div>
+    <dl class="facts"><div><dt>Cost</dt><dd>${usd(g.cost)}</dd></div><div><dt>Query</dt><dd>${n0(g.n)}</dd></div>
       <div><dt>Bytes billed</dt><dd>${fmtBytes(g.bytes)}</dd></div><div><dt>Cache hit</dt><dd>${pct(g.cache, g.n).toFixed(1)}%</dd></div></dl>
     <div class="grid2"><div><div class="chart" style="height:200px"><canvas id="c-ud"></canvas></div></div>
-      <div class="tw"><table><thead><tr><th>Tabel yang paling mahal dibaca</th><th class="r">Query</th><th class="r">Biaya</th></tr></thead><tbody>
+      <div class="tw"><table><thead><tr><th>Table yang paling mahal dibaca</th><th class="r">Query</th><th class="r">Cost</th></tr></thead><tbody>
       ${topT.map(([t, v]) => `<tr><td class="name">${esc(t)}</td><td class="r">${v.n}</td><td class="r">${usd(v.c)}</td></tr>`).join('')}</tbody></table></div></div></section>`;
   mk('c-ud', {type: 'line', data: {labels: L, datasets: [{label: 'USD', data: L.map(d => days[d]), borderColor: '#5856D6', backgroundColor: 'rgba(88,86,214,.12)', fill: true, tension: .3, pointRadius: 2}]},
     options: {maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {ticks: {callback: v => '$' + v}}, x: {ticks: {maxTicksLimit: 8}}}}});
@@ -247,8 +247,8 @@ function detail(g, jobs){
 
 function queries(jobs){
   const top = jobs.filter(j => j.cost > 0).sort((a, b) => b.cost - a.cost).slice(0, 40);
-  $('panel').innerHTML = `<section class="card"><h3>Query paling mahal <span>40 teratas pada periode ini</span></h3><div class="tw"><table><thead><tr><th>#</th><th>Pengguna</th><th>Waktu (WIB)</th>
-    <th class="r">Biaya</th><th class="r">Billed</th><th class="r">Slot menit</th><th>Status</th><th>Query</th></tr></thead><tbody>
+  $('panel').innerHTML = `<section class="card"><h3>Query paling mahal <span>40 teratas pada periode ini</span></h3><div class="tw"><table><thead><tr><th>#</th><th>User</th><th>Waktu (WIB)</th>
+    <th class="r">Cost</th><th class="r">Billed</th><th class="r">Slot menit</th><th>Status</th><th>Query</th></tr></thead><tbody>
     ${top.map((j, i) => `<tr><td>${i + 1}</td>${userCell(j.u)}<td>${new Date(j.t + 7 * 36e5).toISOString().slice(0, 16).replace('T', ' ')}</td>
       <td class="r"><b>${usd(j.cost)}</b></td><td class="r">${fmtBytes(j.bytes)}</td><td class="r">${(j.slotMs / 6e4).toFixed(1)}</td>
       <td><span class="st ${j.failed ? 'fail' : 'ok'}">${j.failed ? 'FAILED' : 'DONE'}</span></td><td class="wrap"><code class="q">${esc(j.q)}</code></td></tr>`).join('')
@@ -261,10 +261,10 @@ function analysis(jobs, users, cost){
   const pr = {}; jobs.forEach(j => { pr[j.p] = (pr[j.p] || 0) + j.cost; });
   const topP = Object.entries(pr).sort((a, b) => b[1] - a[1]).slice(0, 10);
   $('panel').innerHTML = `<div class="grid2">
-    <section class="card"><h3>Distribusi biaya per jam <span>WIB, human vs service account</span></h3><div class="chart tall"><canvas id="c-hour"></canvas></div></section>
-    <section class="card"><h3>Biaya per project <span>10 teratas</span></h3><div class="chart tall"><canvas id="c-proj"></canvas></div></section></div>
+    <section class="card"><h3>Distribusi cost per jam <span>WIB, human vs service account</span></h3><div class="chart tall"><canvas id="c-hour"></canvas></div></section>
+    <section class="card"><h3>Cost per project <span>10 teratas</span></h3><div class="chart tall"><canvas id="c-proj"></canvas></div></section></div>
     <section class="card" style="margin-top:16px"><h3>Per jenis statement</h3><div class="tw"><table><thead><tr><th>Statement</th><th class="r">Job</th><th class="r">Bytes billed</th>
-      <th class="r">Biaya</th><th class="r">Porsi</th></tr></thead><tbody>
+      <th class="r">Cost</th><th class="r">Porsi</th></tr></thead><tbody>
       ${Object.entries(st).sort((a, b) => b[1].c - a[1].c).map(([k, v]) => `<tr><td><code>${k}</code></td><td class="r">${n0(v.n)}</td><td class="r">${fmtBytes(v.b)}</td>
         <td class="r">${usd(v.c)}</td><td class="r"><span class="share"><b style="width:${pct(v.c, cost).toFixed(0)}%"></b></span>${pct(v.c, cost).toFixed(1)}%</td></tr>`).join('')}</tbody></table></div></section>`;
   mk('c-hour', {type: 'bar', data: {labels: hours.map((_, i) => String(i).padStart(2, '0')), datasets: [

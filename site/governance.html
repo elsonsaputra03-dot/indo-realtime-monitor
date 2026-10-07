@@ -20,7 +20,7 @@
 <div class="shell">
   <nav class="rail" aria-label="Modul">
     <div class="brand"><strong>Data Governance</strong><span>Warehouse contoh · data sintetis</span></div>
-    <h2>Biaya &amp; storage</h2>
+    <h2>Cost &amp; storage</h2>
     <a href="governance.html" aria-current="page">Storage &amp; cost</a>
     <a href="pipeline.html">Pipeline cost</a>
     <a href="usage.html">Table usage</a>
@@ -31,11 +31,11 @@
     <a href="dictionary.html">Data dictionary</a>
     <h2>BigQuery nyata</h2>
     <a href="bq-live.html">Laporan live <small style="color:#8FA1AC">proyek asli</small></a>
-    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+    <div class="back"><a href="index.html">Back to portfolio</a></div>
   </nav>
 
   <main>
-    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Semua nama project, tabel, pemilik, dan angka dibuat oleh
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Semua nama project, table, owner, dan angka dibuat oleh
       generator acak berbiji tetap untuk portofolio. Ini re-implementasi konsep dashboard governance yang saya bangun di pekerjaan,
       tanpa kode atau data milik perusahaan mana pun; tampilannya memakai gaya template open-source CoreUI.</div>
 
@@ -50,9 +50,9 @@
 
     <div class="filters">
       <div><label for="f-project">Project</label><select id="f-project"></select></div>
-      <div><label for="f-owner">Pemilik</label><select id="f-owner"></select></div>
-      <div><label for="f-type">Jenis objek</label><select id="f-type"></select></div>
-      <div><label for="f-q">Cari tabel</label><input id="f-q" type="search" placeholder="nama project, dataset, atau tabel"></div>
+      <div><label for="f-owner">Owner</label><select id="f-owner"></select></div>
+      <div><label for="f-type">Object type</label><select id="f-type"></select></div>
+      <div><label for="f-q">Cari table</label><input id="f-q" type="search" placeholder="nama project, dataset, atau table"></div>
       <div><button class="btn" id="reset">Reset</button></div>
     </div>
 
@@ -60,24 +60,24 @@
       <h2 id="ledger-h" style="position:absolute;left:-9999px">Pembagian storage per project</h2>
       <div class="ledger-top">
         <div><div class="big num" id="l-size"></div><div class="lbl">Total logical storage <span id="l-size-d"></span></div></div>
-        <div><div class="big num" id="l-cost"></div><div class="lbl">Perkiraan biaya storage per bulan <span id="l-cost-d"></span></div></div>
+        <div><div class="big num" id="l-cost"></div><div class="lbl">Perkiraan cost storage per bulan <span id="l-cost-d"></span></div></div>
         <div><div class="big num" id="l-lt"></div><div class="lbl">Porsi long-term (tidak diubah ≥ 90 hari)</div></div>
       </div>
       <div class="strip" id="strip" role="list"></div>
       <div class="seg-names" id="seg-names" aria-hidden="true"></div>
       <div class="legend"><span><i style="background:var(--active)"></i>Active storage ($0.02/GiB/bulan)</span>
         <span><i style="background:var(--lt)"></i>Long-term storage ($0.01/GiB/bulan)</span>
-        <span>Lebar = porsi ukuran. Klik segmen untuk memfilter project.</span></div>
+        <span>Lebar = porsi size. Klik segmen untuk memfilter project.</span></div>
     </section>
 
     <div class="kpis" id="kpis"></div>
 
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Ringkasan</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="daily">Pergerakan harian</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="daily">Daily movement</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="project">Per project</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="dataset">Per dataset</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="table">Detail tabel</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="table">Table detail</button>
     </div>
 
     <section id="t-overview" role="tabpanel">
@@ -86,32 +86,32 @@
         <div class="card insight good" id="ins-clean"></div>
       </div>
       <div class="grid2 wide-left">
-        <div class="card"><h3>Ukuran per project <span id="ov-count"></span></h3><div class="tw"><table id="ov-table"></table></div></div>
-        <div class="card"><h3>15 tabel terbesar</h3><div class="chart" style="height:460px"><canvas id="c-top"></canvas></div></div>
+        <div class="card"><h3>Size per project <span id="ov-count"></span></h3><div class="tw"><table id="ov-table"></table></div></div>
+        <div class="card"><h3>15 tables terbesar</h3><div class="chart" style="height:460px"><canvas id="c-top"></canvas></div></div>
       </div>
     </section>
 
     <section id="t-daily" role="tabpanel" hidden>
       <div class="grid2" style="margin-bottom:14px">
-        <div class="card"><h3>Biaya &amp; ukuran harian <span>90 hari</span></h3><div class="chart"><canvas id="c-cost"></canvas></div></div>
-        <div class="card"><h3>Jumlah tabel &amp; baris</h3><div class="chart"><canvas id="c-tables"></canvas></div></div>
-        <div class="card"><h3>Ukuran per jenis storage</h3><div class="chart"><canvas id="c-tier"></canvas></div></div>
-        <div class="card"><h3>Biaya per project <span>8 teratas</span></h3><div class="chart"><canvas id="c-proj"></canvas></div></div>
+        <div class="card"><h3>Cost &amp; size harian <span>90 hari</span></h3><div class="chart"><canvas id="c-cost"></canvas></div></div>
+        <div class="card"><h3>Jumlah table &amp; rows</h3><div class="chart"><canvas id="c-tables"></canvas></div></div>
+        <div class="card"><h3>Size per jenis storage</h3><div class="chart"><canvas id="c-tier"></canvas></div></div>
+        <div class="card"><h3>Cost per project <span>8 teratas</span></h3><div class="chart"><canvas id="c-proj"></canvas></div></div>
       </div>
-      <div class="card"><h3>Ringkasan snapshot harian <span>14 hari terakhir</span></h3><div class="tw"><table id="daily-table"></table></div></div>
+      <div class="card"><h3>Overview snapshot harian <span>14 hari terakhir</span></h3><div class="tw"><table id="daily-table"></table></div></div>
     </section>
 
     <section id="t-project" role="tabpanel" hidden>
-      <div class="card" style="margin-bottom:14px"><h3>Ringkasan project</h3><div class="tw"><table id="pj-table"></table></div></div>
-      <div class="card"><h3>Biaya vs ukuran per project</h3><div class="chart" style="height:320px"><canvas id="c-pj"></canvas></div></div>
+      <div class="card" style="margin-bottom:14px"><h3>Overview project</h3><div class="tw"><table id="pj-table"></table></div></div>
+      <div class="card"><h3>Cost vs size per project</h3><div class="chart" style="height:320px"><canvas id="c-pj"></canvas></div></div>
     </section>
 
     <section id="t-dataset" role="tabpanel" hidden>
-      <div class="card"><h3>25 dataset dengan biaya tertinggi</h3><div class="tw"><table id="ds-table"></table></div></div>
+      <div class="card"><h3>25 dataset dengan cost tertinggi</h3><div class="tw"><table id="ds-table"></table></div></div>
     </section>
 
     <section id="t-table" role="tabpanel" hidden>
-      <div class="card"><h3>Detail tabel <span id="tb-count"></span></h3><div class="tw"><table id="tb-table"></table></div>
+      <div class="card"><h3>Table detail <span id="tb-count"></span></h3><div class="tw"><table id="tb-table"></table></div>
         <div class="pager"><span id="pg-info" class="muted"></span><button class="btn" id="pg-prev">Sebelumnya</button><button class="btn" id="pg-next">Berikutnya</button></div></div>
     </section>
 
@@ -139,9 +139,9 @@ function fillSelect(id, label, values){
   $(id).innerHTML = `<option value="">${label}</option>` + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
 }
 fillSelect('f-project', `Semua project (${PROJECTS.length})`, PROJECTS.map(p => p[0]));
-fillSelect('f-owner', 'Semua pemilik', [...new Set(PROJECTS.map(p => p[1]))].sort());
+fillSelect('f-owner', 'Semua owner', [...new Set(PROJECTS.map(p => p[1]))].sort());
 fillSelect('f-type', 'Semua jenis', ['TABLE', 'VIEW', 'MATERIALIZED_VIEW', 'EXTERNAL']);
-$('snap').textContent = `Snapshot ${date(SNAP)} · ${TABLES.length.toLocaleString('id-ID')} objek di ${PROJECTS.length} project`;
+$('snap').textContent = `Snapshot ${date(SNAP)} · ${TABLES.length.toLocaleString('id-ID')} objects di ${PROJECTS.length} project`;
 
 function groupBy(rows, key){
   const m = new Map();
@@ -181,26 +181,26 @@ function renderKpis(rows, hist){
   $('l-cost-d').innerHTML = `(${delta(now.cost, prev.cost)} dalam 30 hari)`;
   const grow = now.size - prev.size, stale = rows.filter(t => t.ageDays >= 180 && t.bytes);
   const k = [
-    [rows.length.toLocaleString('id-ID'), 'Objek', `${tables.toLocaleString('id-ID')} tabel, ${views.toLocaleString('id-ID')} view/eksternal`],
-    [fmtNum(rows.reduce((s, t) => s + t.rows, 0)), 'Total baris', `${new Set(rows.map(t => t.project + '.' + t.dataset)).size} dataset`],
-    [(grow >= 0 ? '+' : '−') + fmtBytes(Math.abs(grow)), 'Perubahan ukuran 30 hari', `setara ${usd(Math.abs(now.cost - prev.cost))}/bulan`],
-    [fmtBytes(stale.reduce((s, t) => s + t.bytes, 0)), 'Tidak diubah ≥ 180 hari', `${stale.length.toLocaleString('id-ID')} tabel, kandidat ditinjau`]];
+    [rows.length.toLocaleString('id-ID'), 'Objects', `${tables.toLocaleString('id-ID')} tables, ${views.toLocaleString('id-ID')} view/eksternal`],
+    [fmtNum(rows.reduce((s, t) => s + t.rows, 0)), 'Total rows', `${new Set(rows.map(t => t.project + '.' + t.dataset)).size} dataset`],
+    [(grow >= 0 ? '+' : '−') + fmtBytes(Math.abs(grow)), 'Perubahan size 30 hari', `setara ${usd(Math.abs(now.cost - prev.cost))}/bulan`],
+    [fmtBytes(stale.reduce((s, t) => s + t.bytes, 0)), 'Tidak diubah ≥ 180 hari', `${stale.length.toLocaleString('id-ID')} tables, kandidat ditinjau`]];
   $('kpis').innerHTML = k.map(([v, l, d]) => `<div class="kpi"><div class="v num">${v}</div><div class="k">${l}</div><div class="d">${d}</div></div>`).join('');
 }
 
 // ------------------------------------------------------------------ render: tab
 function renderOverview(rows){
   const stale = rows.filter(t => t.ageDays >= 180 && t.bytes > 0), staleB = stale.reduce((s, t) => s + t.bytes, 0), staleC = stale.reduce((s, t) => s + t.cost, 0);
-  $('ins-stale').innerHTML = `<h3>Kandidat pembersihan</h3><p><strong>${stale.length.toLocaleString('id-ID')} tabel</strong> tidak diubah ≥ 180 hari,
+  $('ins-stale').innerHTML = `<h3>Cleanup candidates</h3><p><strong>${stale.length.toLocaleString('id-ID')} tables</strong> tidak diubah ≥ 180 hari,
     total <strong>${fmtBytes(staleB)}</strong> atau <strong>${usd(staleC)}/bulan</strong>. Tinjau dengan pemiliknya sebelum dihapus
-    atau diarsipkan; lihat tab Detail tabel, urutkan per "Terakhir diubah".</p>`;
+    atau diarsipkan; lihat tab Table detail, urutkan per "Terakhir diubah".</p>`;
   const h = HIST_ALL, before = h[CLEAN_DAY - 1], after = h[CLEAN_DAY];
-  $('ins-clean').innerHTML = `<h3>Dampak pembersihan sandbox</h3><p>Pembersihan backup manual dan tabel sementara di project sandbox/dev pada <strong>${date(h[CLEAN_DAY].date)}</strong>
-    menurunkan storage <strong>${fmtBytes(before.size - after.size)}</strong> dan biaya <strong>${usd(before.cost - after.cost)}/bulan</strong>
+  $('ins-clean').innerHTML = `<h3>Cleanup impact sandbox</h3><p>Pembersihan backup manual dan table sementara di project sandbox/dev pada <strong>${date(h[CLEAN_DAY].date)}</strong>
+    menurunkan storage <strong>${fmtBytes(before.size - after.size)}</strong> dan cost <strong>${usd(before.cost - after.cost)}/bulan</strong>
     (seluruh warehouse, tidak terpengaruh filter).</p>`;
   const g = groupBy(rows, t => t.project), total = g.reduce((s, x) => s + x.size, 0);
   $('ov-count').textContent = `${g.length} project`;
-  $('ov-table').innerHTML = `<thead><tr><th>#</th><th>Project</th><th>Pemilik</th><th class="r">Ukuran</th><th class="r">Active</th><th class="r">Biaya/bulan</th><th>Porsi</th></tr></thead><tbody>`
+  $('ov-table').innerHTML = `<thead><tr><th>#</th><th>Project</th><th>Owner</th><th class="r">Size</th><th class="r">Active</th><th class="r">Cost/month</th><th>Porsi</th></tr></thead><tbody>`
     + g.map((x, i) => `<tr><td class="muted">${i + 1}</td><td>${esc(x.key)}</td><td class="muted">${esc(x.owner)}</td><td class="r">${fmtBytes(x.size)}</td>
       <td class="r">${pct(x.active, x.size).toFixed(0)}%</td><td class="r">${usd(x.cost)}</td>
       <td><span class="share"><b style="width:${pct(x.size, total).toFixed(1)}%"></b></span><span class="muted">${pct(x.size, total).toFixed(1)}%</span></td></tr>`).join('')
@@ -216,14 +216,14 @@ let HIST = [];
 function renderDaily(){
   const h = HIST, labels = h.map(d => d.date.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'}));
   const line = (label, data, color, axis, extra = {}) => ({label, data, borderColor: color, backgroundColor: color, yAxisID: axis, pointRadius: 0, borderWidth: 2, tension: .25, ...extra});
-  chart('c-cost', {type: 'line', data: {labels, datasets: [line('Biaya/bulan (USD)', h.map(d => d.cost), css('--active'), 'y'),
-      line('Ukuran (TB)', h.map(d => d.size / TiB), css('--lt'), 'y1')]},
+  chart('c-cost', {type: 'line', data: {labels, datasets: [line('Cost/month (USD)', h.map(d => d.cost), css('--active'), 'y'),
+      line('Size (TB)', h.map(d => d.size / TiB), css('--lt'), 'y1')]},
     options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
       scales: {y: {title: {display: true, text: 'USD'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'TB'}}}}});
-  chart('c-tables', {type: 'line', data: {labels, datasets: [line('Objek', h.map(d => d.tables), '#2EB85C', 'y'),
-      line('Baris (miliar)', h.map(d => d.rows / 1e9), '#5856D6', 'y1')]},
+  chart('c-tables', {type: 'line', data: {labels, datasets: [line('Objects', h.map(d => d.tables), '#2EB85C', 'y'),
+      line('Rows (miliar)', h.map(d => d.rows / 1e9), '#5856D6', 'y1')]},
     options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
-      scales: {y: {title: {display: true, text: 'Objek'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'Miliar baris'}}}}});
+      scales: {y: {title: {display: true, text: 'Objects'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'Miliar rows'}}}}});
   chart('c-tier', {type: 'line', data: {labels, datasets: [line('Active', h.map(d => d.active / TiB), css('--active'), 'y', {fill: true, backgroundColor: 'rgba(46,94,140,.55)'}),
       line('Long-term', h.map(d => d.lt / TiB), css('--lt'), 'y', {fill: '-1', backgroundColor: 'rgba(233,180,76,.55)'})]},
     options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, scales: {y: {stacked: true, title: {display: true, text: 'TB'}}}}});
@@ -232,33 +232,33 @@ function renderDaily(){
     options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, plugins: {legend: {labels: {boxWidth: 10, font: {size: 11}}}},
       scales: {y: {title: {display: true, text: 'USD/bulan'}}}}});
   const last = h.slice(-15);
-  $('daily-table').innerHTML = `<thead><tr><th>Tanggal</th><th class="r">Objek</th><th class="r">Total baris</th><th class="r">Ukuran</th><th class="r">Biaya/bulan</th><th class="r">Perubahan biaya</th></tr></thead><tbody>`
+  $('daily-table').innerHTML = `<thead><tr><th>Tanggal</th><th class="r">Objects</th><th class="r">Total rows</th><th class="r">Size</th><th class="r">Cost/month</th><th class="r">Perubahan cost</th></tr></thead><tbody>`
     + last.slice(1).reverse().map((d, i, arr) => { const p = last[last.length - 2 - i]; return `<tr><td>${date(d.date)}</td><td class="r">${d.tables.toLocaleString('id-ID')} ${delta(d.tables, p.tables)}</td>
       <td class="r">${fmtNum(d.rows)}</td><td class="r">${fmtBytes(d.size)} ${delta(d.size, p.size)}</td><td class="r">${usd(d.cost)}</td><td class="r">${delta(d.cost, p.cost)}</td></tr>`; }).join('') + '</tbody>';
 }
 function renderProject(rows){
   const g = groupBy(rows, t => t.project), total = g.reduce((s, x) => s + x.cost, 0);
-  $('pj-table').innerHTML = `<thead><tr><th>Project</th><th>Pemilik</th><th class="r">Dataset</th><th class="r">Objek</th><th class="r">Baris</th><th class="r">Ukuran</th><th class="r">Biaya/bulan</th><th>Porsi biaya</th></tr></thead><tbody>`
+  $('pj-table').innerHTML = `<thead><tr><th>Project</th><th>Owner</th><th class="r">Dataset</th><th class="r">Objects</th><th class="r">Rows</th><th class="r">Size</th><th class="r">Cost/month</th><th>Porsi cost</th></tr></thead><tbody>`
     + g.map(x => `<tr><td>${esc(x.key)}</td><td class="muted">${esc(x.owner)}</td><td class="r">${x.datasets}</td><td class="r">${x.tables.toLocaleString('id-ID')}</td>
       <td class="r">${fmtNum(x.rows)}</td><td class="r">${fmtBytes(x.size)}</td><td class="r">${usd(x.cost)}</td>
       <td><span class="share"><b style="width:${pct(x.cost, total).toFixed(1)}%"></b></span><span class="muted">${pct(x.cost, total).toFixed(1)}%</span></td></tr>`).join('') + '</tbody>';
   const top = g.slice(0, 15);
   chart('c-pj', {type: 'bar', data: {labels: top.map(x => x.key), datasets: [
-      {label: 'Biaya/bulan (USD)', data: top.map(x => x.cost), backgroundColor: css('--active'), yAxisID: 'y'},
-      {label: 'Ukuran (TB)', data: top.map(x => x.size / TiB), backgroundColor: css('--lt'), yAxisID: 'y1'}]},
+      {label: 'Cost/month (USD)', data: top.map(x => x.cost), backgroundColor: css('--active'), yAxisID: 'y'},
+      {label: 'Size (TB)', data: top.map(x => x.size / TiB), backgroundColor: css('--lt'), yAxisID: 'y1'}]},
     options: {maintainAspectRatio: false, scales: {x: {ticks: {autoSkip: false, maxRotation: 50, minRotation: 35, font: {size: 11}}},
       y: {title: {display: true, text: 'USD'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'TB'}}}}});
 }
 function renderDataset(rows){
   const g = groupBy(rows, t => t.project + '.' + t.dataset).sort((a, b) => b.cost - a.cost).slice(0, 25), total = rows.reduce((s, t) => s + t.cost, 0);
-  $('ds-table').innerHTML = g.length ? `<thead><tr><th>#</th><th>Project</th><th>Dataset</th><th class="r">Objek</th><th class="r">Baris</th><th class="r">Ukuran</th><th class="r">Biaya/bulan</th><th>Porsi</th></tr></thead><tbody>`
+  $('ds-table').innerHTML = g.length ? `<thead><tr><th>#</th><th>Project</th><th>Dataset</th><th class="r">Objects</th><th class="r">Rows</th><th class="r">Size</th><th class="r">Cost/month</th><th>Porsi</th></tr></thead><tbody>`
     + g.map((x, i) => `<tr><td class="muted">${i + 1}</td><td class="muted">${esc(x.project)}</td><td>${esc(x.key.split('.')[1])}</td><td class="r">${x.tables}</td>
       <td class="r">${fmtNum(x.rows)}</td><td class="r">${fmtBytes(x.size)}</td><td class="r">${usd(x.cost)}</td>
       <td><span class="share"><b style="width:${pct(x.cost, total).toFixed(1)}%"></b></span><span class="muted">${pct(x.cost, total).toFixed(1)}%</span></td></tr>`).join('') + '</tbody>'
     : '<tbody><tr><td class="empty">Tidak ada dataset untuk filter ini. Ubah atau reset filter.</td></tr></tbody>';
 }
-const COLS = [['full', 'Project.dataset.tabel'], ['rows', 'Baris', 'r'], ['bytes', 'Ukuran', 'r'], ['parts', 'Partisi', 'r'], ['cost', 'Biaya/bulan', 'r'],
-  ['firstPart', 'Periode aktif'], ['lastMod', 'Terakhir diubah'], ['owner', 'Pemilik'], ['type', 'Jenis'], ['ltShare', 'Storage']];
+const COLS = [['full', 'Project.dataset.table'], ['rows', 'Rows', 'r'], ['bytes', 'Size', 'r'], ['parts', 'Partition', 'r'], ['cost', 'Cost/month', 'r'],
+  ['firstPart', 'Periode aktif'], ['lastMod', 'Terakhir diubah'], ['owner', 'Owner'], ['type', 'Jenis'], ['ltShare', 'Storage']];
 const PAGE = 25;
 function renderTable(rows){
   const {k, dir} = state.sort;
@@ -266,7 +266,7 @@ function renderTable(rows){
   const sorted = rows.slice().sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
   const pages = Math.max(1, Math.ceil(sorted.length / PAGE)); state.page = Math.min(state.page, pages - 1);
   const view = sorted.slice(state.page * PAGE, state.page * PAGE + PAGE);
-  $('tb-count').textContent = `${rows.length.toLocaleString('id-ID')} objek`;
+  $('tb-count').textContent = `${rows.length.toLocaleString('id-ID')} objects`;
   const storage = t => { if(!t.bytes) return '<span class="badge">tanpa storage</span>'; const s = t.longterm / t.bytes;
     return s >= .99 ? '<span class="badge warn">long-term</span>' : s <= .01 ? '<span class="badge ok">active</span>' : `<span class="badge">campuran ${Math.round(s * 100)}% LT</span>`; };
   $('tb-table').innerHTML = `<thead><tr>${COLS.map(([key, label, cls]) => `<th class="${cls || ''}" data-k="${key}" ${key === k ? `aria-sort="${dir < 0 ? 'descending' : 'ascending'}"` : ''}>${label}</th>`).join('')}</tr></thead><tbody>`
@@ -275,7 +275,7 @@ function renderTable(rows){
       <td class="r">${t.cost ? usd(t.cost) : '–'}</td><td class="muted">${t.firstPart ? date(t.firstPart) + ' – ' + date(t.lastMod) : '–'}</td>
       <td>${date(t.lastMod)}${t.ageDays >= 180 && t.bytes ? ' <span class="badge bad">' + t.ageDays + ' hari</span>' : ''}</td>
       <td class="muted">${esc(t.owner)}</td><td><span class="badge">${t.type.replace('_', ' ').toLowerCase()}</span></td><td>${storage(t)}</td></tr>`).join('')
-      : `<tr><td colspan="${COLS.length}" class="empty">Tidak ada tabel yang cocok. Ubah kata kunci atau reset filter.</td></tr>`) + '</tbody>';
+      : `<tr><td colspan="${COLS.length}" class="empty">Tidak ada table yang cocok. Ubah kata kunci atau reset filter.</td></tr>`) + '</tbody>';
   $('tb-table').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => {
     const key = th.dataset.k; state.sort = {k: key, dir: state.sort.k === key ? -state.sort.dir : (['full', 'owner', 'type'].includes(key) ? 1 : -1)}; state.page = 0; renderTable(filtered()); });
   $('pg-info').textContent = `Halaman ${state.page + 1} dari ${pages}`;
@@ -283,7 +283,7 @@ function renderTable(rows){
 }
 
 // ------------------------------------------------------------------ orkestrasi
-const HIST_ALL = history(TABLES);          // seluruh warehouse (untuk insight pembersihan)
+const HIST_ALL = history(TABLES);          // seluruh warehouse (untuk insight cleanup)
 function update(){
   const rows = filtered();
   HIST = rows.length ? history(rows) : HIST_ALL;

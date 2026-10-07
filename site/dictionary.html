@@ -53,7 +53,7 @@
 <div class="shell">
   <nav class="rail" aria-label="Modul">
     <div class="brand"><strong>Data Governance</strong><span>Warehouse contoh · data sintetis</span></div>
-    <h2>Biaya &amp; storage</h2>
+    <h2>Cost &amp; storage</h2>
     <a href="governance.html">Storage &amp; cost</a>
     <a href="pipeline.html">Pipeline cost</a>
     <a href="usage.html">Table usage</a>
@@ -64,25 +64,25 @@
     <a href="dictionary.html" aria-current="page">Data dictionary</a>
     <h2>BigQuery nyata</h2>
     <a href="bq-live.html">Laporan live <small style="color:#8FA1AC">proyek asli</small></a>
-    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+    <div class="back"><a href="index.html">Back to portfolio</a></div>
   </nav>
 
   <main>
-    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Skema dan deskripsi kolom dibangkitkan dari template per domain
-      untuk warehouse tiruan yang sama dengan modul lain. Sebagian deskripsi sengaja kosong untuk menunjukkan metrik cakupan dokumentasi.</div>
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Skema dan description column dibangkitkan dari template per domain
+      untuk warehouse tiruan yang sama dengan modul lain. Sebagian description sengaja kosong untuk menunjukkan metrik cakupan dokumentasi.</div>
 
     <div class="head"><div><h1>Data dictionary</h1><p id="snap"></p></div></div>
     <div class="kpis" id="kpis"></div>
 
     <div class="search">
       <label for="q" style="position:absolute;left:-9999px">Cari</label>
-      <input id="q" type="search" placeholder="Cari tabel, kolom, atau deskripsi, mis. msisdn, churn, availability">
+      <input id="q" type="search" placeholder="Cari table, column, atau description, mis. msisdn, churn, availability">
       <label class="muted" style="display:flex;align-items:center;gap:6px;font-size:.88rem;white-space:nowrap">
         <input type="checkbox" id="only-pii"> Hanya berisi PII</label>
     </div>
 
     <div class="dict">
-      <section aria-label="Kategori" id="cats"></section>
+      <section aria-label="Category" id="cats"></section>
       <section class="card detail" id="detail" aria-live="polite"></section>
     </div>
 
@@ -97,22 +97,22 @@
 const {TABLES, SNAP, $, esc, fmtBytes, fmtNum, date, domainOf, CATEGORY, columnsFor, lineage} = window.GOV;
 const L = lineage();
 
-// objek terdokumentasi: tabel & view (eksternal dan sandbox tetap tercatat)
+// object terdokumentasi: table & view (eksternal dan sandbox tetap tercatat)
 const DOCS = TABLES.map(t => {
   const cols = columnsFor(t), cat = CATEGORY[domainOf(t)];
   return {t, cat, cols, pii: cols.some(c => c.pii), documented: cols.filter(c => c.desc).length,
-    desc: `${t.type === 'VIEW' ? 'View' : 'Tabel'} kategori ${cat} di ${t.project}, dikelola ${t.owner}.`
-      + (t.parts ? ` Dipartisi harian (${t.parts} partisi).` : '') + (t.ageDays >= 180 ? ` Tidak diubah ${t.ageDays} hari.` : '')};
+    desc: `${t.type === 'VIEW' ? 'View' : 'Table'} category ${cat} di ${t.project}, dikelola ${t.owner}.`
+      + (t.parts ? ` Dipartisi harian (${t.parts} partitions).` : '') + (t.ageDays >= 180 ? ` Tidak diubah ${t.ageDays} hari.` : '')};
 });
 const totalCols = DOCS.reduce((s, d) => s + d.cols.length, 0), docCols = DOCS.reduce((s, d) => s + d.documented, 0);
 const piiCols = DOCS.reduce((s, d) => s + d.cols.filter(c => c.pii).length, 0);
 const cats = [...new Set(DOCS.map(d => d.cat))];
-$('snap').textContent = `Snapshot ${date(SNAP)} · ${DOCS.length.toLocaleString('id-ID')} objek dalam ${cats.length} kategori`;
+$('snap').textContent = `Snapshot ${date(SNAP)} · ${DOCS.length.toLocaleString('id-ID')} objects dalam ${cats.length} category`;
 $('kpis').innerHTML = [
-  [cats.length, 'Kategori', 'dikelompokkan menurut domain bisnis'],
-  [totalCols.toLocaleString('id-ID'), 'Kolom', `di ${DOCS.length.toLocaleString('id-ID')} tabel dan view`],
-  [Math.round(docCols / totalCols * 100) + '%', 'Cakupan deskripsi', `${(totalCols - docCols).toLocaleString('id-ID')} kolom belum dideskripsikan`],
-  [piiCols.toLocaleString('id-ID'), 'Kolom PII', `di ${DOCS.filter(d => d.pii).length.toLocaleString('id-ID')} tabel, perlu kontrol akses`]]
+  [cats.length, 'Categories', 'dikelompokkan menurut domain bisnis'],
+  [totalCols.toLocaleString('id-ID'), 'Columns', `di ${DOCS.length.toLocaleString('id-ID')} tables dan view`],
+  [Math.round(docCols / totalCols * 100) + '%', 'Description coverage', `${(totalCols - docCols).toLocaleString('id-ID')} columns belum dideskripsikan`],
+  [piiCols.toLocaleString('id-ID'), 'Column PII', `di ${DOCS.filter(d => d.pii).length.toLocaleString('id-ID')} tables, perlu kontrol akses`]]
   .map(([v, k, d]) => `<div class="kpi"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${d}</div></div>`).join('');
 
 // ------------------------------------------------------------------ pencarian & daftar
@@ -135,32 +135,32 @@ function render(){
     const tc = items.reduce((s, x) => s + x.d.cols.length, 0), dc = items.reduce((s, x) => s + x.d.documented, 0);
     const sorted = items.slice().sort((a, b) => b.d.t.bytes - a.d.t.bytes).slice(0, 200);
     return `<details class="cat" ${q || onlyPii || order.length === 1 ? 'open' : ''}><summary>${esc(cat)}
-        <span class="cnt">${items.length.toLocaleString('id-ID')} objek · deskripsi ${Math.round(dc / tc * 100)}%<span class="cov"><b style="width:${(dc / tc * 100).toFixed(0)}%"></b></span></span></summary>
+        <span class="cnt">${items.length.toLocaleString('id-ID')} objects · description ${Math.round(dc / tc * 100)}%<span class="cov"><b style="width:${(dc / tc * 100).toFixed(0)}%"></b></span></span></summary>
       <div class="tlist">${sorted.map(({d, m}) => `<button class="trow" data-k="${esc(d.t.full)}" aria-current="${d.t.full === current}">
           <div><div class="n">${hl(d.t.dataset + '.' + d.t.table, q)}</div><div class="m">${esc(d.t.project)}${d.pii ? ' · <span class="pii">PII</span>' : ''}</div>
-          ${m.col ? `<div class="hit">kolom <strong>${hl(m.col.name, q)}</strong>${m.col.desc ? ': ' + hl(m.col.desc, q) : ''}</div>` : ''}</div>
-          <div class="m">${d.cols.length} kolom</div></button>`).join('')}
-        ${items.length > sorted.length ? `<div class="m muted" style="padding:8px 12px">+${items.length - sorted.length} objek lain; persempit pencarian.</div>` : ''}</div></details>`;
-  }).join('') : '<div class="card empty">Tidak ada tabel atau kolom yang cocok. Coba kata kunci lain, mis. <em>msisdn</em> atau <em>revenue</em>.</div>';
+          ${m.col ? `<div class="hit">column <strong>${hl(m.col.name, q)}</strong>${m.col.desc ? ': ' + hl(m.col.desc, q) : ''}</div>` : ''}</div>
+          <div class="m">${d.cols.length} columns</div></button>`).join('')}
+        ${items.length > sorted.length ? `<div class="m muted" style="padding:8px 12px">+${items.length - sorted.length} objects lain; persempit pencarian.</div>` : ''}</div></details>`;
+  }).join('') : '<div class="card empty">Tidak ada table atau column yang cocok. Coba kata kunci lain, mis. <em>msisdn</em> atau <em>revenue</em>.</div>';
   $('cats').querySelectorAll('.trow').forEach(b => b.onclick = () => show(b.dataset.k));
   if(!current || !rows.some(x => x.d.t.full === current)) show(rows.length ? rows.sort((a, b) => b.d.t.bytes - a.d.t.bytes)[0].d.t.full : null);
 }
 function show(full){
   current = full;
   document.querySelectorAll('.trow').forEach(b => b.setAttribute('aria-current', b.dataset.k === full));
-  if(!full){ $('detail').innerHTML = '<div class="empty">Pilih tabel di kiri untuk melihat skemanya.</div>'; return; }
+  if(!full){ $('detail').innerHTML = '<div class="empty">Pilih table di kiri untuk melihat skemanya.</div>'; return; }
   const d = DOCS.find(x => x.t.full === full), t = d.t;
   const nUp = (L.up.get(full) || []).length, nDown = (L.down.get(full) || []).length;
   $('detail').innerHTML = `<div class="muted" style="font-size:.82rem">${esc(d.cat)} · ${esc(t.project)}.${esc(t.dataset)}</div>
     <h3>${esc(t.table)}</h3><p class="desc">${esc(d.desc)}</p>
-    <dl class="facts"><div><dt>Pemilik</dt><dd>${esc(t.owner)}</dd></div><div><dt>Jenis</dt><dd>${t.type.replace('_', ' ').toLowerCase()}</dd></div>
-      <div><dt>Terakhir diubah</dt><dd>${date(t.lastMod)}</dd></div><div><dt>Ukuran</dt><dd>${t.bytes ? fmtBytes(t.bytes) : '–'}</dd></div>
-      <div><dt>Baris</dt><dd>${t.rows ? fmtNum(t.rows) : '–'}</dd></div>
-      <div><dt>Deskripsi kolom</dt><dd>${d.documented} dari ${d.cols.length}</dd></div></dl>
-    <div class="tw"><table><thead><tr><th>Kolom</th><th>Tipe</th><th>Deskripsi</th></tr></thead><tbody>
+    <dl class="facts"><div><dt>Owner</dt><dd>${esc(t.owner)}</dd></div><div><dt>Jenis</dt><dd>${t.type.replace('_', ' ').toLowerCase()}</dd></div>
+      <div><dt>Terakhir diubah</dt><dd>${date(t.lastMod)}</dd></div><div><dt>Size</dt><dd>${t.bytes ? fmtBytes(t.bytes) : '–'}</dd></div>
+      <div><dt>Rows</dt><dd>${t.rows ? fmtNum(t.rows) : '–'}</dd></div>
+      <div><dt>Description column</dt><dd>${d.documented} dari ${d.cols.length}</dd></div></dl>
+    <div class="tw"><table><thead><tr><th>Column</th><th>Tipe</th><th>Description</th></tr></thead><tbody>
       ${d.cols.map(c => `<tr><td class="col">${esc(c.name)}${c.pii ? '<span class="pii">PII</span>' : ''}</td><td class="type">${esc(c.type)}</td>
-        <td class="d">${c.desc ? esc(c.desc) : '<span class="undoc">Belum ada deskripsi</span>'}</td></tr>`).join('')}</tbody></table></div>
-    <div class="actions">${nUp || nDown ? `<a class="btn" href="lineage.html#${encodeURIComponent(full)}">Lihat lineage (${nUp} sumber, ${nDown} hilir)</a>` : '<span class="muted" style="font-size:.85rem">Tidak punya relasi lineage.</span>'}</div>`;
+        <td class="d">${c.desc ? esc(c.desc) : '<span class="undoc">Belum ada description</span>'}</td></tr>`).join('')}</tbody></table></div>
+    <div class="actions">${nUp || nDown ? `<a class="btn" href="lineage.html#${encodeURIComponent(full)}">Lihat lineage (${nUp} sumber, ${nDown} downstream)</a>` : '<span class="muted" style="font-size:.85rem">Tidak punya relasi lineage.</span>'}</div>`;
 }
 let qT; $('q').oninput = () => { clearTimeout(qT); qT = setTimeout(render, 200); };
 $('only-pii').onchange = render;

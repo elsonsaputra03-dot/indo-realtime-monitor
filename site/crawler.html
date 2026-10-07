@@ -59,8 +59,8 @@
 <div class="shell">
   <nav class="rail" aria-label="Modul"><a href="governance.html">Data Governance</a></nav>
   <main>
-    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Nama aplikasi, developer, rating, dan jumlah install dibangkitkan dengan biji tetap;
-      tidak ada data toko aplikasi yang diambil. Tab "Mulai crawling" adalah simulasi alur kerja. Modul scraping saya yang benar-benar berjalan
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Nama app, developer, rating, dan jumlah install dibangkitkan dengan biji tetap;
+      tidak ada data toko app yang diambil. Tab "Start crawling" adalah simulasi alur kerja. Modul scraping saya yang benar-benar berjalan
       (dengan robots.txt, jeda per host, dan conditional GET) ada di <a href="index.html#project">Indonesia Realtime Monitor</a>.</div>
 
     <div class="head"><div><h1>App crawler</h1><p id="snap"></p></div><div class="spacer"></div><button class="btn" id="csv">Export CSV</button></div>
@@ -69,22 +69,22 @@
       <div><label for="f-pf">Platform</label><select id="f-pf"><option value="">Semua platform</option><option value="a">Play Store (Android)</option><option value="i">App Store (iOS)</option></select></div>
       <div><label for="f-cc">Negara</label><select id="f-cc"></select></div>
       <div><label for="f-g">Genre</label><select id="f-g"></select></div>
-      <div><label for="f-q">Cari aplikasi</label><input id="f-q" type="search" placeholder="nama aplikasi atau developer"></div>
+      <div><label for="f-q">Cari app</label><input id="f-q" type="search" placeholder="nama app atau developer"></div>
       <div><button class="btn" id="reset">Reset</button></div>
     </div>
 
     <div class="kpis k8" id="kpis"></div>
 
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Ringkasan</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="apps">Semua aplikasi</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="history">Sepanjang waktu</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="top">Top per kategori</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="crawl">Mulai crawling</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="apps">All apps</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="history">All-time</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="top">Top per category</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="crawl">Start crawling</button>
     </div>
     <div id="panel"></div>
 
-    <footer>Dibuat oleh <a href="index.html">Elson Saputra</a>. Data sintetis; tidak mencerminkan toko aplikasi atau aplikasi nyata mana pun.</footer>
+    <footer>Dibuat oleh <a href="index.html">Elson Saputra</a>. Data sintetis; tidak mencerminkan toko app atau app nyata mana pun.</footer>
   </main>
 </div>
 
@@ -123,7 +123,7 @@ for(let i = 0; i < 3051; i++){
   const name = `${pick(W1)} ${base}${R() < .2 ? ' ' + pick(['Pro', 'Lite', 'Plus', '2', 'Go', 'Max']) : ''}`;
   const reviews = Math.round(lognorm(pf === 'a' ? 8.2 : 6.6, 2));
   const BUCKET = [1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7, 1e8, 5e8, 1e9];
-  const want = reviews * between(15, 60);                                    // install kira-kira 15-60x jumlah ulasan
+  const want = reviews * between(15, 60);                                    // install kira-kira 15-60x jumlah reviews
   const installs = pf === 'a' ? BUCKET.filter(x => x <= want).pop() || 1e3 : 0;
   const rating = Math.round(Math.min(4.9, Math.max(2.4, 4.25 - lognorm(-1.6, .9) + between(-.2, .3))) * 10) / 10;
   const countries = COUNTRIES.filter((c, k) => k === 0 || R() < (k < 6 ? .55 : .35)).map(c => c[0]);
@@ -158,13 +158,13 @@ function render(){
   const avg = apps.length ? apps.reduce((s, a) => s + a.rating, 0) / apps.length : 0;
   const ccs = new Set(apps.flatMap(a => a.countries));
   $('kpis').innerHTML = [
-    [n0(apps.length), 'Total aplikasi', `${n0(A.length)} Android · ${n0(I.length)} iOS`, 'apps', '#3399FF'],
+    [n0(apps.length), 'Total apps', `${n0(A.length)} Android · ${n0(I.length)} iOS`, 'apps', '#3399FF'],
     [n0(new Set(apps.map(a => a.dev)).size), 'Developer', 'developer unik', 'people', '#2EB85C'],
-    [avg.toFixed(2), 'Rata-rata rating', `${apps.filter(a => a.rating >= 4.5).length} aplikasi ≥ 4.5`, 'star', '#F9B115'],
+    [avg.toFixed(2), 'Rata-rata rating', `${apps.filter(a => a.rating >= 4.5).length} apps ≥ 4.5`, 'star', '#F9B115'],
     [fmtNum(A.reduce((s, a) => s + a.installs, 0)), 'Total install', 'hanya Play Store yang menampilkan install', 'cloud-download', '#2EB85C'],
-    [Object.keys(gcount).length, 'Genre', 'kategori unik', 'list-rich', '#5856D6'],
-    [fmtNum(apps.reduce((s, a) => s + a.reviews, 0)), 'Ulasan', 'total ulasan di kedua toko', 'chart', '#3399FF'],
-    [topG ? esc(topG[0]) : '–', 'Genre teratas', topG ? `${n0(topG[1])} aplikasi` : '', 'tag', '#F9B115'],
+    [Object.keys(gcount).length, 'Genre', 'category unik', 'list-rich', '#5856D6'],
+    [fmtNum(apps.reduce((s, a) => s + a.reviews, 0)), 'Reviews', 'total reviews di kedua toko', 'chart', '#3399FF'],
+    [topG ? esc(topG[0]) : '–', 'Top genre', topG ? `${n0(topG[1])} apps` : '', 'tag', '#F9B115'],
     [ccs.size, 'Negara', 'wilayah toko yang dipantau', 'globe-alt', '#E55353']]
     .map(([v, k, d, ic, c]) => `<div class="kpi" data-ic="${ic}" data-c="${c}"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${d}</div></div>`).join('');
   ({overview, apps: appsTab, history, top, crawl})[state.tab](apps, gcount);
@@ -174,28 +174,28 @@ function overview(apps, gcount){
   const A = apps.filter(a => a.pf === 'a').length, I = apps.length - A, tot = Math.max(1, apps.length);
   const G = Object.entries(gcount).sort((a, b) => b[1] - a[1]).slice(0, 10);
   $('panel').innerHTML = `<div class="grid2">
-    <section class="card"><h3>Aplikasi per platform</h3>
+    <section class="card"><h3>App per platform</h3>
       ${[['Play Store (Android)', A, '#2EB85C'], ['App Store (iOS)', I, '#252B36']].map(([l, v, c]) => `<div class="plat"><div class="row"><span>${l}</span><b>${n0(v)}</b></div>
         <div class="bar"><b style="width:${(v / tot * 100).toFixed(1)}%;background:${c}">${(v / tot * 100).toFixed(1)}%</b></div></div>`).join('')}
-      <h3 style="margin-top:18px">Aplikasi baru per tanggal scrape <span>pertama kali terlihat</span></h3><div class="chart" style="height:200px"><canvas id="c-new"></canvas></div></section>
-    <section class="card"><h3>Genre teratas</h3><ol class="rank">${G.map(([g, n]) => `<li>${esc(g)}<span class="n">${n0(n)} apps</span></li>`).join('')}</ol></section></div>`;
+      <h3 style="margin-top:18px">App baru per tanggal scrape <span>pertama kali terlihat</span></h3><div class="chart" style="height:200px"><canvas id="c-new"></canvas></div></section>
+    <section class="card"><h3>Top genre</h3><ol class="rank">${G.map(([g, n]) => `<li>${esc(g)}<span class="n">${n0(n)} apps</span></li>`).join('')}</ol></section></div>`;
   const days = {}; apps.forEach(a => { const d = new Date(a.first).toISOString().slice(5, 10); days[d] = (days[d] || 0) + 1; });
   const L = Object.keys(days).sort();
   mk('c-new', {type: 'bar', data: {labels: L, datasets: [{data: L.map(d => days[d]), backgroundColor: '#3399FF'}]},
     options: {maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {x: {ticks: {maxTicksLimit: 8}}, y: {type: 'logarithmic'}}}});
 }
 
-const COLS = [['name', 'Aplikasi'], ['pf', 'Platform'], ['g', 'Genre'], ['rating', 'Rating', 'r'], ['reviews', 'Ulasan', 'r'], ['installs', 'Install', 'r'], ['countries', 'Negara', 'r'], ['first', 'Pertama terlihat']];
+const COLS = [['name', 'App'], ['pf', 'Platform'], ['g', 'Genre'], ['rating', 'Rating', 'r'], ['reviews', 'Reviews', 'r'], ['installs', 'Install', 'r'], ['countries', 'Negara', 'r'], ['first', 'Pertama terlihat']];
 function appsTab(apps){
   const [k, dir] = state.sort, val = (a, k) => k === 'countries' ? a.countries.length : a[k];
   apps.sort((a, b) => { const x = val(a, k), y = val(b, k); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
   const PAGE = 20, pages = Math.max(1, Math.ceil(apps.length / PAGE)); state.page = Math.min(state.page, pages - 1);
   const view = apps.slice(state.page * PAGE, state.page * PAGE + PAGE);
-  $('panel').innerHTML = `<section class="card"><h3>Semua aplikasi <span>${n0(apps.length)} hasil</span></h3><div class="tw"><table id="at"><thead><tr><th>#</th>
+  $('panel').innerHTML = `<section class="card"><h3>All apps <span>${n0(apps.length)} hasil</span></h3><div class="tw"><table id="at"><thead><tr><th>#</th>
     ${COLS.map(([key, l, c]) => `<th class="${c || ''}" data-k="${key}" ${key === k ? `aria-sort="${dir < 0 ? 'descending' : 'ascending'}"` : ''}>${l}</th>`).join('')}</tr></thead><tbody>
     ${view.map((a, i) => `<tr><td class="muted">${state.page * PAGE + i + 1}</td><td><div class="app">${icon(a)}<span><b>${esc(a.name)}</b><small>${esc(a.dev)}</small></span></div></td>
       <td>${pfTag(a.pf)}</td><td>${esc(a.g)}</td><td class="r">${stars(a.rating)}</td><td class="r">${n0(a.reviews)}</td><td class="r">${inst(a.installs)}</td>
-      <td class="r"><span class="cc">${a.countries.length}</span></td><td>${date(new Date(a.first))}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">Tidak ada aplikasi untuk filter ini.</td></tr>'}
+      <td class="r"><span class="cc">${a.countries.length}</span></td><td>${date(new Date(a.first))}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">Tidak ada app untuk filter ini.</td></tr>'}
     </tbody></table></div><div class="pager"><span class="muted">halaman ${state.page + 1} dari ${pages}</span><button class="btn" id="pg-prev" ${state.page ? '' : 'disabled'}>Sebelumnya</button>
     <button class="btn" id="pg-next" ${state.page < pages - 1 ? '' : 'disabled'}>Berikutnya</button></div></section>`;
   $('at').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const key = th.dataset.k;
@@ -208,12 +208,12 @@ function history(apps){
     return {d: new Date(d).toISOString().slice(5, 10), a: ok ? Math.round(1897 * (0.9 + Rh() * .1)) : 0, i: ok ? Math.round(1154 * (0.88 + Rh() * .12)) : Math.round(1154 * .5)}; });
   const stat = (p, label) => { const X = apps.filter(a => a.pf === p);
     return `<section class="card stat"><h3>${label} <span>sepanjang waktu</span></h3><dl>
-      <dt>Aplikasi unik</dt><dd>${n0(X.length)}</dd><dt>Developer unik</dt><dd>${n0(new Set(X.map(a => a.dev)).size)}</dd>
+      <dt>App unik</dt><dd>${n0(X.length)}</dd><dt>Developer unik</dt><dd>${n0(new Set(X.map(a => a.dev)).size)}</dd>
       <dt>Genre</dt><dd>${new Set(X.map(a => a.g)).size}</dd><dt>Rata-rata rating</dt><dd>${X.length ? (X.reduce((s, a) => s + a.rating, 0) / X.length).toFixed(2) : '–'}</dd>
-      <dt>Total ulasan</dt><dd>${fmtNum(X.reduce((s, a) => s + a.reviews, 0))}</dd>${p === 'a' ? `<dt>Total install</dt><dd>${fmtNum(X.reduce((s, a) => s + a.installs, 0))}</dd>` : ''}
+      <dt>Total reviews</dt><dd>${fmtNum(X.reduce((s, a) => s + a.reviews, 0))}</dd>${p === 'a' ? `<dt>Total install</dt><dd>${fmtNum(X.reduce((s, a) => s + a.installs, 0))}</dd>` : ''}
       <dt>Pertama di-scrape</dt><dd>${date(new Date(FIRST))}</dd><dt>Terakhir di-scrape</dt><dd>${date(SNAP)}</dd><dt>Hari scraping</dt><dd>${SCRAPE_DAYS}</dd></dl></section>`; };
   const fails = days.filter(d => !d.a);
-  $('panel').innerHTML = `<div class="grid2 wide-left"><section class="card"><h3>Riwayat scraping <span>30 hari terakhir, aplikasi per run</span></h3>
+  $('panel').innerHTML = `<div class="grid2 wide-left"><section class="card"><h3>Scraping history <span>30 hari terakhir, app per run</span></h3>
       <div class="chart"><canvas id="c-hist"></canvas></div>
       <p class="muted" style="margin:8px 0 0;font-size:.85rem">${fails.length ? `${fails.length} run gagal (${fails.map(d => d.d).join(', ')}): sumber menolak permintaan, run dicoba ulang keesokan harinya, tidak dipaksa.` : 'Semua run berhasil.'}</p></section>
     ${stat('a', 'Play Store')}</div><div class="grid2" style="margin-top:16px">${stat('i', 'App Store')}
@@ -230,27 +230,27 @@ function top(apps){
   $('panel').innerHTML = `<section class="card"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:10px">
       <div><label class="muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase" for="t-pf">Platform</label><br><select id="t-pf" class="btn"><option value="a">Play Store</option><option value="i">App Store</option></select></div>
       <div><label class="muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase" for="t-cc">Negara</label><br><select id="t-cc" class="btn">${COUNTRIES.map(c => `<option value="${c[0]}">${c[1]}</option>`).join('')}</select></div>
-      <span class="muted" style="font-size:.85rem">Chart: Top Free · ${date(SNAP)} · 10 teratas per kategori</span></div>
+      <span class="muted" style="font-size:.85rem">Chart: Top Free · ${date(SNAP)} · 10 teratas per category</span></div>
     <div id="cats"></div></section>`;
   $('t-pf').value = state.topPf; $('t-cc').value = state.topCc;
   const draw = () => {
     const X = apps.filter(a => a.pf === state.topPf && a.countries.includes(state.topCc));
     $('cats').innerHTML = cats.map(c => { const list = X.filter(a => a.g === c).sort((a, b) => (b.score * (1 + (noise(b, state.topCc) % 100) / 400)) - (a.score * (1 + (noise(a, state.topCc) % 100) / 400))).slice(0, 10);
-      return list.length ? `<div class="cat"><div class="cn">${esc(c)}<small>${list.length} aplikasi</small></div><div class="chips">${list.map((a, i) => `<span class="chip">${icon(a)}${esc(a.name)} <i>#${i + 1}</i></span>`).join('')}</div></div>` : ''; }).join('')
-      || '<div class="empty-c">Tidak ada aplikasi untuk kombinasi ini.</div>';
+      return list.length ? `<div class="cat"><div class="cn">${esc(c)}<small>${list.length} apps</small></div><div class="chips">${list.map((a, i) => `<span class="chip">${icon(a)}${esc(a.name)} <i>#${i + 1}</i></span>`).join('')}</div></div>` : ''; }).join('')
+      || '<div class="empty-c">Tidak ada app untuk kombinasi ini.</div>';
   };
   $('t-pf').onchange = e => { state.topPf = e.target.value; draw(); }; $('t-cc').onchange = e => { state.topCc = e.target.value; draw(); };
   draw();
 }
 
 function crawl(){
-  $('panel').innerHTML = `<div class="grid2"><section class="card crawl"><h3>Mulai crawling baru <span>simulasi</span></h3>
+  $('panel').innerHTML = `<div class="grid2"><section class="card crawl"><h3>Start crawling baru <span>simulasi</span></h3>
       <div class="muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase">Platform</div>
       <div class="seg2"><button type="button" class="opt" data-p="a" aria-pressed="true"><b>Play Store</b><small>Android</small></button>
         <button type="button" class="opt" data-p="i" aria-pressed="true"><b>App Store</b><small>iOS</small></button></div>
       <div class="muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase">Mode crawl</div>
       <div class="modes"><button type="button" class="mode" data-m="kw" aria-pressed="true">Kata kunci</button><button type="button" class="mode" data-m="pkg" aria-pressed="false">Package ID</button>
-        <button type="button" class="mode" data-m="cat" aria-pressed="false">Kategori</button></div>
+        <button type="button" class="mode" data-m="cat" aria-pressed="false">Category</button></div>
       <label for="kw" class="muted" style="font-size:.85rem">Pisahkan beberapa kata kunci dengan koma</label>
       <input id="kw" type="text" value="kasir, belajar, cuaca">
       <button type="button" class="go" id="go">Cari di kedua toko</button></section>
@@ -268,11 +268,11 @@ function crawl(){
     let i = 0, found = 0; const lines = [];
     $('prog').innerHTML = `<div class="prog"><b id="pb" style="width:0%"></b></div><div class="muted" id="ps" style="font-size:.85rem"></div><div class="log" id="lg"></div>`;
     const tick = () => {
-      if(i >= steps.length){ $('ps').textContent = `Selesai: ${steps.length} permintaan, ${found} aplikasi cocok di katalog contoh.`; $('go').disabled = false; return; }
+      if(i >= steps.length){ $('ps').textContent = `Selesai: ${steps.length} permintaan, ${found} apps cocok di katalog contoh.`; $('go').disabled = false; return; }
       const s = steps[i++], q = s.t.toLowerCase();
       const hit = APPS.filter(a => a.pf === s.p && (a.name.toLowerCase().includes(q) || a.g.toLowerCase().includes(q) || a.dev.toLowerCase().includes(q) || (W2[a.g] || []).some(w => w.toLowerCase() === q))).length;
       found += hit;
-      lines.push(`${new Date().toLocaleTimeString('id-ID')}  ${s.p === 'a' ? 'play ' : 'appst'}  "${s.t}"  -> ${hit} aplikasi  (jeda 1.5 dtk per host)`);
+      lines.push(`${new Date().toLocaleTimeString('id-ID')}  ${s.p === 'a' ? 'play ' : 'appst'}  "${s.t}"  -> ${hit} apps  (jeda 1.5 dtk per host)`);
       $('lg').textContent = lines.join('\n'); $('lg').scrollTop = 1e6;
       $('pb').style.width = (i / steps.length * 100).toFixed(0) + '%'; $('ps').textContent = `${i} dari ${steps.length} permintaan`;
       setTimeout(tick, 450);

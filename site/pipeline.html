@@ -37,7 +37,7 @@
 <div class="shell">
   <nav class="rail" aria-label="Modul">
     <div class="brand"><strong>Data Governance</strong><span>Warehouse contoh · data sintetis</span></div>
-    <h2>Biaya &amp; storage</h2>
+    <h2>Cost &amp; storage</h2>
     <a href="governance.html">Storage &amp; cost</a>
     <a href="pipeline.html" aria-current="page">Pipeline cost</a>
     <a href="usage.html">Table usage</a>
@@ -48,18 +48,18 @@
     <a href="dictionary.html">Data dictionary</a>
     <h2>BigQuery nyata</h2>
     <a href="bq-live.html">Laporan live <small style="color:#8FA1AC">proyek asli</small></a>
-    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+    <div class="back"><a href="index.html">Back to portfolio</a></div>
   </nav>
 
   <main>
-    <div class="synthetic" role="note"><strong>Data sintetis.</strong> 50 job di sini adalah job yang sama dengan penulis tabel di modul Lineage.
-      Biaya compute memakai asumsi ilustrasi $0.06 per slot-hour.</div>
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> 50 job di sini adalah job yang sama dengan penulis table di modul Lineage.
+      Cost compute memakai asumsi ilustrasi $0.06 per slot-hour.</div>
 
     <div class="head"><div><h1>Pipeline cost</h1><p id="snap"></p></div></div>
     <div class="kpis five" id="kpis"></div>
 
     <div class="grid2" style="margin-bottom:14px">
-      <div class="card"><h3>Biaya compute bulanan <span>12 bulan</span></h3><div class="chart"><canvas id="c-trend"></canvas></div></div>
+      <div class="card"><h3>Cost compute bulanan <span>12 bulan</span></h3><div class="chart"><canvas id="c-trend"></canvas></div></div>
       <div class="card"><h3>15 job termahal <span>bulan ini</span></h3><div class="chart"><canvas id="c-top"></canvas></div></div>
     </div>
 
@@ -96,18 +96,18 @@ const num = n => Math.round(n).toLocaleString('id-ID');
 // ------------------------------------------------------------------ rekomendasi (aturan eksplisit)
 const recs = [];
 for(const p of P){
-  if(p.success < .92 && p.cost > 50) recs.push({kind: 'bad', rule: 'Biaya tinggi, keandalan rendah', p,
+  if(p.success < .92 && p.cost > 50) recs.push({kind: 'bad', rule: 'Cost tinggi, keandalan rendah', p,
     text: `Sukses ${(p.success * 100).toFixed(1)}% dari ${p.runsMonth} run/bulan; run gagal diulang dan membakar slot.`, save: p.cost * (1 - p.success)});
   const share = p.unusedOut / p.tables.length;
-  if(share >= .2 && p.cost > 20) recs.push({kind: 'warn', rule: 'Menulis tabel yang tidak dibaca', p,
-    text: `${p.unusedOut} dari ${p.tables.length} tabel tujuan tidak dibaca 90 hari. Hentikan penulisan tabel itu.`, save: p.cost * share});
+  if(share >= .2 && p.cost > 20) recs.push({kind: 'warn', rule: 'Menulis table yang tidak dibaca', p,
+    text: `${p.unusedOut} dari ${p.tables.length} tables tujuan tidak dibaca 90 hari. Hentikan penulisan table itu.`, save: p.cost * share});
   if(p.status === 'paused' && p.cost > 0) recs.push({kind: 'warn', rule: 'Dijeda tetapi masih berbiaya', p,
     text: 'Job dijeda di scheduler tetapi masih dipicu manual. Pastikan pemicu lain dimatikan.', save: p.cost});
   if(p.duration > 60) recs.push({kind: 'info', rule: 'Runtime panjang', p,
-    text: `Rata-rata ${Math.round(p.duration)} menit per run. Kandidat partisi/clustering atau pemrosesan inkremental.`, save: p.cost * .3});
+    text: `Rata-rata ${Math.round(p.duration)} menit per run. Kandidat partition/clustering atau pemrosesan inkremental.`, save: p.cost * .3});
 }
 recs.sort((a, b) => b.save - a.save);
-// total tanpa hitung ganda: satu job bisa kena beberapa aturan, penghematan per job dibatasi biaya job itu
+// total tanpa hitung ganda: satu job bisa kena beberapa aturan, penghematan per job dibatasi cost job itu
 const saveByJob = new Map(); recs.forEach(r => saveByJob.set(r.p.name, (saveByJob.get(r.p.name) || 0) + r.save));
 const totalSave = [...saveByJob].reduce((s, [n, v]) => s + Math.min(v, P.find(p => p.name === n).cost), 0);
 
@@ -119,7 +119,7 @@ const succ = P.filter(p => p.status === 'active').reduce((s, p) => s + p.runsMon
 const d = (cost - prev) / prev * 100;
 $('snap').textContent = `Snapshot ${date(SNAP)} · ${P.length} job · ${num(runs)} run terjadwal per bulan`;
 $('kpis').innerHTML = [
-  [usd(cost), 'Biaya compute bulan ini', `<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}%</span> dari bulan lalu`],
+  [usd(cost), 'Cost compute bulan ini', `<span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}%</span> dari bulan lalu`],
   [num(slot), 'Slot-hour per bulan', `$${SLOT_PRICE}/slot-hour (asumsi)`],
   [(succ * 100).toFixed(1) + '%', 'Tingkat sukses', 'tertimbang jumlah run'],
   [`${P.filter(p => p.status === 'active').length} / ${P.filter(p => p.status === 'paused').length}`, 'Job aktif / dijeda', 'di scheduler'],
@@ -127,7 +127,7 @@ $('kpis').innerHTML = [
   .map(([v, k, x]) => `<div class="kpi"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${x}</div></div>`).join('');
 
 if(window.Chart){
-  new Chart($('c-trend'), {type: 'line', data: {labels: months.map(mLabel), datasets: [{label: 'Biaya compute (USD)',
+  new Chart($('c-trend'), {type: 'line', data: {labels: months.map(mLabel), datasets: [{label: 'Cost compute (USD)',
     data: months.map((_, i) => P.reduce((s, p) => s + p.monthly[i], 0)), borderColor: '#3399FF', backgroundColor: 'rgba(46,94,140,.12)', fill: true, tension: .3, pointRadius: 3}]},
     options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => usd(c.parsed.y)}}}, scales: {y: {ticks: {callback: v => usd(v)}}}}});
   const top = P.slice(0, 15);
@@ -140,12 +140,12 @@ if(window.Chart){
 $('rec-total').textContent = `${recs.length} temuan · ${usd(totalSave)}/bulan`;
 $('recs').innerHTML = recs.slice(0, 9).map(r => `<div class="rec ${r.kind}"><div class="rt">${r.rule}</div><div class="rn">${esc(r.p.name)}</div>
   <div class="rd">${r.text}</div><div class="rs">Potensi hemat ${usd(r.save)}/bulan</div></div>`).join('')
-  + (recs.length > 9 ? `<div class="muted" style="align-self:center;font-size:.88rem">+${recs.length - 9} temuan lain terlihat di tabel di bawah.</div>` : '');
+  + (recs.length > 9 ? `<div class="muted" style="align-self:center;font-size:.88rem">+${recs.length - 9} temuan lain terlihat di table di bawah.</div>` : '');
 
-// ------------------------------------------------------------------ tabel job
+// ------------------------------------------------------------------ table job
 const state = {k: 'cost', dir: -1};
-const COLS = [['name', 'Job'], ['project', 'Project'], ['schedule', 'Jadwal'], ['tier', 'Tier'], ['status', 'Status'], ['cost', 'Biaya/bulan', 'r'],
-  ['slotMonth', 'Slot-hour', 'r'], ['success', 'Sukses', 'r'], ['duration', 'Durasi rata-rata', 'r'], ['tables', 'Tabel tujuan', 'r'], ['trend', 'Tren 12 bulan']];
+const COLS = [['name', 'Job'], ['project', 'Project'], ['schedule', 'Jadwal'], ['tier', 'Tier'], ['status', 'Status'], ['cost', 'Cost/month', 'r'],
+  ['slotMonth', 'Slot-hour', 'r'], ['success', 'Sukses', 'r'], ['duration', 'Durasi rata-rata', 'r'], ['tables', 'Table tujuan', 'r'], ['trend', 'Tren 12 bulan']];
 function spark(m){ const max = Math.max(...m, 1e-9), W = 90, H = 22, st = W / (m.length - 1);
   return `<svg width="${W}" height="${H}" viewBox="-2 0 ${W + 4} ${H}" aria-hidden="true"><polyline fill="none" stroke="#3399FF" stroke-width="1.4"
     points="${m.map((v, i) => `${(i * st).toFixed(1)},${(H - 2 - v / max * (H - 4)).toFixed(1)}`).join(' ')}"/></svg>`; }

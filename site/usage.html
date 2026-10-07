@@ -28,7 +28,7 @@
 <div class="shell">
   <nav class="rail" aria-label="Modul">
     <div class="brand"><strong>Data Governance</strong><span>Warehouse contoh · data sintetis</span></div>
-    <h2>Biaya &amp; storage</h2>
+    <h2>Cost &amp; storage</h2>
     <a href="governance.html">Storage &amp; cost</a>
     <a href="pipeline.html">Pipeline cost</a>
     <a href="usage.html" aria-current="page">Table usage</a>
@@ -39,19 +39,19 @@
     <a href="dictionary.html">Data dictionary</a>
     <h2>BigQuery nyata</h2>
     <a href="bq-live.html">Laporan live <small style="color:#8FA1AC">proyek asli</small></a>
-    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+    <div class="back"><a href="index.html">Back to portfolio</a></div>
   </nav>
 
   <main>
-    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Pembacaan tabel 90 hari = pembacaan oleh job hilir (dari modul Lineage)
-      ditambah query pengguna tiruan. Dalam sistem nyata, angka ini berasal dari log job/query warehouse.</div>
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Reads table 90 hari = reads oleh job downstream (dari modul Lineage)
+      ditambah query user tiruan. Dalam sistem nyata, angka ini berasal dari log job/query warehouse.</div>
 
     <div class="head"><div><h1>Table usage</h1><p id="snap"></p></div></div>
 
     <div class="filters tu">
       <div><label for="f-project">Project</label><select id="f-project"></select></div>
-      <div><label for="f-owner">Pemilik</label><select id="f-owner"></select></div>
-      <div><label for="f-q">Cari tabel</label><input id="f-q" type="search" placeholder="nama project, dataset, atau tabel"></div>
+      <div><label for="f-owner">Owner</label><select id="f-owner"></select></div>
+      <div><label for="f-q">Cari table</label><input id="f-q" type="search" placeholder="nama project, dataset, atau table"></div>
       <div><button class="btn" id="reset">Reset</button></div>
     </div>
 
@@ -59,8 +59,8 @@
     <div class="kpis" id="kpis"></div>
 
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="unused">Tidak dipakai</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="active">Paling banyak dibaca</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="unused">Unused</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="active">Most read</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="project">Per project</button>
     </div>
     <section class="card" id="panel"><div class="tw"><table id="tb"></table></div>
@@ -80,8 +80,8 @@ const ROWS = TABLES.filter(t => t.type !== 'EXTERNAL').map(t => ({t, u: U.get(t.
 const state = {project: '', owner: '', q: '', tab: 'unused', page: 0, sort: {unused: ['bytes', -1], active: ['reads', -1], project: ['cost', -1]}};
 const PAGE = 25;
 $('f-project').innerHTML = `<option value="">Semua project (${PROJECTS.length})</option>` + PROJECTS.map(p => `<option>${esc(p[0])}</option>`).join('');
-$('f-owner').innerHTML = '<option value="">Semua pemilik</option>' + [...new Set(PROJECTS.map(p => p[1]))].sort().map(o => `<option>${esc(o)}</option>`).join('');
-$('snap').textContent = `Snapshot ${date(SNAP)} · jendela 90 hari · ${ROWS.length.toLocaleString('id-ID')} tabel dan view`;
+$('f-owner').innerHTML = '<option value="">Semua owner</option>' + [...new Set(PROJECTS.map(p => p[1]))].sort().map(o => `<option>${esc(o)}</option>`).join('');
+$('snap').textContent = `Snapshot ${date(SNAP)} · jendela 90 hari · ${ROWS.length.toLocaleString('id-ID')} tables dan view`;
 
 function filtered(){
   const q = state.q.trim().toLowerCase();
@@ -92,23 +92,23 @@ function summary(rows){
   const strong = un.filter(r => r.t.ageDays >= 180);
   const sum = (a, k) => a.reduce((s, r) => s + r.t[k], 0);
   $('banner').innerHTML = un.length
-    ? `<strong>${un.length.toLocaleString('id-ID')} tabel</strong> tidak dibaca sama sekali dalam 90 hari, menyimpan <strong>${fmtBytes(sum(un, 'bytes'))}</strong>
+    ? `<strong>${un.length.toLocaleString('id-ID')} tables</strong> tidak dibaca sama sekali dalam 90 hari, menyimpan <strong>${fmtBytes(sum(un, 'bytes'))}</strong>
        (<strong>${usd(sum(un, 'cost'))}/bulan</strong>). <strong>${strong.length.toLocaleString('id-ID')}</strong> di antaranya juga tidak diubah ≥ 180 hari:
        kandidat kuat untuk diarsipkan atau dihapus setelah dikonfirmasi pemiliknya.`
-    : 'Tidak ada tabel yang tidak terpakai untuk filter ini.';
+    : 'Tidak ada table yang tidak terpakai untuk filter ini.';
   $('kpis').innerHTML = [
-    [un.length.toLocaleString('id-ID'), 'Tidak dipakai 90 hari', `${fmtBytes(sum(un, 'bytes'))}, ${usd(sum(un, 'cost'))}/bulan`],
-    [strong.length.toLocaleString('id-ID'), 'Kandidat kuat', `tidak dibaca & tidak diubah ≥ 180 hari, ${fmtBytes(sum(strong, 'bytes'))}`],
-    [rare.length.toLocaleString('id-ID'), 'Jarang dipakai', 'kurang dari 10 pembacaan dalam 90 hari'],
-    [fmtNum(rows.reduce((s, r) => s + r.u.reads, 0)), 'Total pembacaan 90 hari',
-      `${Math.round(rows.reduce((s, r) => s + r.u.jobReads, 0) / Math.max(1, rows.reduce((s, r) => s + r.u.reads, 0)) * 100)}% oleh job, sisanya query pengguna`]]
+    [un.length.toLocaleString('id-ID'), 'Unused 90 hari', `${fmtBytes(sum(un, 'bytes'))}, ${usd(sum(un, 'cost'))}/bulan`],
+    [strong.length.toLocaleString('id-ID'), 'Strong candidates', `tidak dibaca & tidak diubah ≥ 180 hari, ${fmtBytes(sum(strong, 'bytes'))}`],
+    [rare.length.toLocaleString('id-ID'), 'Rarely used', 'kurang dari 10 reads dalam 90 hari'],
+    [fmtNum(rows.reduce((s, r) => s + r.u.reads, 0)), 'Total reads 90 hari',
+      `${Math.round(rows.reduce((s, r) => s + r.u.jobReads, 0) / Math.max(1, rows.reduce((s, r) => s + r.u.reads, 0)) * 100)}% oleh job, sisanya query user`]]
     .map(([v, k, d]) => `<div class="kpi"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${d}</div></div>`).join('');
 }
 
 const COLS = {
-  unused: [['name', 'Tabel'], ['owner', 'Pemilik'], ['bytes', 'Ukuran', 'r'], ['cost', 'Biaya/bulan', 'r'], ['lastMod', 'Terakhir diubah'], ['flag', 'Rekomendasi']],
-  active: [['name', 'Tabel'], ['reads', 'Pembacaan 90 hari', 'r'], ['split', 'Job vs pengguna'], ['users', 'Pengguna', 'r'], ['lastRead', 'Terakhir dibaca'], ['bytes', 'Ukuran', 'r']],
-  project: [['project', 'Project'], ['n', 'Tabel', 'r'], ['un', 'Tidak dipakai', 'r'], ['share', 'Porsi tidak dipakai', 'r'], ['ub', 'Ukuran tidak dipakai', 'r'], ['cost', 'Biaya tidak dipakai/bulan', 'r']]};
+  unused: [['name', 'Table'], ['owner', 'Owner'], ['bytes', 'Size', 'r'], ['cost', 'Cost/month', 'r'], ['lastMod', 'Terakhir diubah'], ['flag', 'Rekomendasi']],
+  active: [['name', 'Table'], ['reads', 'Reads 90 hari', 'r'], ['split', 'Job vs user'], ['users', 'User', 'r'], ['lastRead', 'Terakhir dibaca'], ['bytes', 'Size', 'r']],
+  project: [['project', 'Project'], ['n', 'Table', 'r'], ['un', 'Unused', 'r'], ['share', 'Porsi tidak dipakai', 'r'], ['ub', 'Size tidak dipakai', 'r'], ['cost', 'Cost tidak dipakai/bulan', 'r']]};
 function valOf(tab, r, k){
   if(tab === 'project') return r[k];
   if(k === 'name') return r.t.full; if(k === 'owner') return r.t.owner; if(k === 'flag') return r.t.ageDays;
@@ -131,7 +131,7 @@ function render(){
   const body = view.map(r => {
     if(state.tab === 'unused') return `<tr>${name(r.t)}<td class="muted">${esc(r.t.owner)}</td><td class="r">${r.t.bytes ? fmtBytes(r.t.bytes) : '–'}</td>
       <td class="r">${r.t.cost ? usd(r.t.cost) : '–'}</td><td>${date(r.t.lastMod)} <span class="muted">(${r.t.ageDays} hari)</span></td>
-      <td>${r.t.ageDays >= 180 ? '<span class="badge strong">Arsipkan / hapus</span>' : r.t.ageDays >= 30 ? '<span class="badge warn">Konfirmasi ke pemilik</span>' : '<span class="badge">Baru dibuat, pantau</span>'}</td></tr>`;
+      <td>${r.t.ageDays >= 180 ? '<span class="badge strong">Arsipkan / hapus</span>' : r.t.ageDays >= 30 ? '<span class="badge warn">Konfirmasi ke owner</span>' : '<span class="badge">Baru dibuat, pantau</span>'}</td></tr>`;
     if(state.tab === 'active'){ const j = r.u.jobReads / r.u.reads * 100;
       return `<tr>${name(r.t)}<td class="r">${r.u.reads.toLocaleString('id-ID')}</td>
       <td><span class="split"><span class="j" style="width:${j.toFixed(0)}%"></span><span class="u" style="width:${(100 - j).toFixed(0)}%"></span></span><span class="muted">${j.toFixed(0)}% job</span></td>
@@ -144,7 +144,7 @@ function render(){
     + (body || `<tr><td colspan="${cols.length}" class="empty">Tidak ada data untuk filter ini. Ubah atau reset filter.</td></tr>`) + '</tbody>';
   $('tb').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const key = th.dataset.k, cur = state.sort[state.tab];
     state.sort[state.tab] = [key, cur[0] === key ? -cur[1] : (['name', 'owner', 'project'].includes(key) ? 1 : -1)]; state.page = 0; render(); });
-  $('pg-info').textContent = `${data.length.toLocaleString('id-ID')} baris · halaman ${state.page + 1} dari ${pages}`;
+  $('pg-info').textContent = `${data.length.toLocaleString('id-ID')} rows · halaman ${state.page + 1} dari ${pages}`;
   $('pg-prev').disabled = state.page === 0; $('pg-next').disabled = state.page >= pages - 1;
 }
 document.querySelectorAll('.tab').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; state.page = 0;

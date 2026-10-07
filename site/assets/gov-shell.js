@@ -11,20 +11,20 @@ window.cuiIcon = icon;
 
 // urutan ikon mengikuti rail referensi: speedometer, dollar, share, contact, apps-settings, dollar, people, tag, apps
 const NAV = [
-  {grp: 'BigQuery nyata'},
-  {href: 'bq-live.html', ic: 'speedometer', t: 'BigQuery live', s: 'proyek asli', c: '#3399FF'},
-  {grp: 'Biaya & storage'},
+  {grp: 'Real BigQuery'},
+  {href: 'bq-live.html', ic: 'speedometer', t: 'BigQuery live', s: 'real project', c: '#3399FF'},
+  {grp: 'Cost & storage'},
   {href: 'governance.html', ic: 'dollar', t: 'Storage & cost', c: '#5856D6'},
   {grp: 'Metadata'},
   {href: 'lineage.html', ic: 'share-all', t: 'Data lineage', c: '#3399FF'},
   {href: 'dictionary.html', ic: 'contact', t: 'Data dictionary', c: '#2EB85C'},
-  {grp: 'Kualitas data'},
+  {grp: 'Data quality'},
   {href: 'anomaly.html', ic: 'apps-settings', t: 'Anomaly & missing', c: '#E55353'},
-  {grp: 'Compute & pemakaian'},
+  {grp: 'Compute & usage'},
   {href: 'pipeline.html', ic: 'dollar', t: 'Pipeline cost', c: '#F9B115'},
   {href: 'users.html', ic: 'people', t: 'User analytics', c: '#5856D6'},
   {href: 'usage.html', ic: 'tag', t: 'Table usage', c: '#2EB85C'},
-  {grp: 'Data aplikasi'},
+  {grp: 'App data'},
   {href: 'crawler.html', ic: 'apps', t: 'App crawler', c: '#3399FF'},
 ];
 const here = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
@@ -33,10 +33,10 @@ const cur = NAV.find(n => n.href === here) || {};
 function buildRail(rail){
   rail.setAttribute('aria-label', 'Modul Data Governance');
   rail.innerHTML = `<a class="brand" href="governance.html" aria-label="Data Governance, beranda modul">
-      <span class="logo">DG</span><span><b>Data Governance</b><small>Portofolio Elson Saputra</small></span></a>
+      <span class="logo">DG</span><span><b>Data Governance</b><small>Elson Saputra portfolio</small></span></a>
     <div class="nav">${NAV.map(n => n.grp ? `<div class="grp">${n.grp}</div>`
       : `<a href="${n.href}" title="${n.t}"${n.href === here ? ' aria-current="page"' : ''}>${icon(n.ic)}<span>${n.t}</span>${n.s ? `<small>${n.s}</small>` : ''}</a>`).join('')}</div>
-    <div class="foot"><a href="index.html" title="Kembali ke portofolio">${icon('account-logout')}<span>Kembali ke portofolio</span></a></div>`;
+    <div class="foot"><a href="index.html" title="Back to portfolio">${icon('account-logout')}<span>Back to portfolio</span></a></div>`;
 }
 
 function buildTop(main){
@@ -60,20 +60,20 @@ function buildTop(main){
 const KC = ['#5856D6', '#3399FF', '#F9B115', '#2EB85C'];
 function kpiIcon(label, i){
   const l = label.toLowerCase();
-  if(/\$|cost|biaya|usd|hemat|saving/.test(l)) return 'dollar';
-  if(/tb|pb|gb|storage|ukuran|size|byte/.test(l)) return 'storage';
+  if(/\$|cost|cost|usd|hemat|saving/.test(l)) return 'dollar';
+  if(/tb|pb|gb|storage|size|size|byte/.test(l)) return 'storage';
   if(/anomal|missing|alert|gagal|fail|warn|telat|late/.test(l)) return 'warning';
-  if(/user|pengguna|developer|requester/.test(l)) return 'people';
+  if(/user|user|developer|requester/.test(l)) return 'people';
   if(/job|pipeline|query|run/.test(l)) return 'bolt';
   if(/edge|relasi|lineage/.test(l)) return 'share-all';
-  if(/kolom|column|describ|deskrip|dokumen/.test(l)) return 'contact';
-  if(/app|aplikasi/.test(l)) return 'apps';
-  if(/rating|review|ulasan/.test(l)) return 'star';
+  if(/column|column|describ|deskrip|dokumen/.test(l)) return 'contact';
+  if(/app|app/.test(l)) return 'apps';
+  if(/rating|review|reviews/.test(l)) return 'star';
   if(/negara|country|region/.test(l)) return 'globe-alt';
   if(/sukses|success|sehat|health|pass/.test(l)) return 'check-circle';
-  if(/kategori|categor|genre/.test(l)) return 'list-rich';
-  if(/baris|row/.test(l)) return 'speedometer';
-  if(/tabel|table|objek|dataset|project/.test(l)) return 'layers';
+  if(/category|categor|genre/.test(l)) return 'list-rich';
+  if(/rows|row/.test(l)) return 'speedometer';
+  if(/table|table|object|dataset|project/.test(l)) return 'layers';
   return ['layers', 'storage', 'chart', 'speedometer'][i % 4];
 }
 function decorateKpis(root){
