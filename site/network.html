@@ -208,27 +208,27 @@
 <div class="shell">
   <nav class="rail" aria-label="Tampilan">
     <div class="brand"><strong>Network KPI Monitor</strong><span>Region Kalimantan · data sintetis</span></div>
-    <h2>Laporan</h2>
-    <a data-view="summary" aria-current="page">Ringkasan</a>
-    <a data-view="map">Peta</a>
+    <h2>Report</h2>
+    <a data-view="summary" aria-current="page">Summary</a>
+    <a data-view="map">Site map</a>
     <a data-view="wpc">WPC</a>
-    <h2>Teknologi</h2>
+    <h2>Technology</h2>
     <a data-view="2G">2G</a>
     <a data-view="4G">4G</a>
     <a data-view="5G">5G</a>
     <h2>Assurance</h2>
-    <a data-view="oss-alarm">Alarm &amp; insiden</a>
-    <a data-view="oss-inc">Dampak pelanggan</a>
-    <a data-view="oss-sleep">Sel tidur senyap</a>
-    <a data-view="oss-sla">SLA pelanggan</a>
+    <a data-view="oss-alarm">Alarm &amp; incident</a>
+    <a data-view="oss-inc">Customer impact</a>
+    <a data-view="oss-sleep">Sleeping cell</a>
+    <a data-view="oss-sla">Customer SLA</a>
     <a data-view="oss-prov">Provisioning</a>
-    <h2>Internet publik</h2>
-    <a data-view="pub-outage">Gangguan &amp; anomali</a>
-    <a data-view="pub-traffic">Trafik per operator</a>
-    <a data-view="pub-region">Trafik per provinsi</a>
-    <a data-view="pub-cells">Sebaran sel (OpenCelliD)</a>
-    <a data-view="pub-quality">Kualitas &amp; routing BGP</a>
-    <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
+    <h2>Public Internet</h2>
+    <a data-view="pub-outage">Outage &amp; anomaly</a>
+    <a data-view="pub-traffic">Traffic per operator</a>
+    <a data-view="pub-region">Traffic per province</a>
+    <a data-view="pub-cells">Cell distribution (OpenCelliD)</a>
+    <a data-view="pub-quality">Quality &amp; BGP routing</a>
+    <div class="back"><a href="index.html">Back to portfolio</a></div>
   </nav>
   <main>
     <div class="synthetic" role="note"><strong>Data sintetis.</strong> Batas dan nama kabupaten Kalimantan adalah geografi publik; branch, vendor per branch, site, lokasi
@@ -621,7 +621,7 @@ function viewTwamp(){
 
 
 // ------------------------------------------------------------------ navigasi
-const TITLES = {'pub-cells': 'Internet publik: sebaran sel per kabupaten/kota', 'pub-region': 'Internet publik: trafik per provinsi', 'pub-outage': 'Internet publik: gangguan & anomali', 'pub-traffic': 'Internet publik: trafik per operator', 'pub-quality': 'Internet publik: kualitas & routing BGP', 'oss-alarm': 'Assurance: alarm & insiden', 'oss-inc': 'Assurance: insiden menurut dampak pelanggan', 'oss-sleep': 'Assurance: sel tidur senyap', 'oss-sla': 'Assurance: SLA pelanggan', 'oss-prov': 'Assurance: provisioning (simulasi)', summary: 'Ringkasan', map: 'Peta site', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
+const TITLES = {'pub-cells': 'Public Internet: cell distribution per kabupaten/kota', 'pub-region': 'Public Internet: traffic per province', 'pub-outage': 'Public Internet: outage & anomaly', 'pub-traffic': 'Public Internet: traffic per operator', 'pub-quality': 'Public Internet: quality & BGP routing', 'oss-alarm': 'Assurance: alarm & incident', 'oss-inc': 'Assurance: incident by customer impact', 'oss-sleep': 'Assurance: sleeping cell', 'oss-sla': 'Assurance: customer SLA', 'oss-prov': 'Assurance: provisioning (simulasi)', summary: 'Summary', map: 'Site map', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
 const closeModal = () => { $('modal').hidden = true; };
 $('modal').onclick = e => { if(e.target === $('modal')) closeModal(); };
 addEventListener('keydown', e => { if(e.key === 'Escape' && !$('modal').hidden) closeModal(); });

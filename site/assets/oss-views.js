@@ -1,13 +1,13 @@
-/* Tampilan "Assurance" di Network KPI Monitor: alarm -> insiden, dampak pelanggan, sel tidur senyap, SLA, provisioning.
+/* Tampilan "Assurance" di Network KPI Monitor: alarm -> incident, customer impact, sleeping cell, SLA, provisioning.
    Data: published/dashboard.json dari repo telco-oss-assurance (jaringan sintetis yang SAMA: ID site SYN-xxxx sama dengan peta). */
 (function(){
 const SRC = 'https://raw.githubusercontent.com/elsonsaputra03-dot/telco-oss-assurance/main/published/dashboard.json';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = (v, d = 0) => v == null ? '' : Number(v).toLocaleString('id-ID', {maximumFractionDigits: d, minimumFractionDigits: d});
 const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
-const TYPE = {transport_cut: 'Transmisi putus', power_outage: 'Catu daya padam', link_flapping: 'Link flapping',
-              concurrent_cut: 'Dua gangguan bertingkat berselang menit', vswr: 'VSWR (RF)', cell_sleeping: 'Sel tidur (ada alarm)'};
-const ROOT = {transport_link: 'Link transmisi', power: 'Catu daya'};
+const TYPE = {transport_cut: 'Transmission cut', power_outage: 'Power outage', link_flapping: 'Link flapping',
+              concurrent_cut: 'Two nested cuts minutes apart', vswr: 'VSWR (RF)', cell_sleeping: 'Sleeping cell (with alarm)'};
+const ROOT = {transport_link: 'Transmission link', power: 'Power'};
 const NET = ['transport_cut', 'power_outage', 'link_flapping', 'concurrent_cut'];
 let data = null, loading = null, map = null;
 
@@ -30,23 +30,23 @@ const VIEWS = {
       dikorelasikan memakai topologi transmisi dan urutan waktu. Korelator tidak pernah membaca label skenario; label hanya dipakai untuk menilai akurasinya.`) +
     `<div class="kpis" style="grid-template-columns:repeat(auto-fill,minmax(145px,1fr))">
       ${kpi(fmt(a.alarms), 'alarm dalam 7 hari', `${fmt(a.critical)} critical`)}
-      ${kpi(fmt(a.network_incidents), 'insiden jaringan', `${netAcc(d)}% akar masalah benar`)}
+      ${kpi(fmt(a.network_incidents), 'incident jaringan', `${netAcc(d)}% root cause benar`)}
       ${kpi(fmt(nd.reduce((s, r) => s + r.availability_pct, 0) / nd.length, 2) + '%', 'availability minggu ini')}
-      ${kpi(d.kpi_detection.silent_detected_as_silent, 'sel tidur senyap', 'tanpa alarm, dari KPI')}
+      ${kpi(d.kpi_detection.silent_detected_as_silent, 'sleeping cell', 'tanpa alarm, dari KPI')}
       ${kpi(`${gold.breached}/${gold.affected}`, 'layanan Gold lewat jatah SLA', 'dari yang terdampak')}
       ${kpi(pct(rej, orders) + '%', 'order ditolak', `${rej} dari ${orders}`)}
     </div>
     <div class="oflow">
       <div class="onode"><b>${fmt(a.alarms)}</b><span>alarm (30% alarm akar hilang, jam NE selisih ±3 menit)</span></div><div class="oarrow">→</div>
-      <div class="onode"><b>${fmt(a.incidents)}</b><span>insiden, ${fmt(a.network_incidents)} di antaranya gangguan jaringan</span></div><div class="oarrow">→</div>
-      <div class="onode"><b>${netAcc(d)}%</b><span>gangguan jaringan dengan akar masalah benar</span></div>
+      <div class="onode"><b>${fmt(a.incidents)}</b><span>incident, ${fmt(a.network_incidents)} di antaranya outage jaringan</span></div><div class="oarrow">→</div>
+      <div class="onode"><b>${netAcc(d)}%</b><span>outage jaringan dengan root cause benar</span></div>
     </div>
     <div class="grid2">
       <div class="card"><h3>Akurasi per skenario <span>data sulit</span></h3>${table([
         {l: 'Skenario', h: r => esc(TYPE[r.k] || r.k)}, {l: 'Benar', n: 1, h: r => `${r.correct} / ${r.scenarios}`},
         {l: '', h: r => bar(pct(r.correct, r.scenarios))}, {l: 'Terpecah', n: 1, k: 'split'}, {l: 'Tercampur', n: 1, k: 'merged'}],
         Object.entries(d.accuracy).map(([k, v]) => ({k, ...v})))}
-        ${note('Batas yang diketahui: dua gangguan di subtree yang sama berselang beberapa menit, dengan selisih jam sebesar itu, tetap ambigu bila hanya dari alarm.')}</div>
+        ${note('Batas yang diketahui: dua outage di subtree yang sama berselang beberapa menit, dengan selisih jam sebesar itu, tetap ambigu bila hanya dari alarm.')}</div>
       <div class="card"><h3>Alarm paling sering <span>asal nama: referensi publik atau generik</span></h3>${table([
         {l: 'Vendor', h: r => r.vendor === 'EID' ? 'EID (Ericsson)' : esc(r.vendor)}, {l: 'Alarm', k: 'alarm_name'}, {l: 'Severity', h: r => sev(r.severity)},
         {l: 'Nama', h: r => `<span style="color:var(--muted)">${esc(r.name_source)}</span>`}, {l: 'Jumlah', n: 1, h: r => fmt(r.n)}], d.alarm_names)}</div>
@@ -54,24 +54,24 @@ const VIEWS = {
   },
 
   'oss-inc'(d){
-    return intro(`Diurutkan menurut menit layanan pelanggan yang putus, dibobot menurut SLA (Gold 3x, Silver 2x, Bronze 1x), bukan menurut jumlah alarm. Pilih insiden untuk melihat
+    return intro(`Diurutkan menurut menit layanan pelanggan yang putus, dibobot menurut SLA (Gold 3x, Silver 2x, Bronze 1x), bukan menurut jumlah alarm. Pilih incident untuk melihat
       pohon korelasinya dan site-nya di peta.`) +
     `<div class="ogrid3">
       <div class="card" style="padding:6px 0"><div class="oinc">${d.top_incidents.map(i => `<button type="button" data-id="${esc(i.incident_id)}" aria-pressed="false">
         <div class="t"><span>${esc(i.incident_id)} · ${esc(ROOT[i.root_type] || i.root_type)}</span><span>${fmt(i.weighted_impact)} mnt berbobot</span></div>
         <div class="s">${esc(i.branch)} · ${i.sites_affected} site · ${i.services} layanan (${i.gold_services} Gold), ${fmt(i.service_down_min)} mnt · ${fmt(i.alarm_count)} alarm</div></button>`).join('')}</div></div>
       <div class="card"><div id="o-head" style="font-size:.9rem;margin-bottom:8px"></div>
-        <div id="o-map" role="region" aria-label="Peta site pada insiden terpilih"></div>
+        <div id="o-map" role="region" aria-label="Peta site pada incident terpilih"></div>
         <div class="olegend"><span><i style="background:#8E2A22"></i>site mati teratas (akar)</span><span><i style="background:#B3261E"></i>site korban</span>
           <span><i style="background:#3E8E5E"></i>site hulu, hidup</span><span>garis putus-putus = microwave</span></div>
         <div class="grid2"><div><h3 style="font-size:.95rem;margin:6px 0">Pohon korelasi</h3><div class="otree" id="o-tree"></div></div>
-          <div><h3 style="font-size:.95rem;margin:6px 0">Alarm yang digabung ke insiden ini</h3><div id="o-mix"></div></div></div></div>
+          <div><h3 style="font-size:.95rem;margin:6px 0">Alarm yang digabung ke incident ini</h3><div id="o-mix"></div></div></div></div>
     </div>`;
   },
 
   'oss-sleep'(d){
     const k = d.kpi_detection, sl = d.sleeping_cells;
-    return intro(`Sel yang <b>available</b> tetapi hampir tidak membawa trafik (di bawah 5% dari normal sel itu pada jam yang sama, minimal 3 jam berturut-turut),
+    return intro(`Sel yang <b>available</b> tetapi hampir tidak membawa traffic (di bawah 5% dari normal sel itu pada jam yang sama, minimal 3 jam berturut-turut),
       dari counter PM per jam. Precision ${fmt(100 * k.precision)}%, recall ${fmt(100 * k.recall)}%, dan <b>${k.silent_detected_as_silent} dari ${k.silent_truth}</b>
       sel yang sama sekali tidak memunculkan alarm ditemukan dan dilabeli senyap.`) +
     `<div class="card">${table([{l: 'Cell', k: 'cell_id'}, {l: 'Branch', k: 'branch'}, {l: 'Teknologi', k: 'tech'}, {l: 'Mulai', k: 'started_at'},
@@ -82,15 +82,15 @@ const VIEWS = {
   'oss-sla'(d){
     const at = d.sla_attribution;
     return intro(`${fmt(d.sla_by_tier.reduce((s, r) => s + r.services, 0))} layanan korporat sintetis menumpang di site jaringan ini. Downtime <b>diukur dari counter KPI</b>
-      site-nya dan dilacak ke insiden penyebabnya (${fmt(100 - 100 * at.unattributed_min / at.down_min, 1)}% terlacak). SLA kontrak bersifat bulanan, jadi minggu ini
+      site-nya dan dilacak ke incident penyebabnya (${fmt(100 - 100 * at.unattributed_min / at.down_min, 1)}% terlacak). SLA kontrak bersifat bulanan, jadi minggu ini
       dinilai terhadap jatah downtime sebulan.`) +
     `<div class="grid2">
       <div class="card"><h3>Per tier</h3>${table([{l: 'Tier', k: 'sla_tier'}, {l: 'SLA', n: 1, h: r => r.sla_pct + '%'},
         {l: 'Jatah / bulan', n: 1, h: r => fmt(r.budget_min, 0) + ' mnt'}, {l: 'Layanan', n: 1, k: 'services'}, {l: 'Terdampak', n: 1, k: 'affected'},
         {l: 'Lewat jatah', n: 1, h: r => `<b>${r.breached}</b>`}], d.sla_by_tier)}
-        ${note('Setiap layanan Gold yang terdampak menghabiskan jatah 43 menit sebulannya: gangguan berlangsung 20 menit sampai 6 jam dan setiap layanan hanya punya satu jalur. 99,9% butuh jalur cadangan.')}</div>
+        ${note('Setiap layanan Gold yang terdampak menghabiskan jatah 43 menit sebulannya: outage berlangsung 20 menit sampai 6 jam dan setiap layanan hanya punya satu jalur. 99,9% butuh jalur cadangan.')}</div>
       <div class="card"><h3>Jatah bulanan paling banyak terpakai</h3>${table([{l: 'Layanan', k: 'service_id'}, {l: 'Tier', k: 'sla_tier'}, {l: 'Sektor', k: 'sector'},
-        {l: 'Mnt putus', n: 1, h: r => fmt(r.down_min)}, {l: 'Jatah terpakai', n: 1, h: r => fmt(r.budget_used_pct, 0) + '%'}, {l: 'Insiden', k: 'incident_ids'}],
+        {l: 'Mnt putus', n: 1, h: r => fmt(r.down_min)}, {l: 'Jatah terpakai', n: 1, h: r => fmt(r.budget_used_pct, 0) + '%'}, {l: 'Incident', k: 'incident_ids'}],
         d.sla_worst.slice(0, 12))}</div>
     </div>`;
   },
@@ -117,7 +117,7 @@ function drawIncident(inc){
     return `<li><span class="${s.site_id === inc.top_site ? 'root' : ''}">${esc(s.site_id)}</span><span style="color:var(--muted)"> · ${fmt(s.alarms)} alarm
       ${s.services ? ` · ${s.services} layanan` : ''}${s.link_type === 'microwave' && depth ? ' · MW' : ''}</span>${ch.length ? `<ul>${ch.map(c => node(c, depth + 1)).join('')}</ul>` : ''}</li>`; };
   document.getElementById('o-head').innerHTML = `<b>${esc(inc.incident_id)}</b> · ${esc(ROOT[inc.root_type] || inc.root_type)} <code>${esc(inc.root_object)}</code> ·
-    ${esc(inc.branch)} · ${esc(inc.started_at)} – ${esc(inc.ended_at.slice(11))} (${fmt(inc.minutes)} mnt)<br><span style="color:var(--muted)">${fmt(inc.alarm_count)} alarm → 1 insiden ·
+    ${esc(inc.branch)} · ${esc(inc.started_at)} – ${esc(inc.ended_at.slice(11))} (${fmt(inc.minutes)} mnt)<br><span style="color:var(--muted)">${fmt(inc.alarm_count)} alarm → 1 incident ·
     ${inc.sites_affected} site mati · ${inc.services} layanan dari ${inc.customers} pelanggan (${inc.gold_services} Gold) · bukti: ${esc(inc.evidence)}</span>`;
   document.getElementById('o-tree').innerHTML = `<ul>${rep ? `<li><span>${esc(rep.site_id)}</span> <span class="opill">hidup · melaporkan alarm link</span>
     <ul>${top ? node(top, 0) : ''}</ul></li>` : top ? node(top, 0) : ''}</ul>`;
