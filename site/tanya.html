@@ -285,7 +285,7 @@ const API = (() => {
 })();
 let ONLINE = false;
 
-// Contoh percakapan NYATA dari versi lokal (qwen2.5:3b via Ollama), direkam saat pengujian 28 Sep 2026.
+// Contoh percakapan NYATA dari versi lokal (qwen2.5:3b via Ollama), direkam saat pengujian 28 Sep dan 8 Okt 2026.
 const EXAMPLES_REAL = [
   {q: 'Berapa titik panas di Kalimantan Tengah 24 jam terakhir?', res: {model: 'qwen2.5:3b', ms: null,
     tools: [{nama: 'titik_panas', parameter: {lokasi: 'Kalimantan Tengah', hari: 1}}],
@@ -306,6 +306,39 @@ const EXAMPLES_REAL = [
     facts: ['Harga Beras (pasar tradisional, PIHPS BI) tanggal 2026-09-28: rata-rata nasional Rp16.400/kg.',
             'Jawa Barat: Rp15.600/kg, 4.9% lebih rendah dari rata-rata nasional; tidak berubah dibanding data 2026-09-25.'],
     sources: [], data: [], focus: {lat: -6.90222, lng: 107.61876, zoom: 7, nama: 'Jawa Barat'}}},
+  // direkam 8 Okt 2026 (alat baru: cuaca, internet, sel), disalin apa adanya dari tampilan lokal
+  {q: 'Besok Jakarta hujan nggak?', res: {model: 'qwen2.5:3b', ms: 12100, recorded: '8 Okt 2026',
+    tools: [{nama: 'cuaca', parameter: {}}],
+    answer: 'Besok di Jakarta, hujan tidak diperkirakan. Cuaca akan cerah dengan suhu sekitar 26-32°C.',
+    facts: ['Gambir (Kota Adm. Jakarta Pusat), besok: suhu 26–32°C; tidak ada prakiraan hujan (8 slot 3-jam).',
+            'Kemayoran (Kota Adm. Jakarta Pusat), besok: suhu 26–32°C; tidak ada prakiraan hujan (8 slot 3-jam).'],
+    sources: [], data: [], focus: {lat: -6.1778, lng: 106.82844, zoom: 7, nama: 'Daerah Khusus Ibukota Jakarta'}}},
+  {q: 'Cuaca di Makassar besok?', res: {model: 'qwen2.5:3b', ms: 14000, recorded: '8 Okt 2026',
+    tools: [{nama: 'cuaca', parameter: {}}],
+    answer: 'Prakiraan cuaca di Makassar belum tersedia di platform ini. Cakupan lokasi cuaca masih terbatas, mencakup hanya tiga lokasi: Gambir, Jakarta Pusat; Kemayoran, Jakarta Pusat; dan Sukoharjo, Sukoharjo.',
+    facts: ['Prakiraan cuaca BMKG di platform ini baru mencakup 3 lokasi (Gambir, Kota Adm. Jakarta Pusat; Kemayoran, Kota Adm. Jakarta Pusat; Sukoharjo, Sukoharjo); Kota Makassar belum termasuk.'],
+    sources: [], data: [], focus: {lat: -5.13322, lng: 119.40784, zoom: 9, nama: 'Kota Makassar'}}},
+  {q: 'Ada gangguan internet di Indonesia dalam setahun terakhir?', res: {model: 'qwen2.5:3b', ms: 21600, recorded: '8 Okt 2026',
+    tools: [{nama: 'internet_outage', parameter: {}}],
+    answer: 'Ada satu gangguan internet (outage) terverifikasi untuk Indonesia dalam setahun terakhir, terjadi dari 26-11-2025 05:00 WIB sampai 12-12-2025 04:00 WIB. Penyebabnya adalah cuaca, dan wilayah yang terkena dampak adalah Aceh dan daerah Sumatra di Indonesia. Gangguan tersebut disinyalir disebabkan oleh cuaca, terutama angin kencang yang disebabkan oleh angin tropis Senyar. Gangguan ini telah diverifikasi oleh tim Cloudflare Radar.',
+    facts: ['Cloudflare Radar mencatat 1 gangguan internet (outage) terverifikasi untuk Indonesia dalam 12 bulan terakhir (snapshot 07-10-2026 22:32 WIB).',
+            'Outage 26-11-2025 05:00 WIB: penyebab cuaca, durasi 16,0 hari.',
+            'Deteksi otomatis Radar (traffic anomaly) untuk Indonesia: 1 kejadian dalam 12 bulan terakhir, terakhir 22-01-2026 10:15 WIB (telkomnet-as-ap, status verified).'],
+    sources: [], data: [], focus: null}},
+  {q: 'Kecepatan internet Telkomsel vs XL vs Indosat?', res: {model: 'qwen2.5:3b', ms: 23600, recorded: '8 Okt 2026',
+    tools: [{nama: 'internet_operator', parameter: {}}],
+    answer: 'Kecepatan internet Telkomsel, Indosat, dan XL Axiata menurut speed test Cloudflare sebagai berikut:\n- Telkomsel: Unduh 78,2 Mbps, Unggah 43,5 Mbps, Latensi 31 ms\n- Indosat: Unduh 62,8 Mbps, Unggah 40,9 Mbps, Latensi 43 ms\n- XL Axiata: Unduh 59,5 Mbps, Unggah 24 Mbps, Latensi 48 ms\nRata-rata Indonesia (semua jaringan): Unduh 74,1 Mbps, Latensi 30 ms.',
+    facts: ['Telkomsel: median unduh 78,2 Mbps, unggah 43,5 Mbps, latensi 31 ms (speed test pengguna Cloudflare, 90 hari).',
+            'Indosat: median unduh 62,8 Mbps, unggah 40,9 Mbps, latensi 43 ms (speed test pengguna Cloudflare, 90 hari).',
+            'XL Axiata: median unduh 59,5 Mbps, unggah 24,0 Mbps, latensi 48 ms (speed test pengguna Cloudflare, 90 hari).',
+            'Rata-rata Indonesia (semua jaringan): unduh 74,1 Mbps, latensi 30 ms.',
+            'Trafik Telkomsel (NetFlows) tidak menunjukkan penurunan tidak normal dalam 7 hari terakhir.',
+            'Trafik Indosat (NetFlows) tidak menunjukkan penurunan tidak normal dalam 7 hari terakhir.',
+            'Trafik XL Axiata (NetFlows) tidak menunjukkan penurunan tidak normal dalam 7 hari terakhir.',
+            'BGP Telkomsel: 586 route, 99,5% valid RPKI, 3 invalid.',
+            'BGP Indosat: 1011 route, 98,4% valid RPKI, 0 invalid.',
+            'BGP XL Axiata: 562 route, 100,0% valid RPKI, 0 invalid.'],
+    sources: [], data: [], focus: null}},
   {q: 'Siapa juara piala dunia?', res: {model: 'qwen2.5:3b', ms: null, tools: [],
     answer: 'Maaf, pertanyaan itu di luar cakupan data platform ini. Saya bisa menjawab tentang gempa, titik panas, kualitas udara, harga pangan, berita bencana/cuaca/pangan, dan status pipeline data.',
     facts: [], sources: [], data: [], focus: null}},
@@ -364,7 +397,7 @@ function renderWelcome(){
 function renderAI(res){
   const tools = res.tools.map(t => `<span class="tag t-${esc(t.nama)}">${esc(TOOL_LABEL[t.nama] || t.nama)}</span>`).join('');
   const follow = (res.router && res.router.lanjutan ? '<span class="tag follow">lanjutan</span>' : '')
-    + (res.example ? '<span class="tag example">contoh dari versi lokal, 28 Sep 2026</span>' : '');
+    + (res.example ? `<span class="tag example">contoh dari versi lokal, ${res.recorded || '28 Sep 2026'}</span>` : '');
   const facts = (res.facts || []).length ? `<details class="facts"><summary class="ttl">Cek angka <span>${res.facts.length} facts dihitung kode, bukan AI</span></summary>
       <ul>${res.facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></details>` : '';
   const sources = (res.sources || []).length ? `<div class="sources"><strong>Sumber berita</strong>${res.sources.map(s =>
