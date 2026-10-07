@@ -1,0 +1,39 @@
+# Menara telekomunikasi dari OpenStreetMap (ODbL), diringkas per kab/kota dan disimpan di repo.
+# Mingguan: ekstrak Geofabrik Indonesia (~1-2 GB) diunduh sekali, diolah lokal di runner (tanpa Overpass API).
+name: OSM telecom towers
+
+on:
+  schedule:
+    - cron: "17 21 * * 0"        # Minggu 21:17 UTC = Senin 04:17 WIB (setelah OpenCelliD)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: osm
+  cancel-in-progress: false
+
+jobs:
+  towers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12"}
+      - run: pip install osmium==4.3.1 shapely==2.0.6 numpy
+      - name: Download Geofabrik extract
+        run: |
+          curl -fsSL --retry 3 -A "indo-realtime-monitor (+https://github.com/elsonsaputra03-dot/indo-realtime-monitor)" \
+            -o "$RUNNER_TEMP/indonesia.osm.pbf" https://download.geofabrik.de/asia/indonesia-latest.osm.pbf
+          ls -lh "$RUNNER_TEMP/indonesia.osm.pbf"
+      - name: Extract and aggregate
+        run: python scripts/osm_towers_snapshot.py --pbf "$RUNNER_TEMP/indonesia.osm.pbf" --out site/data
+      - name: Commit if changed
+        run: |
+          git add -f site/data/osm_towers_id.json 2>/dev/null || true   # site/data/ di-.gitignore; file ini sengaja disimpan
+          if git diff --cached --quiet; then echo "tidak ada perubahan"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Data: OSM telecom towers per kab/kota ($(date -u +%F))"
+          git pull --rebase -q && git push
