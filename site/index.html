@@ -303,38 +303,6 @@
         </div>
       </article>
 
-      <article class="project" id="bq-toolkit" style="margin-top:22px">
-        <div class="project-top">
-          <span class="status">Open source · runs against a real BigQuery project</span>
-          <h3>BigQuery Governance &amp; FinOps Toolkit</h3>
-          <p class="summary">A Python toolkit that turns BigQuery metadata (INFORMATION_SCHEMA and the Tables API) into a governance and cost
-            report: storage and query cost by user, pipeline label and query pattern; partition, cluster, SELECT * and unused-table
-            recommendations, each with its evidence; table lineage from jobs and views; a data dictionary; data quality checks; and
-            LLM-drafted descriptions that are applied only after a person reviews them. The live report reads the latest snapshot from the
-            repository.</p>
-        </div>
-        <div class="highlights">
-          <div class="hl"><h4>Bugs only real data could find</h4>
-            <p>Built against fixtures, then run on a real project: the Owner role cannot read TABLE_STORAGE, byte ratios miss unpartitioned
-              scans in columnar storage, view lineage lacked project names, and the Gemini client closed itself mid-request. Nine findings,
-              each fixed with a regression test.</p></div>
-          <div class="hl"><h4>AI that is reviewed, not trusted</h4>
-            <p>Gemini drafts table and column descriptions; nothing is written until a person marks it reviewed. The first review caught
-              the model calling a view "the government marketplace", reading the dataset prefix gov_ as government. After review, 66 of 66
-              columns are documented.</p></div>
-          <div class="hl"><h4>Cheap and safe to publish</h4>
-            <p>Every query has a byte limit, region-level metadata views cut a run from 178 MB to about 100 MB, row counts and samples use free
-              API calls, emails become stable ids, and 34 offline tests run in CI.</p></div>
-        </div>
-        <div class="project-foot">
-          <div class="chips"><span class="chip">Python</span><span class="chip">BigQuery</span><span class="chip">INFORMATION_SCHEMA</span>
-            <span class="chip">FinOps</span><span class="chip">Data lineage</span><span class="chip">Data quality</span><span class="chip">Gemini</span>
-            <span class="chip">pytest</span></div>
-          <div class="plinks"><a class="btn dark" href="bq-live.html">Open live report</a>
-            <a class="btn line" href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit" target="_blank" rel="noopener noreferrer">Source</a></div>
-        </div>
-      </article>
-
       <article class="project" id="app-tagging" style="margin-top:22px">
         <div class="project-top">
           <span class="status">Open source · runs with Docker Compose · tested in CI against ClickHouse</span>
@@ -367,14 +335,15 @@
 
       <article class="project" id="governance" style="margin-top:22px">
         <div class="project-top">
-          <span class="status">Synthetic data · rebuilt for this portfolio</span>
-          <h3>Data Governance Dashboard</h3>
-          <p class="summary">Six connected modules over one synthetic data warehouse: 3,494 objects across 18 projects, 1.85 PB. It
-            answers the questions a data platform lead asks every month: where storage and compute money goes, which tables nobody
-            reads, which loads are broken, what breaks downstream if a table changes, and what the data means. A re-implementation
-            of a governance suite I built at work, with deterministic synthetic data and no employer code, design, or data. The real-data
-            counterpart is the BigQuery toolkit above. The real-data
-            counterpart is the BigQuery toolkit above.</p>
+          <span class="status">Synthetic warehouse + a live report from a real BigQuery project · toolkit open source, 34 tests in CI</span>
+          <h3>Data Governance Dashboard &amp; BigQuery FinOps Toolkit</h3>
+          <p class="summary">One governance dashboard with two sources. Six modules run on a synthetic warehouse (3,494 objects across 18
+            projects, 1.85 PB) and answer the questions a data platform lead asks every month: where storage and compute money goes, which
+            tables nobody reads, which loads are broken, what breaks downstream if a table changes, and what the data means. The
+            <b>live report</b> applies the same questions to a real BigQuery project through my open-source Python toolkit, which reads
+            INFORMATION_SCHEMA and the Tables API: cost by user, pipeline and query pattern, partition, cluster, SELECT * and unused-table
+            recommendations with evidence, lineage, a data dictionary, data quality checks and LLM-drafted descriptions applied only after
+            review. A re-implementation of a governance suite I built at work, with no employer code, design or data.</p>
         </div>
 
         <div class="modules" role="list">
@@ -390,25 +359,30 @@
             <div class="md">Upstream and downstream graph with impact analysis: what breaks if this table changes.</div></a>
           <a class="mod" role="listitem" href="dictionary.html"><div class="mn">Data dictionary</div><div class="mv">29,428 columns · 87% described</div>
             <div class="md">Search across tables, columns and descriptions; documentation coverage and PII flags.</div></a>
+          <a class="mod" role="listitem" href="bq-live.html"><div class="mn">Live report · real BigQuery</div><div class="mv">bq-governance-toolkit</div>
+            <div class="md">The same questions on a real project, refreshed from the toolkit's latest snapshot on GitHub.</div></a>
         </div>
 
         <div class="highlights">
-          <div class="hl"><h4>One warehouse, six views</h4>
-            <p>Every module reads the same generated warehouse, so a job in Pipeline cost is the writer in Lineage, and its unread
-              tables come from Table usage.</p></div>
+          <div class="hl"><h4>Bugs only real data could find</h4>
+            <p>Built against fixtures, then run on a real project: the Owner role cannot read TABLE_STORAGE, byte ratios miss unpartitioned
+              scans in columnar storage, view lineage lacked project names, and the Gemini client closed itself mid-request. Nine findings,
+              each fixed with a regression test.</p></div>
+          <div class="hl"><h4>AI that is reviewed, not trusted</h4>
+            <p>Gemini drafts table and column descriptions; nothing is written until a person marks it reviewed. The first review caught
+              the model calling a view "the government marketplace", reading the dataset prefix gov_ as government.</p></div>
           <div class="hl"><h4>Detection that was tested</h4>
-            <p>The first version raised hundreds of false alarms because the baseline froze after a level shift. Keeping past
+            <p>The first anomaly detector raised hundreds of false alarms because its baseline froze after a level shift. Keeping past
               anomalies in a median/MAD baseline fixed it: 23 injected anomalies, 23 found, 0 false positives.</p></div>
-          <div class="hl"><h4>Deterministic by design</h4>
-            <p>A seeded generator with a Fisher–Yates shuffle gives identical numbers in every browser, so screenshots and
-              walkthroughs always match the live page.</p></div>
         </div>
 
         <div class="project-foot">
-          <div class="chips"><span class="chip">JavaScript</span><span class="chip">Chart.js</span><span class="chip">SVG</span>
-            <span class="chip">Robust statistics</span><span class="chip">Data governance</span><span class="chip">FinOps</span></div>
+          <div class="chips"><span class="chip">BigQuery</span><span class="chip">INFORMATION_SCHEMA</span><span class="chip">FinOps</span>
+            <span class="chip">Data lineage</span><span class="chip">Data quality</span><span class="chip">Gemini</span><span class="chip">Python</span>
+            <span class="chip">Robust statistics</span></div>
           <div class="plinks"><a class="btn dark" href="governance.html">Open dashboard</a>
-            <a class="btn line" href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor/tree/main/site" target="_blank" rel="noopener noreferrer">Source</a></div>
+            <a class="btn line" href="bq-live.html">Live BigQuery report</a>
+            <a class="btn line" href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit" target="_blank" rel="noopener noreferrer">Toolkit source</a></div>
         </div>
       </article>
 
