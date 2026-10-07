@@ -46,22 +46,31 @@ class GoatCounter:
             return json.loads(r.read().decode("utf-8"))
 
 
+# Kunjungan tanpa informasi asal: alamat diketik / bookmark, atau dibuka dari aplikasi yang menyembunyikan asal
+# (WhatsApp, Telegram, aplikasi email, aplikasi LinkedIn, CV PDF). Pakai ?ref= di tautan supaya asalnya tetap terbaca.
+NO_REF = "tanpa asal (langsung, WhatsApp, email, PDF)"
+AI_EVENT = "ask-portfolio"
+
+
 def collect(gc: GoatCounter, start: datetime, end: datetime) -> dict:
     total = gc.get("/stats/total", start, end).get("total", 0)
     if not total:
-        return {"total": 0, "pages": [], "refs": [], "locations": []}
+        return {"total": 0, "entries": 0, "ai_questions": 0, "pages": [], "refs": [], "locations": []}
     hits = gc.get("/stats/hits", start, end, limit=100).get("hits", [])
     pages = [{"path": h["path"], "title": h.get("title", ""), "count": h["count"], "path_id": h["path_id"]}
              for h in hits if h.get("count") and not h.get("event")]
+    # Event bukan kunjungan halaman. /stats/total ikut menghitungnya, sehingga total di email pertama (5) tidak sama dengan
+    # jumlah halaman (4): selisihnya satu pertanyaan ke chatbot. Total kini = jumlah kunjungan halaman; event ditampilkan terpisah.
+    ai_questions = sum(h["count"] for h in hits if h.get("event") and AI_EVENT in h.get("path", "") and h.get("count"))
     # /indo-realtime-monitor, /indo-realtime-monitor/ dan /index.html adalah halaman yang sama tetapi path berbeda di
     # GoatCounter; digabung supaya tidak muncul dua kali di email (terlihat di email pertama)
-    refs = [{"name": s.get("name") or "(langsung / tidak diketahui)", "count": s["count"]}
+    refs = [{"name": s.get("name") or NO_REF, "count": s["count"]}
             for s in gc.get("/stats/toprefs", start, end, limit=100).get("stats", []) if s.get("count")]
     by_ref: dict[str, list] = {}
     for p in pages:                                       # sumber per halaman: halaman apa yang dibaca dari tiap sumber
         for r in gc.get(f"/stats/hits/{p['path_id']}", start, end, limit=100).get("refs", []):
             if r.get("count"):
-                by_ref.setdefault(r.get("name") or "(langsung / tidak diketahui)", []).append((p["path"], r["count"]))
+                by_ref.setdefault(r.get("name") or NO_REF, []).append((p["path"], r["count"]))
     for r in refs:
         r["pages"] = _merge(by_ref.get(r["name"], []))
     locs = [{"name": s.get("name") or "?", "count": s["count"]}
@@ -70,7 +79,8 @@ def collect(gc: GoatCounter, start: datetime, end: datetime) -> dict:
     for p in pages:
         merged[short(p["path"])] = merged.get(short(p["path"]), 0) + p["count"]
     pages = [{"path": k, "count": v} for k, v in sorted(merged.items(), key=lambda x: -x[1])]
-    return {"total": total, "pages": pages, "refs": refs, "locations": locs}
+    return {"total": sum(p["count"] for p in pages), "entries": sum(r["count"] for r in refs), "ai_questions": ai_questions,
+            "pages": pages, "refs": refs, "locations": locs}
 
 
 def _merge(items: list) -> list:
@@ -87,11 +97,16 @@ def short(path: str) -> str:
 
 def compose(d: dict, start: datetime, end: datetime) -> tuple[str, str, str]:
     period = f"{start.astimezone(WIB):%d %b %H:%M} – {end.astimezone(WIB):%d %b %H:%M} WIB"
-    top = ", ".join(f"{r['name']} {r['count']}" for r in d["refs"][:3])
-    subject = f"Portofolio: {d['total']} kunjungan" + (f" ({top})" if top else "") if d["total"] else "Portofolio: tidak ada kunjungan"
-    lines = [f"Kunjungan portofolio {period}", f"Total: {d['total']} kunjungan", ""]
+    ai = d.get("ai_questions", 0)
+    top = ", ".join(f"{r['name'].split(' (')[0]} {r['count']}" for r in d["refs"][:3])
+    if d["total"] or ai:
+        subject = f"Portofolio: {d['total']} kunjungan halaman" + (f" ({top})" if top else "") + (f", {ai} tanya AI" if ai else "")
+    else:
+        subject = "Portofolio: tidak ada kunjungan"
+    summary = f"{d['total']} kunjungan halaman, {d.get('entries', 0)} kali masuk dari luar situs" + (f", {ai} pertanyaan ke chatbot" if ai else "")
+    lines = [f"Kunjungan portofolio {period}", summary, ""]
     if d["refs"]:
-        lines.append("Sumber kunjungan:")
+        lines.append("Masuk dari (asal kunjungan):")
         for r in d["refs"]:
             lines.append(f"  - {r['name']}: {r['count']}")
             for path, n in r["pages"]:
@@ -101,22 +116,31 @@ def compose(d: dict, start: datetime, end: datetime) -> tuple[str, str, str]:
         lines.append("Halaman yang dibuka:")
         lines += [f"  - {short(p['path'])}: {p['count']}" for p in d["pages"]]
         lines.append("")
+    if ai:
+        lines += [f"Tanya AI (chatbot portofolio): {ai} pertanyaan", ""]
     if d["locations"]:
-        lines.append("Negara: " + ", ".join(f"{l['name']} {l['count']}" for l in d["locations"]))
-    lines += ["", f"Dashboard: https://{os.getenv('GOATCOUNTER_CODE', 'elsonsaputra')}.goatcounter.com", f"Portofolio: {SITE}"]
+        lines.append("Negara" + (" (termasuk pertanyaan ke chatbot)" if ai else "") + ": " + ", ".join(f"{l['name']} {l['count']}" for l in d["locations"]))
+    lines += ["", NOTE, f"Dashboard: https://{os.getenv('GOATCOUNTER_CODE', 'elsonsaputra')}.goatcounter.com", f"Portofolio: {SITE}"]
     text = "\n".join(lines)
     e = html.escape
     rows = "".join(f"<tr><td style='padding:4px 10px'><b>{e(r['name'])}</b></td><td style='padding:4px 10px;text-align:right'>{r['count']}</td>"
                    f"<td style='padding:4px 10px;color:#5D6D78'>{e(', '.join(f'{short(p)} ({n})' for p, n in r['pages']))}</td></tr>" for r in d["refs"])
     pages = "".join(f"<li>{e(short(p['path']))}: {p['count']}</li>" for p in d["pages"])
     body = f"""<div style="font-family:Arial,sans-serif;font-size:14px;color:#1D2A33">
-<p style="font-size:16px"><b>{d['total']} kunjungan</b> ke portofolio, {e(period)}</p>
-{f'<p><b>Sumber</b></p><table style="border-collapse:collapse">{rows}</table>' if rows else ''}
+<p style="font-size:16px"><b>{d['total']} kunjungan halaman</b> ke portofolio, {e(period)}<br>
+<span style="font-size:14px;color:#5D6D78">{d.get('entries', 0)} kali masuk dari luar situs{f' · <b>{ai} pertanyaan ke chatbot</b>' if ai else ''}</span></p>
+{f'<p><b>Masuk dari</b></p><table style="border-collapse:collapse">{rows}</table>' if rows else ''}
 {f'<p><b>Halaman yang dibuka</b></p><ul>{pages}</ul>' if pages else ''}
-{f'<p>Negara: {e(", ".join(f"{l["name"]} {l["count"]}" for l in d["locations"]))}</p>' if d["locations"] else ''}
-<p style="color:#5D6D78;font-size:12px">Angka agregat dari GoatCounter (tanpa cookie). Pengunjung dengan ad blocker tidak tercatat.<br>
+{f'<p><b>Tanya AI:</b> {ai} pertanyaan ke chatbot portofolio</p>' if ai else ''}
+{f'<p>Negara{" (termasuk pertanyaan ke chatbot)" if ai else ""}: {e(", ".join(f"{l["name"]} {l["count"]}" for l in d["locations"]))}</p>' if d["locations"] else ''}
+<p style="color:#5D6D78;font-size:12px">{e(NOTE)}<br>
 <a href="https://{e(os.getenv('GOATCOUNTER_CODE', 'elsonsaputra'))}.goatcounter.com">Buka dashboard</a> · <a href="{SITE}">Portofolio</a></p></div>"""
     return subject, text, body
+
+
+NOTE = ("Cara membaca: GoatCounter menghitung pengunjung per halaman per hari (satu orang yang membuka 3 halaman = 3). "
+        "'Masuk dari' hanya menghitung pintu masuk dari luar; klik antarhalaman di dalam situs tidak dihitung sebagai asal. "
+        "Tanpa cookie; pengunjung dengan ad blocker tidak tercatat. Pakai ?ref= di tautan (cv, linkedin, nama perusahaan) agar asalnya terbaca.")
 
 
 def send(subject: str, text: str, body: str, smtp_factory=smtplib.SMTP_SSL) -> None:
@@ -149,7 +173,7 @@ def main() -> int:
     d = collect(GoatCounter(os.environ["GOATCOUNTER_CODE"], os.environ["GOATCOUNTER_TOKEN"]), start, end)
     subject, text, body = compose(d, start, end)
     print(subject); print(text)
-    if not d["total"] and os.getenv("SEND_EMPTY", "0") != "1":
+    if not d["total"] and not d.get("ai_questions") and os.getenv("SEND_EMPTY", "0") != "1":
         print("tidak ada kunjungan: email tidak dikirim"); return 0
     if os.getenv("DRY_RUN", "0") == "1":
         print("DRY_RUN: email tidak dikirim"); return 0
