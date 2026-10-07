@@ -110,8 +110,10 @@ services:
     environment:
       CLICKHOUSE_HOST: clickhouse
       GAZETTEER_CSV: /reference/wilayah_indonesia.csv
+      SNAPSHOT_DIR: /site-data            # snapshot JSON lokal; file yang tidak ada diambil dari GitHub Pages
     volumes:
       - ./web:/web:ro
+      - ./site/data:/site-data:ro
       - ./airflow/dags/llm_lib.py:/app/llm_lib.py:ro
       - ./reference:/reference:ro
     ports:

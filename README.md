@@ -108,7 +108,8 @@ flowchart LR
 - **LLM enrichment.** A 3B model on a 4 GB laptop GPU (Ollama) classifies news topics and extracts place names.
   **Coordinates never come from the model**: names are resolved against a gazetteer of 38 provinces and 514 regencies,
   with alias handling (e.g. *Kotim* → Kotawaringin Timur) and a mountain table (e.g. *Rinjani* → Lombok Timur).
-- **Ask the data.** Tool calling, not text-to-SQL. The model picks from six predefined, parameterized queries; parameters it
+- **Ask the data.** Tool calling, not text-to-SQL. The model picks from ten predefined tools (parameterized ClickHouse queries, plus
+  readers for the BMKG forecast, Cloudflare Radar and OpenCelliD snapshots); parameters it
   invents that are not in the question are dropped; answers are built on deterministic fact sentences that are shown next to
   every AI answer.
 - **Risk index.** A composite 0–100 score per regency from hotspot density, nearby earthquakes, air quality, disaster news,

@@ -280,14 +280,14 @@
           <span class="status">Runs locally on a laptop GPU · the public page shows recorded answers</span>
           <h3>Ask the Data: a guarded LLM assistant</h3>
           <p class="summary">A question-answering assistant over the Indonesia Realtime Monitor data, in plain Indonesian, running a 3B model
-            locally with Ollama on a 4 GB laptop GPU. The model never writes SQL and never supplies the numbers: it picks from six predefined
+            locally with Ollama on a 4 GB laptop GPU. The model never writes SQL and never supplies the numbers: it picks from ten predefined
             tools, the system runs parameterized queries and computes the facts, and the model only phrases the answer. The same local model
             classifies and geotags the news feeding the platform.</p>
         </div>
         <div class="highlights">
           <div class="hl"><h4>Tools, not text-to-SQL</h4>
-            <p>Six parameterized queries (earthquakes, hotspots, air quality, food prices, news, pipeline health) with a rule-based router as a
-              safety net when the model picks badly.</p></div>
+            <p>Ten predefined tools (earthquakes, hotspots, air quality, food prices, news, pipeline health, weather forecast, internet outages,
+              operator speed &amp; traffic, cell distribution) with a rule-based router as a safety net when the model picks badly.</p></div>
           <div class="hl"><h4>Facts computed by code</h4>
             <p>Every answer is built on deterministic fact sentences shown beside it, added after the small model turned "993 hotspots" into
               "the highest value is 993".</p></div>

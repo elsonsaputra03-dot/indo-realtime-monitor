@@ -30,6 +30,10 @@ TOOLS = {
     "harga_pangan": "harga pangan harian per provinsi (PIHPS BI): parameter komoditas, lokasi",
     "berita": "berita terbaru terkait bencana/cuaca/udara/pangan: parameter topik, lokasi, hari, kata_kunci",
     "kesehatan_pipeline": "status kualitas data & pipeline platform (tanpa parameter)",
+    "cuaca": "prakiraan cuaca BMKG (suhu, hujan) untuk lokasi pantau: parameter lokasi",
+    "internet_outage": "gangguan/outage internet Indonesia (Cloudflare Radar): parameter hari, lokasi",
+    "internet_operator": "kecepatan, penurunan trafik, porsi trafik per provinsi, dan BGP operator seluler (Cloudflare Radar): parameter hari, lokasi",
+    "sebaran_sel": "jumlah sel/BTS seluler per kab/kota, provinsi, operator, 2G-5G (OpenCelliD): parameter lokasi",
     "tidak_ada": "pertanyaan di luar cakupan data platform",
 }
 COMMODITIES = [  # (kata kunci, id, nama) -- urutan penting: yang spesifik dulu
@@ -49,8 +53,12 @@ Contoh:
 - "Harga telur di Sulawesi Utara?" -> alat ["harga_pangan"], komoditas "telur", lokasi "Sulawesi Utara"
 - "Provinsi mana yang beras paling murah?" -> alat ["harga_pangan"], komoditas "beras", lokasi ""
 - "Kualitas udara Palembang dan berita kabut asapnya" -> alat ["kualitas_udara", "berita"], lokasi "Palembang", topik "kualitas_udara"
+- "Besok Jakarta hujan?" -> alat ["cuaca"], lokasi "Jakarta"
+- "Ada gangguan internet minggu ini?" -> alat ["internet_outage"], hari 7
+- "Kecepatan internet Telkomsel vs XL?" -> alat ["internet_operator"]
+- "Berapa BTS di Kalimantan Tengah?" -> alat ["sebaran_sel"], lokasi "Kalimantan Tengah"
 Aturan: lokasi HANYA diisi jika nama tempat itu tertulis di pertanyaan; jangan menyalin lokasi dari contoh. Pilih 1-3 alat; "tidak_ada" HANYA jika pertanyaan sama sekali tidak terkait gempa, titik panas/kebakaran,
-kualitas udara, harga pangan, berita bencana/cuaca/pangan, atau status data. lokasi/komoditas/topik/kata_kunci = "" jika tidak disebut.
+kualitas udara, harga pangan, cuaca, internet/operator seluler, sel/BTS, berita bencana/cuaca/pangan, atau status data. lokasi/komoditas/topik/kata_kunci = "" jika tidak disebut.
 hari: default 3; "hari ini"/"24 jam" = 1; "seminggu" = 7. Balas HANYA JSON sesuai skema."""
 
 ROUTER_SCHEMA = {
@@ -71,7 +79,19 @@ RULE_TOOLS = [
     ("harga_pangan", ["harga", "beras", "cabai", "cabe", "bawang", "telur", "daging", "minyak goreng", "gula", "pangan"]),
     ("berita", ["berita", "kabar", "liputan", "diberitakan"]),
     ("kesehatan_pipeline", ["pipeline", "kualitas data", "data quality", "status data", "sumber data", "freshness"]),
+    ("cuaca", ["cuaca", "prakiraan", "hujan", "suhu", "berawan", "gerimis", "kelembapan"]),
+    ("internet_outage", ["gangguan internet", "internet mati", "internet down", "internet putus", "internet lumpuh",
+                         "outage", "pemadaman internet", "blackout", "anomali trafik", "internet error"]),
+    ("internet_operator", ["operator", "sinyal", "kecepatan internet", "internet", "telkomsel", "indosat", "im3", "re:\\bxl\\b",
+                           "re:\\btri\\b", "indihome", "telkom", "smartfren", "trafik", "traffic", "latensi", "re:\\bping\\b",
+                           "re:\\bbgp\\b", "rpki", "mbps"]),
+    ("sebaran_sel", ["bts", "menara", "sel seluler", "jumlah sel", "sebaran sel", "opencellid", "cakupan sinyal", "coverage",
+                     "re:\\b[2345]g\\b", "sinyal"]),
 ]
+
+
+def _kw_hit(ql: str, kws: list[str]) -> bool:
+    return any(re.search(k[3:], ql) if k.startswith("re:") else k in ql for k in kws)
 RULE_TOPICS = [("kebakaran", ["karhutla", "kebakaran", "titik panas"]), ("banjir_longsor", ["banjir", "longsor"]),
                ("gempa", ["gempa", "tsunami"]), ("gunung_api", ["erupsi", "gunung", "vulkanik"]),
                ("cuaca", ["cuaca", "hujan", "kekeringan", "angin"]), ("kualitas_udara", ["udara", "asap", "polusi"]),
@@ -93,7 +113,11 @@ def grounded(question: str, value: str) -> bool:
 
 def rule_route(question: str) -> dict:
     ql = question.lower()
-    tools = [t for t, kws in RULE_TOOLS if any(k in ql for k in kws)]
+    tools = [t for t, kws in RULE_TOOLS if _kw_hit(ql, kws)]
+    if "internet_outage" in tools and "internet_operator" in tools and not _operators(ql):
+        tools.remove("internet_operator")         # "gangguan internet" saja -> cukup outage
+    if "cuaca" in tools and "berita" not in tools and any(k in ql for k in ("banjir", "longsor")):
+        tools.append("berita")
     if "berita" in tools and len(tools) > 1:          # "berita karhutla" -> cukup berita
         tools = ["berita"] + [t for t in tools if t not in ("berita", "titik_panas", "harga_pangan")][:1]
     m = re.search(r"(\d+)\s*(hari|jam|minggu)", ql)
@@ -122,12 +146,12 @@ ANSWER_PROMPT = """Kamu adalah asisten data untuk platform Indonesia Realtime Mo
 Jawab pertanyaan pengguna dalam bahasa Indonesia HANYA berdasarkan DATA di bawah.
 Aturan:
 - Jangan menambah fakta, angka, atau lokasi yang tidak ada di DATA. Jangan menebak.
-- Sebut angka, satuan, tanggal/rentang waktu, dan sumber data (mis. BMKG, NASA FIRMS, PIHPS BI).
+- Sebut angka, satuan, tanggal/rentang waktu, dan sumber data (mis. BMKG, NASA FIRMS, PIHPS BI, Cloudflare Radar, OpenCelliD).
 - Jika DATA kosong atau tidak cukup, katakan terus terang bahwa datanya belum tersedia di platform.
 - Jika DATA memuat "catatan", sampaikan keterbatasan itu secara singkat.
 - Setiap alat punya daftar "fakta" berisi kalimat yang PASTI benar. Jadikan fakta itu dasar jawaban:
   boleh diparafrasekan dan dirangkai, tetapi angka, nama tempat, dan artinya tidak boleh diubah.
-- Jangan menyebut nama alat atau nama field (mis. kesehatan_pipeline, titik_panas).
+- Jangan menyebut nama alat atau nama field (mis. kesehatan_pipeline, titik_panas, sebaran_sel).
 - Ringkas: maksimal 6 kalimat atau daftar pendek."""
 
 
@@ -432,8 +456,436 @@ def tool_kesehatan(ch, a: dict) -> dict:
             "catatan": "Semua cek lulus." if not bad else f"{len(bad)} cek berstatus warn/fail."}
 
 
+# ---------------------------------------------------------------- tools dari snapshot JSON (data publik situs)
+# Snapshot dibuat GitHub Actions (cuaca BMKG, Cloudflare Radar, OpenCelliD). Dibaca dari folder lokal bila ada,
+# kalau tidak dari salinan publik di GitHub Pages. Semua angka dihitung di sini, bukan oleh LLM.
+SNAPSHOT_DIR = os.getenv("SNAPSHOT_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "site", "data"))
+SNAPSHOT_URL = os.getenv("SNAPSHOT_URL", "https://elsonsaputra03-dot.github.io/indo-realtime-monitor/data/")
+_SNAP_CACHE: dict[str, tuple[float, dict]] = {}
+
+
+def _snap(name: str, ttl_s: int = 1800) -> dict:
+    hit = _SNAP_CACHE.get(name)
+    if hit and time.monotonic() - hit[0] < ttl_s:
+        return hit[1]
+    path = os.path.join(SNAPSHOT_DIR, name)
+    if os.path.exists(path):
+        doc = json.load(open(path, encoding="utf-8"))
+    else:
+        r = httpx.get(SNAPSHOT_URL + name, timeout=20, follow_redirects=True)
+        r.raise_for_status()
+        doc = r.json()
+    _SNAP_CACHE[name] = (time.monotonic(), doc)
+    return doc
+
+
+def _now(a: dict):
+    from datetime import datetime, timezone
+    return a.get("_now") or datetime.now(timezone.utc)
+
+
+def _dt(s: str):
+    from datetime import datetime, timezone
+    d = datetime.fromisoformat(str(s).replace("Z", "+00:00").replace(" ", "T"))
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
+def _wib(s: str) -> str:
+    from datetime import timedelta
+    return (_dt(s) + timedelta(hours=7)).strftime("%d-%m-%Y %H:%M") + " WIB"
+
+
+def _num(v):
+    try:
+        return None if v in (None, "") else float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _f(v, d=1) -> str:
+    return f"{v:,.{d}f}".replace(",", "#").replace(".", ",").replace("#", ".")
+
+
+def _n(v) -> str:
+    return _f(v, 0)
+
+
+def _in_place(place: dict, kode: str) -> bool:
+    """Kode wilayah (prov 'xx', kab 'xx.yy', desa 'xx.yy.zz.nnnn') berada di dalam `place`?"""
+    return kode.startswith(place["kode"] + ".") or kode == place["kode"] if place["level"] == 2 \
+        else kode.split(".")[0] == place["prov_kode"]
+
+
+# ---- cuaca (BMKG)
+def tool_cuaca(ch, a: dict) -> dict:
+    from datetime import timedelta
+    doc = _snap("web_weather.json")
+    rows = [r for r in doc.get("rows", []) if r.get("forecast_utc") and r.get("adm4")]
+    place = resolve_place(a.get("lokasi", ""))
+    locs: dict[str, dict] = {}
+    for r in rows:
+        locs.setdefault(r["adm4"], {"desa": r.get("desa"), "kec": r.get("kecamatan"), "kab": r.get("kotkab"),
+                                    "prov": r.get("provinsi"), "rows": []})["rows"].append(r)
+    names = [f"{v['desa']}, {v['kab']}" for v in locs.values()]
+    out = {"alat": "cuaca", "sumber": "BMKG (prakiraan per 3 jam)", "snapshot_utc": doc.get("generated_at"),
+           "lokasi_tersedia": names, "_focus": place}
+    if place:
+        locs = {k: v for k, v in locs.items() if _in_place(place, k)}
+        if not locs:
+            out["fakta"] = [f"Prakiraan cuaca BMKG di platform ini baru mencakup {len(names)} lokasi "
+                            f"({'; '.join(names)}); {place['nama']} belum termasuk."]
+            out["catatan"] = "Cakupan lokasi cuaca masih terbatas."
+            return out
+    q, now = a.get("_q", ""), _now(a)
+    fakta, detail = [], []
+    for code, v in list(locs.items())[:3]:
+        rs = sorted(v["rows"], key=lambda r: r["forecast_utc"])
+        r0 = rs[0]
+        off = _dt(r0["local_datetime"]) - _dt(r0["forecast_utc"]) if r0.get("local_datetime") else timedelta(hours=7)
+        zone = {7: "WIB", 8: "WITA", 9: "WIT"}.get(round(off.total_seconds() / 3600), "waktu setempat")
+        local_now = now + off
+        if "lusa" in q:
+            day, label = (local_now + timedelta(days=2)).date(), "lusa"
+        elif "besok" in q:
+            day, label = (local_now + timedelta(days=1)).date(), "besok"
+        else:
+            day, label = None, "24 jam ke depan"
+        if day:
+            pick = [r for r in rs if (_dt(r["forecast_utc"]) + off).date() == day]
+        else:
+            pick = [r for r in rs if now - timedelta(hours=1, minutes=30) <= _dt(r["forecast_utc"]) <= now + timedelta(hours=24)]
+        where = f"{v['desa']} ({v['kab']})"
+        if not pick:
+            fakta.append(f"{where}: prakiraan untuk {label} belum ada di snapshot terakhir "
+                         f"(prakiraan tersedia sampai {(_dt(rs[-1]['forecast_utc']) + off).strftime('%d-%m-%Y %H:%M')} {zone}).")
+            continue
+        ts = [_num(r.get("t")) for r in pick if _num(r.get("t")) is not None]
+        rain = [r for r in pick if "hujan" in str(r.get("weather_desc", "")).lower()]
+        tp = max((_num(r.get("tp")) or 0 for r in pick), default=0)
+        jam = lambda r: (_dt(r["forecast_utc"]) + off).strftime("%d-%m %H:%M")
+        first = pick[0]
+        s = (f"{where}, {label}: suhu {_f(min(ts), 0)}–{_f(max(ts), 0)}°C" if ts else f"{where}, {label}:")
+        s += (f"; hujan diprakirakan pada {len(rain)} dari {len(pick)} slot 3-jam (mulai {jam(rain[0])} {zone}, "
+              f"'{rain[0]['weather_desc']}'), curah hujan tertinggi {_f(tp)} mm per 3 jam." if rain
+              else f"; tidak ada prakiraan hujan ({len(pick)} slot 3-jam).")
+        fakta.append(s)
+        if not day:
+            fakta.append(f"{where} sekitar {jam(first)} {zone}: {first.get('weather_desc')}, {first.get('t')}°C, "
+                         f"kelembapan {first.get('hu')}%.")
+        detail.append({"lokasi": where, "provinsi": v["prov"], "periode": label,
+                       "slot": [{"waktu": jam(r) + " " + zone, "cuaca": r.get("weather_desc"), "suhu_c": r.get("t"),
+                                 "kelembapan": r.get("hu"), "hujan_mm": r.get("tp")} for r in pick[:8]]})
+    out.update(fakta=fakta, prakiraan=detail,
+               catatan=f"Prakiraan BMKG untuk {len(names)} lokasi pantau (tingkat kelurahan/desa), diperbarui 2x sehari."
+                       + ("" if place else " Sebut nama kota untuk memilih lokasi."))
+    return out
+
+
+# ---- Cloudflare Radar: helper operator & provinsi
+OPERATORS = [  # (regex di pertanyaan, ASN di snapshot Radar, label, nama operator di OpenCelliD)
+    (r"\btelkomsel\b|\bsimpati\b|\bby\.u\b", "23693", "Telkomsel", "Telkomsel"),
+    (r"\bindosat\b|\bim3\b|\booredoo\b", "4761", "Indosat", "Indosat"),
+    (r"\bxl\b|\baxis\b", "24203", "XL Axiata", "XL Axiata"),
+    (r"\btri\b|\bthree\b|\bkartu 3\b", "45727", "Tri (IOH)", "Tri (IOH)"),
+    (r"\bindihome\b|\btelkom indonesia\b|\btelkom\b", "7713", "Telkom Indonesia", None),
+    (r"\bsmartfren\b", None, "Smartfren", "Smartfren"),
+]
+
+
+def _operators(q: str) -> list[tuple]:
+    return [o for o in OPERATORS if re.search(o[0], q)]
+
+
+_EN_DIR = [("Southeast", "Tenggara"), ("Southwest", "Barat Daya"), ("Northeast", "Timur Laut"), ("North", "Utara"),
+           ("South", "Selatan"), ("East", "Timur"), ("West", "Barat"), ("Central", "Tengah"), ("Highland", "Pegunungan")]
+_EN_FIXED = {"Jakarta": "DKI Jakarta", "Special Region of Yogyakarta": "DI Yogyakarta", "Yogyakarta": "DI Yogyakarta",
+             "Riau Islands": "Kepulauan Riau", "Bangka-Belitung Islands": "Kepulauan Bangka Belitung",
+             "Bangka–Belitung Islands": "Kepulauan Bangka Belitung", "Bangka Belitung Islands": "Kepulauan Bangka Belitung"}
+
+
+def prov_name_id(n: str) -> str:
+    """Nama provinsi Radar (Inggris, mis. 'West Java') -> nama Indonesia ('Jawa Barat'); sama dengan provName di situs."""
+    n = str(n or "")
+    if n in _EN_FIXED:
+        return _EN_FIXED[n]
+    x = re.sub(r"\bJava\b", "Jawa", n)
+    x = re.sub(r"\bSumatra\b", "Sumatera", x)
+    x = re.sub(r" Province$", "", x)
+    for en, idn in _EN_DIR:
+        if x.startswith(en + " "):
+            return x[len(en) + 1:] + " " + idn
+    return x
+
+
+def _radar_geo(d: dict) -> dict:
+    """geoId Radar -> {nama, prov_kode} (lewat gazetteer)."""
+    out = {}
+    for g in d.get("geo") or []:
+        nm = prov_name_id(g.get("name"))
+        hit = llm_lib.resolve([nm], nm, primary=nm)
+        out[str(g.get("geoId"))] = {"nama": nm, "prov_kode": hit["prov_kode"] if hit and hit["level"] == 1 else None}
+    return out
+
+
+def _label(d: dict, asn) -> str:
+    return ((d.get("asns") or {}).get(str(asn)) or {}).get("label") or f"AS{asn}"
+
+
+def _series_drops(s: dict | None, since) -> dict:
+    """Port dari drops()/gaps() di pub-views.js: jam dengan trafik < 60% median jam yang sama (hari-dalam-minggu sama)
+    di minggu lain; jam di dalam celah data (>= 6 jam beruntun hampir nol) tidak dihitung."""
+    if not s or not s.get("t"):
+        return {"ada_data": False}
+    t = [_dt(x) for x in s["t"]]
+    v = [_num(x) for x in s.get("v", [])]
+    gap, run = set(), []
+    for i, x in enumerate(v):
+        if x is None or x <= 0.02:
+            run.append(i)
+        else:
+            if len(run) >= 6:
+                gap.update(run)
+            run = []
+    if len(run) >= 6:
+        gap.update(run)
+    by_how: dict[int, list[int]] = {}
+    for i, d in enumerate(t):
+        by_how.setdefault(d.weekday() * 24 + d.hour, []).append(i)
+    drops = []
+    for i, d in enumerate(t):
+        if d < since or v[i] is None or i in gap:
+            continue
+        others = sorted(v[j] for j in by_how[d.weekday() * 24 + d.hour] if j != i and v[j] is not None and j not in gap)
+        if len(others) < 2:
+            continue
+        med = others[len(others) // 2]
+        if med > 0.1 and v[i] < 0.6 * med:
+            drops.append((d, v[i] / med))
+    return {"ada_data": True, "jam_turun": len(drops), "jam_celah": sum(1 for i in gap if t[i] >= since),
+            "terendah": min(drops, key=lambda x: x[1]) if drops else None, "terakhir": t[-1]}
+
+
+# ---- internet_outage
+CAUSE_ID = {"POWER_OUTAGE": "pemadaman listrik", "CABLE_CUT": "kabel putus", "WEATHER": "cuaca",
+            "GOVERNMENT_DIRECTED": "perintah pemerintah", "TECHNICAL_PROBLEM": "masalah teknis", "MAINTENANCE": "pemeliharaan",
+            "EARTHQUAKE": "gempa", "FIRE": "kebakaran", "CYBERATTACK": "serangan siber", "MILITARY_ACTION": "aksi militer",
+            "UNKNOWN": "tidak diketahui"}
+
+
+def tool_internet_outage(ch, a: dict) -> dict:
+    from datetime import timedelta
+    d = _snap("radar_id.json")
+    now = _now(a)
+    hari = _clamp(a.get("hari"), 1, 365, 3) if a.get("_hari_explicit") else 365
+    since = now - timedelta(days=hari)
+    ops = [o for o in _operators(a.get("_q", "")) if o[1]]
+    place = resolve_place(a.get("lokasi", ""))
+    win = "12 bulan terakhir" if hari == 365 else _hari(hari)
+
+    def keep(asns) -> bool:
+        return not ops or any(str(x) in {o[1] for o in ops} for x in asns)
+
+    outs = [o for o in d.get("outages") or [] if o.get("startDate") and _dt(o["startDate"]) >= since and keep(o.get("asns") or [])]
+    if place:   # outage Radar umumnya tingkat negara/operator; cocokkan nama provinsi di teks scope/deskripsi
+        names = {llm_lib.norm(place["prov_nama"])} | {llm_lib.norm(g.get("name", "")) for g in d.get("geo") or []
+                                                     if prov_name_id(g.get("name")) == place["prov_nama"]}
+        names.discard("")
+        outs = [o for o in outs if any(nm in llm_lib.norm(f"{o.get('scope') or ''} {o.get('description') or ''} "
+                                                         f"{' '.join(o.get('locations') or [])}") for nm in names)]
+    outs.sort(key=lambda o: o["startDate"], reverse=True)
+    anom = [x for x in d.get("anomalies") or [] if x.get("startDate") and _dt(x["startDate"]) >= since
+            and (not ops or str(x.get("asn")) in {o[1] for o in ops})]
+    anom.sort(key=lambda x: x["startDate"], reverse=True)
+    who = " / ".join(o[2] for o in ops) if ops else "Indonesia"
+    where = f" yang menyebut {place['prov_nama']}" if place else ""
+    fakta = [f"Cloudflare Radar mencatat {len(outs)} gangguan internet (outage) terverifikasi untuk {who}{where} dalam {win} "
+             f"(snapshot {_wib(d['generated_at'])})."]
+    for o in outs[:3]:
+        end = o.get("endDate")
+        lama = ""
+        if end:
+            h = (_dt(end) - _dt(o["startDate"])).total_seconds() / 3600
+            lama = f", durasi {_f(h * 60, 0)} menit" if h < 1 else f", durasi {_f(h)} jam" if h < 48 else f", durasi {_f(h / 24)} hari"
+        fakta.append(f"Outage {_wib(o['startDate'])}: penyebab {CAUSE_ID.get(o.get('cause'), o.get('cause') or 'tidak disebut')}"
+                     f"{', operator ' + ', '.join(n for n in o.get('asn_names') or [] if n) if o.get('asn_names') else ''}"
+                     f"{', wilayah ' + o['scope'] if o.get('scope') else ''}{lama or ', belum ada waktu selesai'}.")
+    fakta.append(f"Deteksi otomatis Radar (traffic anomaly) untuk {who}: {len(anom)} kejadian dalam {win}"
+                 + (f", terakhir {_wib(anom[0]['startDate'])} ({anom[0].get('asn_name') or anom[0].get('location') or ''}, "
+                    f"status {anom[0].get('status', '').lower() or '-'})." if anom else "."))
+    if place:
+        fakta.append("Catatan: outage di Radar biasanya dicatat per negara atau per operator, jarang per provinsi.")
+    return {"alat": "internet_outage", "fakta": fakta, "sumber": "Cloudflare Radar (CC BY-NC 4.0)",
+            "outage": [{"mulai": _wib(o["startDate"]), "selesai": _wib(o["endDate"]) if o.get("endDate") else None,
+                        "penyebab": CAUSE_ID.get(o.get("cause"), o.get("cause")), "operator": o.get("asn_names"),
+                        "wilayah": o.get("scope"), "keterangan": (o.get("description") or "")[:200]} for o in outs[:5]],
+            "catatan": "Outage = kejadian yang diverifikasi tim Radar; anomaly = deteksi otomatis yang belum tentu outage. "
+                       "Data dilihat dari luar jaringan operator (trafik yang melewati Cloudflare).", "_focus": place}
+
+
+# ---- internet_operator
+def tool_internet_operator(ch, a: dict) -> dict:
+    from datetime import timedelta
+    d = _snap("radar_id.json")
+    q, now = a.get("_q", ""), _now(a)
+    hari = _clamp(a.get("hari"), 1, 28, 7) if a.get("_hari_explicit") else 7
+    named = _operators(q)
+    ops = [o for o in named if o[1]] or [o for o in OPERATORS if o[1] and o[1] in (d.get("asns") or {})]
+    place = resolve_place(a.get("lokasi", ""))
+    fakta, tabel = [], []
+    if any(not o[1] for o in named):
+        fakta.append("Smartfren belum termasuk operator yang dipantau dari Cloudflare Radar di platform ini.")
+    # kecepatan (median speed test 90 hari)
+    sp = {x["key"]: x for x in d.get("speed_ops") or []}
+    nat = sp.get("ID")
+    for o in ops:
+        x = sp.get(o[1])
+        if not x:
+            continue
+        dl, ul, lat = _num(x.get("bandwidthDownload")), _num(x.get("bandwidthUpload")), _num(x.get("latencyIdle"))
+        tabel.append({"operator": _label(d, o[1]), "unduh_mbps": dl, "unggah_mbps": ul, "latensi_ms": lat})
+    tabel.sort(key=lambda r: -(r["unduh_mbps"] or 0))
+    if tabel:
+        if named:
+            fakta += [f"{r['operator']}: median unduh {_f(r['unduh_mbps'])} Mbps, unggah {_f(r['unggah_mbps'])} Mbps, "
+                      f"latensi {_f(r['latensi_ms'], 0)} ms (speed test pengguna Cloudflare, 90 hari)." for r in tabel]
+        else:
+            fakta.append("Median kecepatan unduh per operator (speed test pengguna Cloudflare, 90 hari): "
+                         + ", ".join(f"{r['operator']} {_f(r['unduh_mbps'])} Mbps" for r in tabel) + ".")
+    if nat:
+        fakta.append(f"Rata-rata Indonesia (semua jaringan): unduh {_f(_num(nat.get('bandwidthDownload')))} Mbps, "
+                     f"latensi {_f(_num(nat.get('latencyIdle')), 0)} ms.")
+    # penurunan trafik
+    since = now - timedelta(days=hari)
+    for o in ops[:5] if named else ops:
+        tr = (d.get("traffic") or {}).get(o[1]) or {}
+        s, src = (tr.get("netflows"), "NetFlows") if tr.get("netflows") else (tr.get("http"), "HTTP")
+        r = _series_drops(s, since)
+        if not r["ada_data"]:
+            continue
+        nm = _label(d, o[1])
+        if r["jam_turun"]:
+            lo = r["terendah"]
+            fakta.append(f"Trafik {nm} ({src}) turun di bawah 60% dari normal selama {r['jam_turun']} jam dalam {_hari(hari)}; "
+                         f"terendah {_wib(lo[0].isoformat())} ({_f(lo[1] * 100, 0)}% dari normal).")
+        elif named:
+            fakta.append(f"Trafik {nm} ({src}) tidak menunjukkan penurunan tidak normal dalam {_hari(hari)}.")
+        if r["jam_celah"] and named:
+            fakta.append(f"{nm}: {r['jam_celah']} jam tanpa data (celah data, tidak dihitung sebagai gangguan).")
+    if not named:
+        turun = [f for f in fakta if f.startswith("Trafik ")]
+        if not turun:
+            fakta.append(f"Tidak ada operator dengan penurunan trafik tidak normal dalam {_hari(hari)}.")
+    # provinsi
+    if place:
+        geo = _radar_geo(d)
+        gid = next((k for k, g in geo.items() if g["prov_kode"] == place["prov_kode"]), None)
+        if not gid:
+            fakta.append(f"Data trafik per provinsi untuk {place['prov_nama']} tidak ada di snapshot Radar.")
+        else:
+            for key in ([o[1] for o in ops] if named else ["ID"]):
+                share = (((d.get("adm1") or {}).get(key) or {}).get("summary_0") or {})
+                vals = {k: _num(v) for k, v in share.items() if k in geo and _num(v) is not None}
+                if gid in vals:
+                    rank = sorted(vals.values(), reverse=True).index(vals[gid]) + 1
+                    who = "trafik internet Indonesia" if key == "ID" else f"trafik {_label(d, key)}"
+                    fakta.append(f"{place['prov_nama']} menyumbang {_f(vals[gid], 2)}% dari {who} yang terlihat Cloudflare "
+                                 f"(NetFlows 7 hari), peringkat {rank} dari {len(vals)} provinsi.")
+            ts = (d.get("adm1_ts") or {}).get("netflows") or (d.get("adm1_ts") or {}).get("http")
+            ser = [_num(x) for x in ((ts or {}).get("s") or {}).get(gid, [])]
+            ser = [x for x in ser if x is not None]
+            if len(ser) >= 8:
+                med = sorted(ser[:-1])[len(ser[:-1]) // 2]
+                chg = (ser[-1] - med) / med * 100 if med else 0
+                fakta.append(f"Porsi harian {place['prov_nama']} hari terakhir {_f(ser[-1], 2)}% vs median {len(ser) - 1} hari "
+                             f"sebelumnya {_f(med, 2)}% ({'+' if chg >= 0 else ''}{_f(chg)}%).")
+    # BGP
+    if named or re.search(r"\bbgp\b|rpki|routing|hijack", q):
+        for o in ops:
+            b = (d.get("bgp") or {}).get(o[1])
+            if b and b.get("routes_total"):
+                fakta.append(f"BGP {_label(d, o[1])}: {b['routes_total']} route, {_f((b.get('routes_valid') or 0) / b['routes_total'] * 100)}% "
+                             f"valid RPKI, {b.get('routes_invalid') or 0} invalid.")
+    return {"alat": "internet_operator", "fakta": fakta, "sumber": "Cloudflare Radar (CC BY-NC 4.0)",
+            "snapshot": _wib(d["generated_at"]), "kecepatan": tabel,
+            "catatan": "Dilihat dari luar jaringan operator: trafik yang melewati Cloudflare (dinormalisasi, bukan volume "
+                       "absolut) dan speed test sukarela pengguna; bukan KPI jaringan internal operator.", "_focus": place}
+
+
+# ---- sebaran_sel (OpenCelliD)
+def tool_sebaran_sel(ch, a: dict) -> dict:
+    c = _snap("cells_id.json", ttl_s=6 * 3600)
+    kab = c.get("kab") or []
+    q = a.get("_q", "")
+    place = resolve_place(a.get("lokasi", ""))
+    named = [o for o in _operators(q) if o[3]]
+    op = named[0][3] if named else None
+    val = (lambda k: k["op"].get(op, 0)) if op else (lambda k: k["total"])
+    who = f" {op}" if op else ""
+    fakta = []
+    if any(not o[3] for o in _operators(q)):
+        fakta.append("Telkom Indonesia/IndiHome adalah jaringan tetap, tidak ada di data sel seluler OpenCelliD.")
+
+    def mix(ks: list) -> str:
+        tot = sum(k["total"] for k in ks)
+        if not tot:
+            return ""
+        per_op: dict[str, int] = {}
+        r4 = sum(k["radio"].get("4G", 0) + k["radio"].get("5G", 0) for k in ks)
+        for k in ks:
+            for o, n in k["op"].items():
+                per_op[o] = per_op.get(o, 0) + n
+        top = ", ".join(f"{o} {_n(n)}" for o, n in sorted(per_op.items(), key=lambda x: -x[1]) if o != "Lainnya")
+        rec = sum(k["recent"] for k in ks)
+        return f"Per operator: {top}. Porsi 4G/5G {_f(r4 / tot * 100, 0)}%; {_f(rec / tot * 100, 0)}% sel diperbarui dalam 12 bulan terakhir."
+
+    if place and place["level"] == 2:
+        k = next((k for k in kab if k["k"] == place["kode"]), None)
+        if not k:
+            fakta.append(f"{place['nama']} tidak ada di data sebaran sel.")
+        else:
+            rank = sorted((val(x) for x in kab), reverse=True).index(val(k)) + 1
+            fakta.append(f"{k['nama']} ({k['prov']}): {_n(val(k))} sel{who} tercatat di OpenCelliD, peringkat {rank} dari {len(kab)} kab/kota"
+                         + (f"; {_f(val(k) / k['pend'] * 1e5)} sel per 100 ribu penduduk." if k.get("pend") else "."))
+            if not op and k["total"]:
+                fakta.append(mix([k]))
+    elif place:
+        ks = [k for k in kab if k.get("prov_k") == place["prov_kode"]]
+        prov: dict[str, int] = {}
+        for k in kab:
+            prov[k["prov_k"]] = prov.get(k["prov_k"], 0) + val(k)
+        n = prov.get(place["prov_kode"], 0)
+        rank = sorted(prov.values(), reverse=True).index(n) + 1 if prov else 0
+        pend = sum(k.get("pend") or 0 for k in ks)
+        fakta.append(f"Provinsi {place['prov_nama']}: {_n(n)} sel{who} tercatat di OpenCelliD di {len(ks)} kab/kota, peringkat {rank} "
+                     f"dari {len(prov)} provinsi" + (f"; {_f(n / pend * 1e5)} sel per 100 ribu penduduk." if pend else "."))
+        top = sorted(ks, key=lambda k: -val(k))
+        if top and val(top[0]):
+            fakta.append("Kab/kota dengan sel terbanyak: " + ", ".join(f"{k['nama']} ({_n(val(k))})" for k in top[:3]) + ".")
+        kosong = [k for k in ks if not val(k)]
+        if kosong:
+            fakta.append(f"{len(kosong)} kab/kota di provinsi ini belum punya data sel{who} sama sekali.")
+        if not op and n:
+            fakta.append(mix(ks))
+    else:
+        tot = c.get("cells_indonesia") or sum(c.get("by_op", {}).values())
+        fakta.append(f"OpenCelliD mencatat {_n(c['by_op'].get(op, 0) if op else tot)} sel seluler{who} di Indonesia "
+                     f"(data {c['generated_at'][:10]}).")
+        if not op:
+            fakta.append("Per operator: " + ", ".join(f"{o} {_n(n)}" for o, n in sorted(c["by_op"].items(), key=lambda x: -x[1])
+                                                       if o != "Lainnya") + ".")
+            fakta.append("Per teknologi: " + ", ".join(f"{r} {_n(n)}" for r, n in sorted(c["by_radio"].items(), key=lambda x: -x[1])) + ".")
+        top = sorted(kab, key=lambda k: -val(k))[:5]
+        fakta.append("Kab/kota dengan sel terbanyak: " + ", ".join(f"{k['nama']} ({_n(val(k))})" for k in top) + ".")
+        fakta.append(f"{sum(1 for k in kab if not val(k))} dari {len(kab)} kab/kota belum punya data sel{who}.")
+    return {"alat": "sebaran_sel", "fakta": [f for f in fakta if f], "sumber": "OpenCelliD (CC BY-SA 4.0)",
+            "catatan": "OpenCelliD adalah data crowdsourced (dikumpulkan aplikasi/relawan), bukan jumlah BTS resmi operator; "
+                       "banyak daerah tercatat jauh lebih sedikit dari kenyataan.", "_focus": place}
+
+
 TOOL_FUNCS = {"gempa": tool_gempa, "titik_panas": tool_titik_panas, "kualitas_udara": tool_kualitas_udara,
-              "harga_pangan": tool_harga_pangan, "berita": tool_berita, "kesehatan_pipeline": tool_kesehatan}
+              "harga_pangan": tool_harga_pangan, "berita": tool_berita, "kesehatan_pipeline": tool_kesehatan,
+              "cuaca": tool_cuaca, "internet_outage": tool_internet_outage, "internet_operator": tool_internet_operator,
+              "sebaran_sel": tool_sebaran_sel}
 
 
 # ---------------------------------------------------------------- orchestration
@@ -480,6 +932,7 @@ def ask(ch, question: str, client: httpx.Client | None = None, context: str = ""
         calls = [{"nama": t, **params} for t in tools]
         for c in calls:
             c["_q"] = question.lower()
+            c["_hari_explicit"] = bool(explicit.get("hari"))
         router_debug = {"llm": llm_plan, "aturan": rules, "parameter_llm_dibuang": dropped, "lanjutan": followup}
         results, sources, focus = [], [], None
         for c in calls:
@@ -496,12 +949,13 @@ def ask(ch, question: str, client: httpx.Client | None = None, context: str = ""
             results.append(res)
         if not results:
             answer = ("Maaf, pertanyaan itu di luar cakupan data platform ini. Saya bisa menjawab tentang gempa, "
-                      "titik panas, kualitas udara, harga pangan, berita bencana/cuaca/pangan, dan status pipeline data.")
+                      "titik panas, kualitas udara, harga pangan, prakiraan cuaca, gangguan dan kecepatan internet per operator, "
+                      "sebaran sel/BTS seluler, berita bencana/cuaca/pangan, dan status pipeline data.")
         else:
             data = json.dumps(results, ensure_ascii=False, default=str)[:MAX_DATA_CHARS * len(results)]
             answer = _chat(client, ANSWER_PROMPT, (f"PERTANYAAN SEBELUMNYA: {context}\n" if followup else "") + f"PERTANYAAN: {question}\n\nDATA:\n{data}", None, 0).strip()
         return {"answer": answer, "tools": [{"nama": c["nama"], "parameter": {k: v for k, v in c.items()
-                                              if k not in ("nama", "_q") and v not in ("", 0, None)}} for c in calls],
+                                              if not k.startswith("_") and k != "nama" and v not in ("", 0, None)}} for c in calls],
                 "facts": [f for r in results for f in r.get("fakta", [])],
                 "data": results, "sources": sources[:8], "focus": focus, "model": LLM_MODEL, "router": router_debug,
                 "ms": int((time.monotonic() - t0) * 1000)}

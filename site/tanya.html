@@ -149,6 +149,8 @@
   .tag{border-radius:6px;font-weight:600;font-size:.72rem;padding:2px 8px}
   .tag.t-gempa{background:#FDE7E4;color:#9B2C1F} .tag.t-titik_panas{background:#FFEBD9;color:#9A4A0B} .tag.t-kualitas_udara{background:#E3F1FB;color:#1D5D8F}
   .tag.t-harga_pangan{background:#E9F6E6;color:#2D6A27} .tag.t-berita{background:#EEE9FF;color:#5B3FD9} .tag.t-kesehatan_pipeline{background:#E8EDF2;color:#33434F}
+  .tag.t-cuaca{background:#DDF5F7;color:#0B6470} .tag.t-internet_outage{background:#FCE4E7;color:#9B1C2C}
+  .tag.t-internet_operator{background:#E2ECFB;color:#174E96} .tag.t-sebaran_sel{background:#F3E6F5;color:#6B2D72}
   .tag.example{background:#FFF4D6;color:#7A5410;font-weight:500}
   .facts{position:relative;border-radius:10px;padding:10px 12px 10px 40px}
   .facts::before{content:"✓";position:absolute;left:12px;top:10px;width:20px;height:20px;border-radius:50%;background:#2EB85C;color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700}
@@ -197,7 +199,7 @@
     <div class="brand"><div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 1.8 1.8.7-1.8.7L5 20l-.7-1.8-1.8-.7 1.8-.7z"/></svg></div>
       <div><h1>Ask the Data <small>Tanya Data</small></h1>
       <p class="sub">LLM lokal yang dijaga guardrail, menjawab hanya dari data Indonesia Realtime Monitor</p>
-      <div class="chips-h"><span class="chip-h">qwen2.5:3b</span><span class="chip-h">Ollama · GPU laptop 4 GB</span><span class="chip-h">6 tools, tanpa text-to-SQL</span><span class="chip-h">facts dihitung kode</span></div></div>
+      <div class="chips-h"><span class="chip-h">qwen2.5:3b</span><span class="chip-h">Ollama · GPU laptop 4 GB</span><span class="chip-h">10 tools, tanpa text-to-SQL</span><span class="chip-h">facts dihitung kode</span></div></div>
     </div>
     <div class="spacer"></div>
     <span class="pill" id="pill" role="status">Memeriksa server AI…</span>
@@ -216,7 +218,7 @@
           <div class="ctx" id="ctx"></div>
           <div class="row">
             <label for="q" class="sr" style="position:absolute;left:-9999px">Pertanyaan</label>
-            <textarea id="q" rows="1" maxlength="300" placeholder="Tanyakan tentang gempa, titik panas, kualitas udara, harga pangan, atau berita…"></textarea>
+            <textarea id="q" rows="1" maxlength="300" placeholder="Tanyakan tentang gempa, titik panas, udara, harga pangan, cuaca, internet, atau berita…"></textarea>
             <button class="send" id="send" disabled>Kirim</button>
           </div>
           <div class="hint"><span>Enter untuk kirim, Shift+Enter untuk baris baru</span><span id="count">0/300</span></div>
@@ -228,7 +230,7 @@
       <div id="minimap" role="region" aria-label="Peta lokasi pertanyaan"></div>
       <div class="side">
         <p class="loc-label" id="loc-label">Lokasi yang ditanyakan akan ditandai di peta.</p>
-        <h2>6 tools yang bisa dipanggil</h2>
+        <h2>10 tools yang bisa dipanggil</h2>
         <ul class="srcs">
           <li><i style="background:#E5533D"></i>Gempa · BMKG &amp; USGS</li>
           <li><i style="background:#F28C28"></i>Titik panas · NASA FIRMS (VIIRS)</li>
@@ -236,12 +238,16 @@
           <li><i style="background:#3E9B35"></i>Harga pangan · PIHPS Nasional, Bank Indonesia</li>
           <li><i style="background:#6D4AFF"></i>Berita · 8 portal nasional, geotag oleh AI</li>
           <li><i style="background:#64748B"></i>Pipeline health · status data quality platform</li>
+          <li><i style="background:#0EA5B7"></i>Cuaca · prakiraan BMKG per 3 jam (lokasi pantau)</li>
+          <li><i style="background:#D62839"></i>Internet outage · Cloudflare Radar</li>
+          <li><i style="background:#1F6FD1"></i>Internet per operator · speed, traffic, BGP (Cloudflare Radar)</li>
+          <li><i style="background:#8F3F97"></i>Cell distribution · OpenCelliD, 514 kab/kota</li>
         </ul>
         <h2>Cara kerja</h2>
         <ol class="steps">
           <li class="llm"><b>Router</b>LLM memilih tool dan parameter; router berbasis aturan menjadi jaring pengaman.</li>
           <li class="code"><b>Guardrail</b>Parameter harus muncul di pertanyaan; koordinat peta selalu dari gazetteer.</li>
-          <li class="code"><b>Query &amp; facts</b>Query parameterized ke ClickHouse; angka dihitung kode menjadi kalimat facts.</li>
+          <li class="code"><b>Query &amp; facts</b>Query parameterized ke ClickHouse atau baca snapshot JSON; angka dihitung kode menjadi kalimat facts.</li>
           <li class="llm"><b>Jawaban</b>LLM hanya merangkai kalimat dari facts, tidak menambah angka.</li>
         </ol>
         <p class="guard">AI bisa keliru merangkai kalimat. Untuk angka yang pasti, klik <strong>Cek angka</strong> di bawah setiap jawaban.</p>
@@ -255,7 +261,8 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const TOOL_LABEL = {gempa:'Gempa', titik_panas:'Titik panas', kualitas_udara:'Kualitas udara',
-  harga_pangan:'Harga pangan', berita:'Berita', kesehatan_pipeline:'Kualitas data'};
+  harga_pangan:'Harga pangan', berita:'Berita', kesehatan_pipeline:'Kualitas data',
+  cuaca:'Cuaca', internet_outage:'Internet outage', internet_operator:'Internet operator', sebaran_sel:'Cell distribution'};
 const EXAMPLES = {
   'Bencana': ['Gempa terbesar dalam 3 hari terakhir di mana?', 'Berapa titik panas di Kalimantan Tengah 24 jam terakhir?',
               'Status Gunung Semeru hari ini'],
@@ -263,6 +270,9 @@ const EXAMPLES = {
                  'Berita kabut asap terbaru'],
   'Pangan': ['Provinsi mana yang harga cabai rawitnya paling mahal?', 'Berapa harga beras di Jawa Barat?',
              'Harga bawang merah termurah di provinsi mana?'],
+  'Cuaca': ['Besok Jakarta hujan nggak?', 'Prakiraan cuaca Sukoharjo hari ini'],
+  'Internet': ['Ada gangguan internet di Indonesia minggu ini?', 'Kecepatan internet Telkomsel vs XL?',
+               'Bagaimana trafik internet di Kalimantan Tengah?', 'Berapa jumlah BTS Telkomsel di Jawa Timur?'],
   'Data': ['Apakah ada masalah di pipeline data?'],
 };
 const STORE = 'irm-tanya-v1';
@@ -378,7 +388,7 @@ function render(){
           Kafka. Versi publik ini gratis dan statis, sehingga tidak ada server AI yang bisa dihubungi.</p>
         <div class="flow" aria-label="Alur jawaban">
           <div><b>1 · Pertanyaan</b>bahasa sehari-hari</div>
-          <div class="llm"><b>2 · LLM</b>memilih 1 dari 6 tools + parameter</div>
+          <div class="llm"><b>2 · LLM</b>memilih 1–3 dari 10 tools + parameter</div>
           <div class="code"><b>3 · Guardrail</b>parameter wajib ada di pertanyaan</div>
           <div class="code"><b>4 · Query</b>parameterized, angka dihitung kode</div>
           <div class="llm"><b>5 · LLM</b>merangkai kalimat dari facts</div></div>

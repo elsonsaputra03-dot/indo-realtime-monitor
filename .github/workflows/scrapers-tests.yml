@@ -1,9 +1,9 @@
 name: scraper-tests
 on:
   push:
-    paths: ["airflow/**", ".github/workflows/scrapers-tests.yml"]
+    paths: ["airflow/**", "app/api/**", ".github/workflows/scrapers-tests.yml"]
   pull_request:
-    paths: ["airflow/**"]
+    paths: ["airflow/**", "app/api/**"]
 jobs:
   test:
     runs-on: ubuntu-24.04
