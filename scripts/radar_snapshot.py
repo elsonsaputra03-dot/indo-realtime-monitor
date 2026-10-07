@@ -29,7 +29,7 @@ LABEL_RULES = [("TELKOMSEL", "Telkomsel"), ("INDOSAT", "Indosat"), ("HUTCHISON",
 ATTRIBUTION = {"source": "Cloudflare Radar", "url": "https://radar.cloudflare.com/id",
                "license": "CC BY-NC 4.0", "license_url": "https://creativecommons.org/licenses/by-nc/4.0/"}
 FILE = "radar_id.json"
-SCHEMA = 2                      # naikkan saat isi snapshot berubah: snapshot lama langsung diambil ulang
+SCHEMA = 3                      # naikkan saat isi snapshot berubah: snapshot lama langsung diambil ulang
 
 
 class Radar:
@@ -86,7 +86,7 @@ def pick(d: dict, *keys):
 
 def collect(radar: Radar) -> dict:
     out = {"schema": SCHEMA, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "attribution": ATTRIBUTION,
-           "asns": {}, "outages": [], "anomalies": [], "traffic": {}, "speed": [], "speed_ops": [], "bgp": {}, "hijacks": [], "leaks": []}
+           "asns": {}, "outages": [], "anomalies": [], "traffic": {}, "speed": [], "speed_ops": [], "adm1": {}, "geo": None, "probe": {}, "bgp": {}, "hijacks": [], "leaks": []}
 
     for asn in ASNS:
         r = radar.get(f"entities/asns/{asn}")
@@ -132,6 +132,18 @@ def collect(radar: Radar) -> dict:
             out["speed_ops"].append({"key": key, **{k: sm.get(k) for k in ("bandwidthDownload", "bandwidthUpload", "latencyIdle",
                                                                           "latencyLoaded", "jitterIdle", "jitterLoaded", "packetLoss")}})
 
+    # level provinsi (ADM1, tersedia di Radar sejak Sep 2025): porsi trafik per provinsi, untuk Indonesia dan tiap operator
+    for key, params in [("ID", {})] + [(str(a), {"asn": a}) for a in ASNS]:
+        r = radar.get("netflows/summary/ADM1", location="ID", dateRange="7d", limitPerGroup=60, **params)
+        if r:
+            out["adm1"][key] = {k: v for k, v in r.items() if k != "meta"}
+    out["geo"] = radar.get("geolocations", location="ID", limit=100)
+    for name, path, params in [("http_tsg_adm1", "http/timeseries_groups/ADM1", {"location": "ID", "dateRange": "28d", "aggInterval": "1d", "limitPerGroup": 40}),
+                               ("netflows_tsg_adm1", "netflows/timeseries_groups/ADM1", {"location": "ID", "dateRange": "28d", "aggInterval": "1d", "limitPerGroup": 40})]:
+        r = radar.get(path, **params)   # percobaan: struktur dicatat di status untuk dipakai tampilan berikutnya
+        if r:
+            out["probe"][name] = r
+
     for asn in ASNS:
         r = radar.get("bgp/routes/stats", asn=asn)
         if r and r.get("stats"):
@@ -157,6 +169,9 @@ def write_status(path: Path) -> None:
           "traffic": {k: {"http": len((v.get("http") or {}).get("t", [])), "netflows": len((v.get("netflows") or {}).get("t", []))}
                       for k, v in (snap.get("traffic") or {}).items()},
           "asns": {k: v.get("label") for k, v in (snap.get("asns") or {}).items()},
+          "adm1_sample": {k: (json.dumps(v)[:1500]) for k, v in list((snap.get("adm1") or {}).items())[:2]},
+          "geo_sample": json.dumps(snap.get("geo"))[:1500],
+          "probe_sample": {k: json.dumps(v)[:1500] for k, v in (snap.get("probe") or {}).items()},
           "samples": {k: (snap.get(k) or [None])[0] for k in ("outages", "anomalies", "speed_ops", "hijacks", "leaks")}
                      | {"bgp": next(iter((snap.get("bgp") or {}).values()), None)}}
     path.with_name("radar_status.json").write_text(json.dumps(st, indent=1), encoding="utf-8")
