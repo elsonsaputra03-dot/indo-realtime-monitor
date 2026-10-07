@@ -23,7 +23,7 @@ from pathlib import Path
 
 API = "https://api.cloudflare.com/client/v4/radar"
 # ASN operator Indonesia; nama resmi diambil dari Radar (entities/asns), label pendek hanya kalau namanya cocok
-ASNS = [23693, 4761, 24203, 45727, 18004, 7713]
+ASNS = [23693, 4761, 24203, 45727, 7713]
 LABEL_RULES = [("TELKOMSEL", "Telkomsel"), ("INDOSAT", "Indosat"), ("HUTCHISON", "Tri (IOH)"), ("THREE", "Tri (IOH)"),
                ("XL", "XL Axiata"), ("SMART", "Smartfren"), ("TELKOM", "Telkom Indonesia")]
 ATTRIBUTION = {"source": "Cloudflare Radar", "url": "https://radar.cloudflare.com/id",
@@ -147,7 +147,9 @@ def write_status(path: Path) -> None:
           "counts": {k: len(snap.get(k) or []) for k in ("outages", "anomalies", "speed", "bgp", "hijacks", "leaks")},
           "traffic": {k: {"http": len((v.get("http") or {}).get("t", [])), "netflows": len((v.get("netflows") or {}).get("t", []))}
                       for k, v in (snap.get("traffic") or {}).items()},
-          "asns": {k: v.get("label") for k, v in (snap.get("asns") or {}).items()}}
+          "asns": {k: v.get("label") for k, v in (snap.get("asns") or {}).items()},
+          "samples": {k: (snap.get(k) or [None])[0] for k in ("outages", "anomalies", "speed", "hijacks", "leaks")}
+                     | {"bgp": next(iter((snap.get("bgp") or {}).values()), None)}}
     path.with_name("radar_status.json").write_text(json.dumps(st, indent=1), encoding="utf-8")
 
 
