@@ -152,7 +152,13 @@
   .tag.example{background:#FFF4D6;color:#7A5410;font-weight:500}
   .facts{position:relative;border-radius:10px;padding:10px 12px 10px 40px}
   .facts::before{content:"✓";position:absolute;left:12px;top:10px;width:20px;height:20px;border-radius:50%;background:#2EB85C;color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700}
-  .facts .ttl{color:#1E5E36}
+  .facts .ttl{color:#1E5E36;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+  .facts .ttl::-webkit-details-marker{display:none}
+  .facts .ttl::after{content:"▾";margin-left:auto;color:#2EB85C;transition:transform .15s}
+  .facts[open] .ttl::after{transform:rotate(180deg)}
+  .facts:not([open]){background:#F6FBF8;padding-top:7px;padding-bottom:7px}
+  .facts:not([open])::before{top:6px}
+  .facts:not([open]) .ttl:hover{color:#14532D}
   .abtn{border-radius:8px}
   .abtn:hover{border-color:var(--accent);color:var(--accent);background:#F5F9FF}
   .composer{background:rgba(255,255,255,.85);backdrop-filter:blur(6px)}
@@ -238,7 +244,7 @@
           <li class="code"><b>Query &amp; facts</b>Query parameterized ke ClickHouse; angka dihitung kode menjadi kalimat facts.</li>
           <li class="llm"><b>Jawaban</b>LLM hanya merangkai kalimat dari facts, tidak menambah angka.</li>
         </ol>
-        <p class="guard">AI bisa keliru merangkai kalimat. Untuk angka yang pasti, lihat kotak <strong>Facts</strong> di setiap jawaban.</p>
+        <p class="guard">AI bisa keliru merangkai kalimat. Untuk angka yang pasti, klik <strong>Cek angka</strong> di bawah setiap jawaban.</p>
       </div>
     </aside>
   </div>
@@ -349,8 +355,8 @@ function renderAI(res){
   const tools = res.tools.map(t => `<span class="tag t-${esc(t.nama)}">${esc(TOOL_LABEL[t.nama] || t.nama)}</span>`).join('');
   const follow = (res.router && res.router.lanjutan ? '<span class="tag follow">lanjutan</span>' : '')
     + (res.example ? '<span class="tag example">contoh dari versi lokal, 28 Sep 2026</span>' : '');
-  const facts = (res.facts || []).length ? `<div class="facts"><div class="ttl">Facts <span>dihitung kode, bukan AI</span></div>
-      <ul>${res.facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div>` : '';
+  const facts = (res.facts || []).length ? `<details class="facts"><summary class="ttl">Cek angka <span>${res.facts.length} facts dihitung kode, bukan AI</span></summary>
+      <ul>${res.facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></details>` : '';
   const sources = (res.sources || []).length ? `<div class="sources"><strong>Sumber berita</strong>${res.sources.map(s =>
       `<a href="${esc(s.link)}" target="_blank" rel="noopener noreferrer">${esc(s.judul)}</a>`).join('')}</div>` : '';
   const focusBtn = res.focus ? `<button class="abtn" data-act="focus">Tampilkan ${esc(res.focus.nama)} di peta</button>` : '';
