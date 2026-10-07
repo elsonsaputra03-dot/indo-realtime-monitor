@@ -66,13 +66,12 @@
   // ---- pertanyaan langsung ke Elson (diteruskan ke Telegram, tidak disimpan)
   const panel = $(".ap-direct"), dform = $(".ap-dform"), dstat = $(".ap-dstatus");
   function openDirect(prefill) {
+    if (panel.hidden) openedAt = Date.now();
     panel.hidden = false; dstat.textContent = ""; dstat.className = "ap-dstatus";
     if (prefill && !dform.question.value) dform.question.value = prefill;
     (dform.question.value ? dform.contact : dform.question).focus();
   }
-  const hp = dform.ap_extra; let typed = false;
-  dform.addEventListener("input", e => { if (e.target !== hp) typed = true; });
-  hp.addEventListener("change", () => { if (!typed) hp.value = ""; });    // autofill sebelum pengunjung mengetik: bukan bot
+  let openedAt = 0;
   dlg.querySelectorAll("[data-ap-direct]").forEach(b => b.addEventListener("click", () => openDirect(lastQ)));
   $(".ap-dcancel").addEventListener("click", () => { panel.hidden = true; input.focus(); });
   dform.addEventListener("submit", async e => {
@@ -86,7 +85,7 @@
     try {
       const r = await fetch(API + "/contact", { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ question: f.question.value.trim(), name: f.name.value.trim(), contact: f.contact.value.trim(),
-                               consent: true, ap_extra: f.ap_extra.value, aiAnswer: lastA, page: location.href.split("#")[0] }) });
+                               consent: true, elapsed_ms: Date.now() - openedAt, aiAnswer: lastA, page: location.href.split("#")[0] }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(r.status === 404 ? "direct messages are not available yet, please use the Contact section" : d.error || `HTTP ${r.status}`);
       $(".ap-intro")?.remove();
