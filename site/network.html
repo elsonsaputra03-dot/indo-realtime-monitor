@@ -111,6 +111,13 @@
   .trace table td{padding:3px 6px;font-size:.82rem;vertical-align:top} .trace code{font-size:.78rem;word-break:break-all}
   .flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.85rem;margin:6px 0 10px}
   .flow span{background:#F1F4F6;border-radius:6px;padding:4px 8px} .flow b{color:var(--muted)}
+/* pub-views */
+  .pub-real{background:#EAF3EC;border-color:#B8D8C1}
+  .pub-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+  .pub-chip{border:1px solid var(--rule);background:#fff;border-radius:16px;padding:4px 12px;cursor:pointer;font:inherit;font-size:.86rem}
+  .pub-chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+  td.wrap{white-space:normal;min-width:160px}
+  .muted{color:var(--muted)}
 /* oss-assurance */
   .ointro{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.9rem;color:var(--ink-2)}
   .onote{font-size:.84rem;color:var(--muted);margin:8px 0 0}
@@ -167,6 +174,10 @@
     <a data-view="oss-sleep">Sel tidur senyap</a>
     <a data-view="oss-sla">SLA pelanggan</a>
     <a data-view="oss-prov">Provisioning</a>
+    <h2>Internet publik · data nyata</h2>
+    <a data-view="pub-outage">Gangguan &amp; anomali</a>
+    <a data-view="pub-traffic">Trafik per operator</a>
+    <a data-view="pub-quality">Kualitas &amp; routing BGP</a>
     <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
   </nav>
   <main>
@@ -189,6 +200,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="assets/oss-views.js"></script>
+<script src="assets/pub-views.js"></script>
 <script src="assets/kalimantan.js"></script>
 <script src="assets/net-data.js"></script>
 <script>
@@ -556,7 +568,7 @@ function viewTwamp(){
 
 
 // ------------------------------------------------------------------ navigasi
-const TITLES = {'oss-alarm': 'Assurance: alarm & insiden', 'oss-inc': 'Assurance: insiden menurut dampak pelanggan', 'oss-sleep': 'Assurance: sel tidur senyap', 'oss-sla': 'Assurance: SLA pelanggan', 'oss-prov': 'Assurance: provisioning (simulasi)', summary: 'Ringkasan', map: 'Peta site', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
+const TITLES = {'pub-outage': 'Internet publik: gangguan & anomali', 'pub-traffic': 'Internet publik: trafik per operator', 'pub-quality': 'Internet publik: kualitas & routing BGP', 'oss-alarm': 'Assurance: alarm & insiden', 'oss-inc': 'Assurance: insiden menurut dampak pelanggan', 'oss-sleep': 'Assurance: sel tidur senyap', 'oss-sla': 'Assurance: SLA pelanggan', 'oss-prov': 'Assurance: provisioning (simulasi)', summary: 'Ringkasan', map: 'Peta site', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
 const closeModal = () => { $('modal').hidden = true; };
 $('modal').onclick = e => { if(e.target === $('modal')) closeModal(); };
 addEventListener('keydown', e => { if(e.key === 'Escape' && !$('modal').hidden) closeModal(); });
@@ -565,6 +577,10 @@ function render(){
   charts.splice(0).forEach(c => c.destroy()); closeModal();
   if(leaf && state.view !== 'map'){ leaf.remove(); leaf = null; }
   $('title').textContent = TITLES[state.view]; $('export').hidden = state.view !== 'wpc';
+  if(window.PUB_VIEWS){ window.PUB_VIEWS.current = state.view;                    // data publik nyata (assets/pub-views.js)
+    if(window.PUB_VIEWS.has(state.view)){ $('filters').hidden = true; window.NET_SNAP ??= $('snap').textContent;
+      $('snap').textContent = window.PUB_VIEWS.snapText(); window.PUB_VIEWS.render(state.view, $('view')); return; }
+    window.PUB_VIEWS.leave(); if(window.NET_SNAP != null){ $('snap').textContent = window.NET_SNAP; window.NET_SNAP = null; } }
   if(window.OSS_VIEWS){ window.OSS_VIEWS.current = state.view;                    // tampilan Assurance (assets/oss-views.js)
     if(window.OSS_VIEWS.has(state.view)){ $('filters').hidden = true; window.OSS_VIEWS.snap ??= $('snap').textContent;
       $('snap').textContent = 'Seminggu operasi sintetis, 28 Sep – 4 Okt 2026 · jaringan yang sama · data OSS dari repo telco-oss-assurance';

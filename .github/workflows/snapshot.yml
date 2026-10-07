@@ -61,6 +61,13 @@ jobs:
           key: web-${{ github.run_id }}
           restore-keys: web-
 
+      # Cloudflare Radar (data publik internet Indonesia): diambil ulang tiap 3 jam, di antaranya dipakai dari cache
+      - uses: actions/cache@v6
+        with:
+          path: site/data/radar_id.json
+          key: radar-${{ github.run_id }}
+          restore-keys: radar-
+
       - name: Build snapshot
         env:
           GITHUB_TOKEN: ${{ github.token }}      # batas GitHub Search API 30/menit (tanpa token 10/menit)
@@ -71,6 +78,11 @@ jobs:
         run: |
           mkdir -p site/data
           PYTHONPATH=app:airflow/dags python scripts/snapshot.py --out site/data
+
+      - name: Cloudflare Radar snapshot
+        env:
+          CF_RADAR_TOKEN: ${{ secrets.CF_RADAR_TOKEN }}
+        run: python scripts/radar_snapshot.py --out site/data --max-age-hours 3
 
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
