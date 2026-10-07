@@ -612,6 +612,22 @@
   .ap-form button{border:2px solid var(--ap-ink);background:var(--ap-violet);color:var(--ap-ink);font-weight:800;border-radius:10px;padding:0 16px;cursor:pointer}
   .ap-form button[disabled]{opacity:.55;cursor:wait}
   .ap-note{margin:0;padding:0 16px 12px;font-size:.75rem;color:#5D6D78}
+  .ap-link{border:0;background:none;padding:0;font:inherit;color:var(--ap-deep);font-weight:700;text-decoration:underline;cursor:pointer}
+  .ap-direct{padding:12px 16px;border-top:1.5px solid #E6E9EC;background:#FAF7FF;overflow-y:auto;max-height:52vh}
+  .ap-direct[hidden]{display:none}
+  .ap-direct p{margin:0 0 8px;font-size:.88rem;color:#33424C}
+  .ap-direct textarea,.ap-direct input:not([type=checkbox]){width:100%;box-sizing:border-box;padding:9px 11px;border:2px solid var(--ap-ink);border-radius:10px;font:inherit;font-size:.92rem}
+  .ap-direct textarea{resize:vertical;min-height:70px}
+  .ap-row{display:flex;gap:8px;margin-top:8px} .ap-row>*{flex:1;min-width:0}
+  .ap-hp{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0}
+  .ap-consent{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:.8rem;color:#5D6D78;line-height:1.4}
+  .ap-direct button{border:2px solid var(--ap-ink);border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer;background:var(--ap-violet);color:var(--ap-ink)}
+  .ap-direct button.ap-dcancel{background:#fff;flex:0 0 auto}
+  .ap-direct button[disabled]{opacity:.55;cursor:wait}
+  .ap-dstatus{margin:8px 0 0!important;font-size:.84rem!important}
+  .ap-dstatus.err{color:#8E2A22!important}
+  .ap-ok{background:#E6F6EA;border-color:#B7E4C2}
+  .ap-a .ap-link{display:inline-block;margin-top:8px}
 </style>
 <section id="ask-portfolio">
   <div class="wrap">
@@ -632,9 +648,23 @@
       Every answer cites the portfolio or a project README.</p>
   </div>
   <div class="ap-chips"><button type="button" class="ap-chip">What did Elson build with Kafka?</button><button type="button" class="ap-chip">Is he Google Cloud certified?</button><button type="button" class="ap-chip">What is his current role?</button><button type="button" class="ap-chip">Pengalaman di Huawei dan Ericsson?</button></div>
+  <div class="ap-direct" hidden>
+    <form class="ap-dform" novalidate>
+      <p><b>Ask Elson directly.</b> He gets a notification on his phone and replies to you by email or WhatsApp.</p>
+      <textarea name="question" maxlength="500" rows="3" placeholder="Your question for Elson" aria-label="Your question for Elson"></textarea>
+      <div class="ap-row"><input name="name" maxlength="60" placeholder="Your name (optional)" aria-label="Your name" autocomplete="name">
+        <input name="contact" maxlength="120" placeholder="Email or WhatsApp number" aria-label="Email or WhatsApp number" autocomplete="email"></div>
+      <input name="website" class="ap-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="ap-consent"><input type="checkbox" name="consent"> I agree that my question, name and contact are sent to Elson
+        (via Telegram) so he can reply. This site does not store them.</label>
+      <div class="ap-row"><button type="submit">Send to Elson</button><button type="button" class="ap-dcancel">Cancel</button></div>
+      <p class="ap-dstatus" role="status" aria-live="polite"></p>
+    </form>
+  </div>
   <form class="ap-form"><input autofocus maxlength="300" placeholder="Type your question…" aria-label="Your question" autocomplete="off">
     <button type="submit">Ask</button></form>
-  <p class="ap-note">Questions are sent to Google Gemini to write the answer and are not stored by this site. Please don't enter
+  <p class="ap-note">Prefer a human answer? <button type="button" class="ap-link" data-ap-direct>Ask Elson directly</button>.
+    AI questions are sent to Google Gemini to write the answer and are not stored by this site. Please don't enter
     personal information. <a href="https://github.com/elsonsaputra03-dot/portfolio-chat" target="_blank" rel="noopener noreferrer">How it works</a></p>
 </dialog>
 <script src="assets/ask-portfolio.js" defer></script>
