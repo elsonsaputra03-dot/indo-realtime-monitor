@@ -108,6 +108,72 @@
     .composer{padding:10px 12px 12px}
     .msg-user{max-width:92%}
   }
+
+  /* ===== tampilan v2 ===== */
+  :root{--ink:#14212B;--muted:#64748B;--rule:#DCE3EA;--bg:#EEF2F6;--accent:#1F6FD1;--violet:#6D4AFF;--fact:#F0FAF4;--fact-rule:#BFE3CC}
+  body{background:radial-gradient(circle at 20% 0%,#E4ECF7 0,transparent 40%),var(--bg)}
+  header{background:linear-gradient(120deg,#0E1A24 0%,#1B2D52 55%,#3A2A7A 100%);border-bottom:0;color:#E8F0F5;padding:16px 26px;position:relative;overflow:hidden}
+  header::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 80% 0%,rgba(140,110,255,.35),transparent 45%);pointer-events:none}
+  header > *{position:relative;z-index:1}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#6D4AFF,#1F6FD1);box-shadow:0 6px 18px rgba(109,74,255,.45)}
+  .logo svg{width:24px;height:24px;fill:#fff}
+  header h1{font-size:1.45rem;color:#fff} header h1 small{font-weight:500;color:#B9C3F5;font-size:.95rem;margin-left:6px}
+  header .sub{color:#A9B6C9}
+  .chips-h{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .chip-h{font-size:.7rem;letter-spacing:.04em;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#D6DEF5;border-radius:12px;padding:2px 9px}
+  .hbtn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#fff;border-radius:8px}
+  .hbtn:hover{background:rgba(255,255,255,.16)}
+  .pill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.2)}
+  .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:#94A3B8}
+  .pill.on{background:rgba(61,220,132,.15);color:#B9F5CF;border-color:rgba(61,220,132,.4)} .pill.on::before{background:#3DDC84;box-shadow:0 0 0 3px rgba(61,220,132,.25)}
+  .pill.off{background:rgba(244,162,97,.15);color:#FFD2A8;border-color:rgba(244,162,97,.4)} .pill.off::before{background:#F4A261}
+  .scroll{padding-top:22px}
+  .offline{background:#fff;border:1px solid var(--rule);border-left:4px solid var(--violet);border-radius:14px;box-shadow:0 4px 18px rgba(20,33,43,.06);padding:18px 20px}
+  .offline h2{display:flex;align-items:center;gap:8px}
+  .offline h2::before{content:"DEMO";font-size:.62rem;letter-spacing:.1em;background:#EEE9FF;color:#5B3FD9;border-radius:6px;padding:2px 7px}
+  .flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:14px 0 6px}
+  .flow div{position:relative;background:#F6F8FC;border:1px solid var(--rule);border-radius:10px;padding:9px 10px;font-size:.8rem;line-height:1.3}
+  .flow div b{display:block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+  .flow div.llm{background:#F1EDFF;border-color:#D9CFFF} .flow div.code{background:#ECF7F0;border-color:#C6E6D2}
+  .flow div:not(:last-child)::after{content:"→";position:absolute;right:-9px;top:50%;transform:translateY(-50%);color:#94A3B8;font-weight:700;z-index:1}
+  .flow-leg{display:flex;gap:14px;font-size:.75rem;color:var(--muted)} .flow-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+  .ex-divider{display:flex;align-items:center;gap:10px;margin:6px 0 -2px;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+  .ex-divider::before,.ex-divider::after{content:"";flex:1;height:1px;background:var(--rule)}
+  .msg-user{background:linear-gradient(135deg,#1F6FD1,#6D4AFF);box-shadow:0 4px 14px rgba(70,90,230,.25);border-radius:16px 16px 4px 16px}
+  .msg-ai{position:relative;margin-left:44px;background:#fff;border:1px solid var(--rule);border-radius:4px 16px 16px 16px;box-shadow:0 2px 10px rgba(20,33,43,.05)}
+  .msg-ai::before{content:"";position:absolute;left:-44px;top:0;width:32px;height:32px;border-radius:10px;
+    background:linear-gradient(135deg,#6D4AFF,#1F6FD1);box-shadow:0 3px 10px rgba(109,74,255,.35)}
+  .msg-ai::after{content:"✦";position:absolute;left:-44px;top:0;width:32px;height:32px;display:grid;place-items:center;color:#fff;font-size:15px}
+  .msg-ai.thinking{margin-left:44px}
+  .tag{border-radius:6px;font-weight:600;font-size:.72rem;padding:2px 8px}
+  .tag.t-gempa{background:#FDE7E4;color:#9B2C1F} .tag.t-titik_panas{background:#FFEBD9;color:#9A4A0B} .tag.t-kualitas_udara{background:#E3F1FB;color:#1D5D8F}
+  .tag.t-harga_pangan{background:#E9F6E6;color:#2D6A27} .tag.t-berita{background:#EEE9FF;color:#5B3FD9} .tag.t-kesehatan_pipeline{background:#E8EDF2;color:#33434F}
+  .tag.example{background:#FFF4D6;color:#7A5410;font-weight:500}
+  .facts{position:relative;border-radius:10px;padding:10px 12px 10px 40px}
+  .facts::before{content:"✓";position:absolute;left:12px;top:10px;width:20px;height:20px;border-radius:50%;background:#2EB85C;color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700}
+  .facts .ttl{color:#1E5E36}
+  .abtn{border-radius:8px}
+  .abtn:hover{border-color:var(--accent);color:var(--accent);background:#F5F9FF}
+  .composer{background:rgba(255,255,255,.85);backdrop-filter:blur(6px)}
+  textarea{border-radius:14px;padding:12px 14px;background:#fff;box-shadow:0 2px 8px rgba(20,33,43,.05)}
+  .send{border-radius:12px;background:linear-gradient(135deg,#1F6FD1,#6D4AFF)}
+  aside{background:#fff}
+  #minimap{margin:12px;height:250px;border-radius:12px;border:1px solid var(--rule);overflow:hidden}
+  aside{grid-template-rows:274px auto}
+  .side h2{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:14px}
+  .srcs{list-style:none;padding:0!important;margin:6px 0 10px!important;display:grid;gap:6px}
+  .srcs li{display:flex;align-items:center;gap:8px;background:#F6F8FB;border:1px solid var(--rule);border-radius:8px;padding:6px 9px;font-size:.84rem}
+  .srcs li i{width:9px;height:9px;border-radius:50%;flex:none}
+  .steps{list-style:none;padding:0!important;margin:6px 0 10px!important;counter-reset:st}
+  .steps li{position:relative;padding:0 0 12px 34px;font-size:.84rem;line-height:1.4;counter-increment:st}
+  .steps li::before{content:counter(st);position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:.72rem;font-weight:700;color:#fff;background:var(--c,#64748B)}
+  .steps li:not(:last-child)::after{content:"";position:absolute;left:10.5px;top:24px;bottom:2px;width:1px;background:var(--rule)}
+  .steps li b{display:block;font-size:.86rem}
+  .steps li.llm{--c:#6D4AFF} .steps li.code{--c:#2EB85C}
+  .guard{background:#FFF8EC;border:1px solid #F3DDB3;border-radius:10px;padding:9px 11px;font-size:.8rem;color:#6B4B0F}
+  @media (max-width:900px){.flow{grid-template-columns:1fr 1fr}.flow div::after{display:none}}
+  @media (max-width:640px){.msg-ai{margin-left:0}.msg-ai::before,.msg-ai::after{display:none}.chips-h{display:none}}
 </style>
 <!-- goatcounter:start -->
 <script>
@@ -122,9 +188,10 @@
 <body>
 <div class="page">
   <header>
-    <div>
-      <h1>Tanya Data</h1>
-      <p class="sub">AI lokal menjawab hanya dari data Indonesia Realtime Monitor</p>
+    <div class="brand"><div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 1.8 1.8.7-1.8.7L5 20l-.7-1.8-1.8-.7 1.8-.7z"/></svg></div>
+      <div><h1>Ask the Data <small>Tanya Data</small></h1>
+      <p class="sub">LLM lokal yang dijaga guardrail, menjawab hanya dari data Indonesia Realtime Monitor</p>
+      <div class="chips-h"><span class="chip-h">qwen2.5:3b</span><span class="chip-h">Ollama · GPU laptop 4 GB</span><span class="chip-h">6 tools, tanpa text-to-SQL</span><span class="chip-h">facts dihitung kode</span></div></div>
     </div>
     <div class="spacer"></div>
     <span class="pill" id="pill" role="status">Memeriksa server AI…</span>
@@ -155,19 +222,23 @@
       <div id="minimap" role="region" aria-label="Peta lokasi pertanyaan"></div>
       <div class="side">
         <p class="loc-label" id="loc-label">Lokasi yang ditanyakan akan ditandai di peta.</p>
-        <h2>Data yang bisa ditanyakan</h2>
-        <ul>
-          <li>Gempa: BMKG &amp; USGS</li>
-          <li>Titik panas: NASA FIRMS (VIIRS)</li>
-          <li>Kualitas udara: Open-Meteo, 38 ibu kota provinsi</li>
-          <li>Harga pangan: PIHPS Nasional, Bank Indonesia</li>
-          <li>Berita: 8 portal nasional, ditandai lokasi oleh AI</li>
-          <li>Status kualitas data platform</li>
+        <h2>6 tools yang bisa dipanggil</h2>
+        <ul class="srcs">
+          <li><i style="background:#E5533D"></i>Gempa · BMKG &amp; USGS</li>
+          <li><i style="background:#F28C28"></i>Titik panas · NASA FIRMS (VIIRS)</li>
+          <li><i style="background:#2F86D1"></i>Kualitas udara · Open-Meteo, 38 ibu kota provinsi</li>
+          <li><i style="background:#3E9B35"></i>Harga pangan · PIHPS Nasional, Bank Indonesia</li>
+          <li><i style="background:#6D4AFF"></i>Berita · 8 portal nasional, geotag oleh AI</li>
+          <li><i style="background:#64748B"></i>Pipeline health · status data quality platform</li>
         </ul>
         <h2>Cara kerja</h2>
-        <p class="note">AI memilih data yang relevan, sistem menjalankan query yang sudah ditentukan, lalu AI merangkum hasilnya.
-          Angka di kotak <strong>Ringkasan data</strong> dihitung langsung oleh sistem, bukan oleh AI. AI bisa keliru merangkai kalimat,
-          jadi periksa ringkasan data untuk angka yang pasti.</p>
+        <ol class="steps">
+          <li class="llm"><b>Router</b>LLM memilih tool dan parameter; router berbasis aturan menjadi jaring pengaman.</li>
+          <li class="code"><b>Guardrail</b>Parameter harus muncul di pertanyaan; koordinat peta selalu dari gazetteer.</li>
+          <li class="code"><b>Query &amp; facts</b>Query parameterized ke ClickHouse; angka dihitung kode menjadi kalimat facts.</li>
+          <li class="llm"><b>Jawaban</b>LLM hanya merangkai kalimat dari facts, tidak menambah angka.</li>
+        </ol>
+        <p class="guard">AI bisa keliru merangkai kalimat. Untuk angka yang pasti, lihat kotak <strong>Facts</strong> di setiap jawaban.</p>
       </div>
     </aside>
   </div>
@@ -232,9 +303,10 @@ let focusMarker = null;
 function showFocus(f){
   if(!f) return;
   if(focusMarker) mini.removeLayer(focusMarker);
-  focusMarker = L.circleMarker([f.lat, f.lng], {radius: 9, color: '#2E5E8C', weight: 3, fillColor: '#2E5E8C', fillOpacity: .25})
+  focusMarker = L.circleMarker([f.lat, f.lng], {radius: 9, color: '#6D4AFF', weight: 3, fillColor: '#6D4AFF', fillOpacity: .25})
     .addTo(mini).bindTooltip(f.nama, {permanent: true, direction: 'top', offset: [0, -8]});
-  mini.flyTo([f.lat, f.lng], Math.min(f.zoom, 8), {duration: .8});
+  if($('minimap').offsetWidth) mini.flyTo([f.lat, f.lng], Math.min(f.zoom, 8), {duration: .8});   // peta disembunyikan di layar kecil
+  else mini.setView([f.lat, f.lng], Math.min(f.zoom, 8), {animate: false});
   $('loc-label').textContent = `Lokasi: ${f.nama}`;
 }
 
@@ -274,10 +346,10 @@ function renderWelcome(){
 }
 
 function renderAI(res){
-  const tools = res.tools.map(t => `<span class="tag">${esc(TOOL_LABEL[t.nama] || t.nama)}</span>`).join('');
+  const tools = res.tools.map(t => `<span class="tag t-${esc(t.nama)}">${esc(TOOL_LABEL[t.nama] || t.nama)}</span>`).join('');
   const follow = (res.router && res.router.lanjutan ? '<span class="tag follow">lanjutan</span>' : '')
     + (res.example ? '<span class="tag example">contoh dari versi lokal, 28 Sep 2026</span>' : '');
-  const facts = (res.facts || []).length ? `<div class="facts"><div class="ttl">Ringkasan data <span>(dihitung sistem, bukan AI)</span></div>
+  const facts = (res.facts || []).length ? `<div class="facts"><div class="ttl">Facts <span>dihitung kode, bukan AI</span></div>
       <ul>${res.facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div>` : '';
   const sources = (res.sources || []).length ? `<div class="sources"><strong>Sumber berita</strong>${res.sources.map(s =>
       `<a href="${esc(s.link)}" target="_blank" rel="noopener noreferrer">${esc(s.judul)}</a>`).join('')}</div>` : '';
@@ -298,7 +370,14 @@ function render(){
     t.innerHTML = `<div class="offline" role="note"><h2>Tanya Data sedang offline</h2>
         <p>Fitur ini memakai model AI lokal (Ollama, qwen2.5:3b) yang berjalan di GPU laptop pengembang, bersama ClickHouse dan
           Kafka. Versi publik ini gratis dan statis, sehingga tidak ada server AI yang bisa dihubungi.</p>
-        <p>Di bawah ini adalah <strong>contoh percakapan nyata</strong> dari versi lokal: pertanyaan, jawaban AI, dan fakta yang
+        <div class="flow" aria-label="Alur jawaban">
+          <div><b>1 · Pertanyaan</b>bahasa sehari-hari</div>
+          <div class="llm"><b>2 · LLM</b>memilih 1 dari 6 tools + parameter</div>
+          <div class="code"><b>3 · Guardrail</b>parameter wajib ada di pertanyaan</div>
+          <div class="code"><b>4 · Query</b>parameterized, angka dihitung kode</div>
+          <div class="llm"><b>5 · LLM</b>merangkai kalimat dari facts</div></div>
+        <div class="flow-leg"><span><i style="background:#D9CFFF"></i>model AI</span><span><i style="background:#C6E6D2"></i>kode deterministik</span></div>
+        <p style="margin-top:10px">Di bawah ini adalah <strong>contoh percakapan nyata</strong> dari versi lokal: pertanyaan, jawaban AI, dan fakta yang
           dihitung sistem, persis seperti yang dihasilkan saat pengujian.</p>
         <p>Cara menjalankan versi lengkap ada di <a href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor#quickstart-full-platform"
           target="_blank" rel="noopener noreferrer">README repository</a>.</p></div>
