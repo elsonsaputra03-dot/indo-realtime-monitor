@@ -113,7 +113,19 @@ function init(){
     h1.prepend(s);
   }
   const tg = document.getElementById('rail-toggle');
-  tg?.addEventListener('click', () => { const o = document.body.classList.toggle('rail-open'); tg.setAttribute('aria-expanded', o); });
+  // layar lebar: sidebar berlabel (atau ikon saja jika dipilih); < 1200px: ikon saja; HP: menu geser
+  const KEY = 'gov-rail'; let saved = (() => { try { return localStorage.getItem(KEY); } catch(e){ return null; } })();
+  const mode = () => saved || (innerWidth >= 1200 ? 'wide' : 'narrow');
+  let rm = mode();
+  const apply = () => { document.body.classList.toggle('rail-wide', rm === 'wide'); document.body.classList.toggle('rail-narrow', rm === 'narrow'); };
+  apply();
+  addEventListener('resize', () => { if(!saved){ rm = mode(); apply(); } });
+  tg?.addEventListener('click', () => {
+    if(innerWidth <= 820){ const o = document.body.classList.toggle('rail-open'); tg.setAttribute('aria-expanded', o); return; }
+    rm = rm === 'wide' ? 'narrow' : 'wide'; apply(); tg.setAttribute('aria-expanded', rm === 'wide');
+    saved = rm; try { localStorage.setItem(KEY, rm); } catch(e){}
+    setTimeout(() => dispatchEvent(new Event('resize')), 50);   // grafik menyesuaikan lebar baru
+  });
   document.addEventListener('click', e => {
     if(document.body.classList.contains('rail-open') && !e.target.closest('.rail') && !e.target.closest('#rail-toggle')){
       document.body.classList.remove('rail-open'); tg?.setAttribute('aria-expanded', 'false'); }
