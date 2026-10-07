@@ -123,15 +123,18 @@ def src_food_prices(_c: httpx.Client, out: str) -> dict:
         if age_h < 12 and cached.get("items"):
             return {"file": None, "count": len(cached["items"]), "note": f"cache {age_h:.0f} jam"}
     today = datetime.now(WIB).date()
-    items, failed = [], []
+    items, failed, raw, sample = [], [], 0, None
     for cid in COMMODITIES:
         res = fetch_commodity(cid, [today, today - timedelta(days=1)])
+        raw += res.get("rows_raw", 0)
+        sample = sample or res.get("sample")
         if res["status"] != "ok":
             failed.append(str(cid))
         latest = max((i["price_date"] for i in res["items"]), default=None)
         items += [i for i in res["items"] if i["price_date"] == latest]
     if not items:
-        raise RuntimeError("PIHPS tidak mengembalikan data" + (f" (gagal: {', '.join(failed)})" if failed else ""))
+        raise RuntimeError("PIHPS tidak mengembalikan data" + (f" (gagal: {', '.join(failed)})" if failed else "")
+                           + (f"; {raw} baris diterima tetapi tidak terbaca, contoh {sample}" if raw else "; respons kosong"))
     return {"file": ("food_prices.json", {"generated_at": now_iso(), "items": items}), "count": len(items),
             "note": f"komoditas gagal: {', '.join(failed)}" if failed else ""}
 

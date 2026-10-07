@@ -22,11 +22,23 @@ COMMODITIES = {
 PRICE_TYPE_TRADITIONAL = 1   # sesuai request halaman beranda PIHPS
 
 
+# Bulan bisa berbahasa Indonesia ("01 Okt 26", "15 Mei 26", "17 Agu 26", "25 Des 26") atau Inggris.
+# Sebelumnya hanya format Inggris (%b) yang dibaca, sehingga sejak 1 Oktober semua baris terbuang ("Okt" bukan "Oct").
+MONTHS = {m: i + 1 for i, names in enumerate([
+    ("jan", "januari", "january"), ("feb", "februari", "february"), ("mar", "maret", "march"), ("apr", "april"),
+    ("mei", "may"), ("jun", "juni", "june"), ("jul", "juli", "july"), ("agu", "agt", "ags", "aug", "agustus", "august"),
+    ("sep", "sept", "september"), ("okt", "oct", "oktober", "october"), ("nov", "nop", "november"),
+    ("des", "dec", "desember", "december")]) for m in names}
+ID_MONTH = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+
+
 def parse_short_date(s: str) -> date | None:
-    """'28 Sep 26' -> date(2026, 9, 28)."""
+    """'28 Sep 26' / '01 Okt 26' / '1 Oktober 2026' -> date."""
     try:
-        return datetime.strptime(s.strip(), "%d %b %y").date()
-    except (ValueError, AttributeError):
+        d, m, y = str(s).strip().replace("-", " ").split()[:3]
+        year = int(y) + (2000 if len(y) == 2 else 0)
+        return date(year, MONTHS[m.lower().rstrip(".")], int(d))
+    except (ValueError, KeyError, AttributeError):
         return None
 
 
@@ -59,19 +71,32 @@ def fetch_commodity(commodity_id: int, dates: list[date]) -> dict:
                           timeout=httpx.Timeout(20, read=90),
                           transport=httpx.HTTPTransport(retries=2)) as client:
             for d in dates:
-                r = client.get(BASE, params={
-                    "tanggal": d.strftime("%d %b %Y"), "commodity": commodity_id,
-                    "priceType": PRICE_TYPE_TRADITIONAL, "isPasokan": 1, "jenis": 1,
-                    "periode": 1, "provId": 0,
-                })
-                r.raise_for_status()
-                rows = r.json()
-                if isinstance(rows, str):   # server kadang mengirim JSON ter-encode dua kali
-                    rows = json.loads(rows)
-                if not isinstance(rows, list):
-                    raise ValueError(f"format respons tidak dikenal: {str(rows)[:120]}")
-                out["items"] += [x for x in (normalize(row, commodity_id) for row in rows) if x]
-                time.sleep(REQUEST_GAP_SECONDS)
+                # tanggal dikirim berbahasa Inggris seperti sebelumnya; bila tidak ada baris yang terbaca, coba sekali
+                # lagi dengan nama bulan Indonesia (format yang dipakai server berbeda per bulan untuk Okt/Mei/Agu/Des)
+                labels = [d.strftime("%d %b %Y")]
+                alt = f"{d.day:02d} {ID_MONTH[d.month - 1]} {d.year}"
+                if alt != labels[0]:
+                    labels.append(alt)
+                for label in labels:
+                    r = client.get(BASE, params={
+                        "tanggal": label, "commodity": commodity_id,
+                        "priceType": PRICE_TYPE_TRADITIONAL, "isPasokan": 1, "jenis": 1,
+                        "periode": 1, "provId": 0,
+                    })
+                    r.raise_for_status()
+                    rows = r.json()
+                    if isinstance(rows, str):   # server kadang mengirim JSON ter-encode dua kali
+                        rows = json.loads(rows)
+                    if not isinstance(rows, list):
+                        raise ValueError(f"format respons tidak dikenal: {str(rows)[:120]}")
+                    got = [x for x in (normalize(row, commodity_id) for row in rows) if x]
+                    out["rows_raw"] = out.get("rows_raw", 0) + len(rows)
+                    if rows and not got and not out.get("sample"):
+                        out["sample"] = {k: rows[0].get(k) for k in ("Tanggal", "Nilai", "ProvID")}
+                    time.sleep(REQUEST_GAP_SECONDS)
+                    if got:
+                        out["items"] += got
+                        break
     except Exception as exc:  # noqa: BLE001
         out.update(status="error", error=f"{type(exc).__name__}: {exc}"[:300])
     out["ms"] = int((time.monotonic() - t0) * 1000)
