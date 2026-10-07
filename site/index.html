@@ -43,10 +43,12 @@
   .btn.primary{background:var(--signal);color:var(--night)}
   .btn.ghost{border:1px solid #4A5B66;color:#fff}
   .btn.ghost:hover{border-color:#fff}
-  .photo{align-self:end;position:relative}
+  .photo{align-self:end;position:relative;width:100%;max-width:340px;margin-left:auto}
   .hero .wrap > div:first-child{align-self:center;padding-bottom:40px}
-  .photo img{display:block;width:100%;max-width:360px;margin-left:auto;height:auto;border-radius:10px 10px 0 0;
-             filter:saturate(.95)}
+  /* foto dibatasi tinggi layar (nav 58 + jarak atas 64 + strip angka ~110) agar hero dan strip angka muat tanpa scroll;
+     dipotong dari bawah (wajah tetap di atas) */
+  .photo img{display:block;width:100%;max-width:340px;margin-left:auto;height:min(600px,calc(100svh - 240px));min-height:360px;
+             object-fit:cover;object-position:50% 12%;border-radius:10px 10px 0 0;filter:saturate(.95)}
   .photo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--signal)}
 
   /* KPI strip: telco dashboard motif */
@@ -128,7 +130,10 @@
 
   @media (max-width:900px){
     .hero .wrap{grid-template-columns:1fr;padding-top:44px}
-    .photo img{max-width:260px;margin:0 auto}
+    .hero .wrap{gap:0}
+    .hero .wrap > div:first-child{padding-bottom:8px}
+    .photo{max-width:260px;margin:0 auto}
+    .photo img{max-width:260px;margin:0 auto;height:340px;min-height:0}
     .about,.skills{grid-template-columns:1fr}
     .flow{grid-template-columns:1fr 1fr}
     .stage{border-left:0;border-top:1px solid var(--rule)}
