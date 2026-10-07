@@ -75,6 +75,9 @@ def snapdir(tmp_path, monkeypatch):
                      kab("31.71", "Kota Adm. Jakarta Pusat", "DKI Jakarta", "31", 120, {"Telkomsel": 70, "Indosat": 40, "XL Axiata": 10},
                          {"4G": 114, "2G": 6}, 1000000)]}
     (tmp_path / "cells_id.json").write_text(json.dumps(cells), encoding="utf-8")
+    (tmp_path / "osm_towers_id.json").write_text(json.dumps({"data_timestamp": "2026-10-06T20:21:06Z", "total": 9,
+        "by_op": {"Telkomsel": 4, "Tidak disebut": 5}, "kab": [{"k": "62.71", "total": 3, "op": {"Telkomsel": 2, "Tidak disebut": 1}},
+                                                              {"k": "31.71", "total": 6, "op": {"Telkomsel": 2, "Tidak disebut": 4}}]}), encoding="utf-8")
     monkeypatch.setattr(A, "SNAPSHOT_DIR", str(tmp_path))
     A._SNAP_CACHE.clear()
     return tmp_path
@@ -212,3 +215,10 @@ def test_trafik_provinsi_tanpa_angka_nasional(snapdir):
                                    ("Bagaimana trafik internet di Jawa Timur?", False), ("Kalau harga beras di provinsi yang paling murah di Indonesia mana?", False)])
 def test_is_followup(q, yes):
     assert A.is_followup(q) is yes
+
+
+def test_sel_dengan_menara_osm(snapdir):
+    r = run("sebaran_sel", "jumlah bts telkomsel di kalimantan tengah", "Kalimantan Tengah")
+    assert "OpenStreetMap mencatat 2 menara telekomunikasi milik/operator Telkomsel di Provinsi Kalimantan Tengah" in r["fakta"][-1]
+    r = run("sebaran_sel", "berapa bts di indonesia")
+    assert "OpenStreetMap mencatat 9 menara telekomunikasi di Indonesia (data 2026-10-06)." == r["fakta"][-1]

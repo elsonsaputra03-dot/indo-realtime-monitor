@@ -360,18 +360,90 @@ function cellsView(c, g, el){
   drawMap(); drawTable();
 }
 
+// ---------------------------------------------------------------- menara telekomunikasi OpenStreetMap vs sel OpenCelliD
+let towers = null, towersLoading = null, tmap = null, tOwn = '', tStat = '', tProv = '', tQ = '', tSort = ['osm', -1];
+function loadTowers(){ return towers ? Promise.resolve(towers) : (towersLoading ||= fetch('data/osm_towers_id.json?v=' + (Date.now() / 36e5 | 0))
+  .then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(t => (towers = t))); }
+const OWNC = {'Telkomsel': '#D62839', 'Indosat': '#E0A100', 'XL Axiata': '#1F6FD1', 'Tri (IOH)': '#7B3FC4', 'Smartfren': '#C2185B',
+  'Telkom Indonesia': '#E36414', 'Mitratel': '#2B8A3E', 'Protelindo': '#0B7285', 'Tower Bersama': '#5C940D', 'STP': '#862E9C',
+  'Lainnya': '#868E96', 'Tidak disebut': '#ADB5BD'};
+const STAT = {both: ['Ada di keduanya', '#2F9E44'], osm: ['Hanya OSM', '#1C7ED6'], cells: ['Hanya OpenCelliD', '#F08C00'], none: ['Kosong di keduanya', '#E03131']};
+function towersView(t, c, el){
+  const K = c.kab.map(k => { const o = (t.kab.find(x => x.k === k.k) || {total: 0, op: {}});
+    return {...k, osm: o.total, oop: o.op, cells: k.total, st: o.total && k.total ? 'both' : o.total ? 'osm' : k.total ? 'cells' : 'none'}; });
+  const cnt = s => K.filter(k => k.st === s).length, provs = [...new Set(K.map(k => k.prov))].filter(Boolean).sort();
+  const known = t.total - (t.by_op['Tidak disebut'] || 0), owners = Object.entries(t.by_op);
+  el.innerHTML = `<div class="pub-hero"><div class="ph-l"><span class="ph-live"><i></i>DATA NYATA · DIPERBARUI MINGGUAN</span>
+      <div class="ph-t">Telecom towers (OSM)</div><div class="ph-s">Menara telekomunikasi yang dipetakan relawan OpenStreetMap, dibandingkan dengan sel OpenCelliD per kabupaten/kota</div></div>
+    <div class="ph-r"><div class="ph-k"><b>${fmt(t.total)}</b><span>menara tercatat</span></div>
+      <div class="ph-k"><b>${fmt(K.filter(k => k.osm).length)}/${K.length}</b><span>kab/kota punya menara di OSM</span></div>
+      <div class="ph-k"><b>${fmt(t.total ? known / t.total * 100 : 0)}%</b><span>menara dengan pemilik/operator</span></div>
+      <div class="ph-k"><b>${fmt(cnt('none'))}</b><span>kab/kota kosong di OSM &amp; OpenCelliD</span></div></div></div>
+  <div class="pub-src">Sumber <a href="${esc(t.attribution.url)}" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a> ·
+    <a href="${esc(t.attribution.license_url)}" target="_blank" rel="noopener noreferrer">${esc(t.attribution.license)}</a> · ekstrak ${esc(t.attribution.extract)}
+    ${t.data_timestamp ? '(data ' + tglD(t.data_timestamp) + ')' : ''} · sel: OpenCelliD (CC BY-SA 4.0) · diolah ${tgl(t.generated_at)}</div>
+  <div class="ointro">Dihitung: <code>man_made=communications_tower</code>, serta <code>man_made=tower/mast</code> yang ditandai telekomunikasi
+    (<code>tower:type=communication</code>, <code>communication:*</code>, atau nama operator/penyedia menara). Kelengkapan OSM <b>tidak merata</b>: angka ini
+    jumlah menara yang sudah dipetakan relawan, bukan jumlah BTS resmi. Membandingkan dua sumber crowdsourced menunjukkan di mana data publik masih kosong.</div>
+  <section class="card" style="margin-bottom:14px"><h3>Peta menara <span>warna = pemilik atau operator yang tertulis di OSM</span></h3>
+    <div class="pub-chips" role="group" aria-label="Pemilik" style="margin-bottom:8px">${['', ...owners.map(([o]) => o)].map(o =>
+      `<button type="button" class="pub-chip" data-own="${esc(o)}" aria-pressed="${o === tOwn}">${o ? `<i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${OWNC[o] || '#868E96'};margin-right:5px"></i>${esc(o)} ${fmt(t.by_op[o])}` : 'Semua'}</button>`).join('')}</div>
+    <div id="t-map" style="height:430px;border-radius:8px;border:1px solid var(--rule)"></div></section>
+  <section class="card"><h3>OSM vs OpenCelliD per kabupaten/kota <span id="t-cnt"></span></h3>
+    <div class="pub-chips" role="group" aria-label="Status" style="margin-bottom:8px">${[['', 'Semua'], ...Object.entries(STAT).map(([k, [l]]) => [k, l])].map(([k, l]) =>
+      `<button type="button" class="pub-chip" data-st="${k}" aria-pressed="${k === tStat}">${k ? `<i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${STAT[k][1]};margin-right:5px"></i>` : ''}${l}${k ? ' ' + fmt(cnt(k)) : ''}</button>`).join('')}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px"><select id="t-prov" class="btn"><option value="">Semua provinsi</option>${provs.map(p => `<option${p === tProv ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>
+      <input id="t-q" class="btn" type="search" placeholder="cari kab/kota" value="${esc(tQ)}" style="min-width:200px"></div>
+    <div class="tw" style="max-height:520px;overflow-y:auto"><table id="t-tab"></table></div>
+    <p class="onote">"Kosong di keduanya" bukan berarti tidak ada sinyal, tetapi belum ada relawan yang memetakan menara (OSM) maupun merekam sel (OpenCelliD) di wilayah itu.</p></section>`;
+  const drawMap = () => {
+    if(tmap){ tmap.remove(); tmap = null; }
+    if(!window.L) return;
+    tmap = L.map('t-map', {preferCanvas: true, scrollWheelZoom: false}).setView([-2.5, 118], 4.6);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 16, attribution: '&copy; OpenStreetMap contributors (ODbL)'}).addTo(tmap);
+    const oi = tOwn ? t.ops.indexOf(tOwn) : -1;
+    t.points.forEach(([la, lo, i]) => { if(oi >= 0 && i !== oi) return; const o = t.ops[i];
+      L.circleMarker([la, lo], {radius: 3, stroke: false, fillColor: OWNC[o] || '#868E96', fillOpacity: .8}).bindTooltip(esc(o)).addTo(tmap); });
+  };
+  const COLS = [['nama', 'Kab/kota'], ['prov', 'Provinsi'], ['osm', 'Menara OSM', 1], ['cells', 'Sel OpenCelliD', 1], ['pop', 'Menara per 100 rb penduduk', 1], ['st', 'Status']];
+  const v = (k, key) => key === 'pop' ? (k.pend ? k.osm / k.pend * 1e5 : -1) : k[key];
+  const drawTable = () => {
+    const ql = tQ.toLowerCase(), list = K.filter(k => (!tStat || k.st === tStat) && (!tProv || k.prov === tProv) && (!ql || k.nama.toLowerCase().includes(ql)));
+    const [sk, sd] = tSort; list.sort((a, b) => { const x = v(a, sk), y = v(b, sk); return (x > y ? 1 : x < y ? -1 : 0) * sd; });
+    document.getElementById('t-cnt').textContent = `${list.length} wilayah`;
+    const tb = document.getElementById('t-tab');
+    tb.innerHTML = `<thead><tr>${COLS.map(([k, l, n]) => `<th class="${n ? 'r' : ''}" data-k="${k}" style="cursor:pointer"${k === sk ? ` aria-sort="${sd < 0 ? 'descending' : 'ascending'}"` : ''}>${esc(l)}</th>`).join('')}</tr></thead><tbody>
+      ${list.map(k => `<tr><td><b>${esc(k.nama)}</b></td><td class="muted">${esc(k.prov)}</td><td class="r">${fmt(k.osm)}</td><td class="r">${fmt(k.cells)}</td>
+        <td class="r">${k.pend ? fmt(k.osm / k.pend * 1e5, 1) : '–'}</td>
+        <td><span class="opill" style="background:${STAT[k.st][1]}1A;color:${STAT[k.st][1]}">${STAT[k.st][0]}</span></td></tr>`).join('')}</tbody>`;
+    tb.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const k = th.dataset.k; tSort = [k, tSort[0] === k ? -tSort[1] : (k === 'nama' || k === 'prov' || k === 'st' ? 1 : -1)]; drawTable(); });
+  };
+  el.querySelectorAll('.pub-chip[data-own]').forEach(b => b.onclick = () => { tOwn = b.dataset.own;
+    el.querySelectorAll('.pub-chip[data-own]').forEach(x => x.setAttribute('aria-pressed', x.dataset.own === tOwn)); drawMap(); });
+  el.querySelectorAll('.pub-chip[data-st]').forEach(b => b.onclick = () => { tStat = b.dataset.st;
+    el.querySelectorAll('.pub-chip[data-st]').forEach(x => x.setAttribute('aria-pressed', x.dataset.st === tStat)); drawTable(); });
+  document.getElementById('t-prov').onchange = e => { tProv = e.target.value; drawTable(); };
+  let qt; document.getElementById('t-q').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { tQ = e.target.value; drawTable(); }, 200); };
+  drawMap(); drawTable();
+}
+VIEWS['pub-towers'] = (_, el) => {
+  Promise.all([loadTowers(), loadCells()]).then(([t, {c}]) => { if(window.PUB_VIEWS.current === 'pub-towers') towersView(t, c, el); }).catch(e => {
+    el.innerHTML = `<div class="ointro"><strong>Data menara OSM belum tersedia</strong> (${esc(e.message)}). Data dibuat oleh workflow mingguan <code>osm.yml</code>.</div>`; });
+};
+
 window.PUB_VIEWS = {
   has: v => v in VIEWS,
   render(v, el){
-    charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; } if(cmap){ cmap.remove(); cmap = null; }
+    charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; } if(cmap){ cmap.remove(); cmap = null; } if(tmap){ tmap.remove(); tmap = null; }
     document.querySelectorAll('.synthetic, main > footer').forEach(n => n.hidden = true);
     el.innerHTML = '<div class="empty">Memuat data Cloudflare Radar…</div>';
     if(v === 'pub-cells'){ VIEWS[v](null, el); const sn = document.getElementById('snap'); if(sn) sn.textContent = 'Data nyata · OpenCelliD (CC BY-SA 4.0) · diperbarui mingguan'; return; }
+    if(v === 'pub-towers'){ VIEWS[v](null, el); const sn = document.getElementById('snap'); if(sn) sn.textContent = 'Data nyata · OpenStreetMap (ODbL) + OpenCelliD · diperbarui mingguan'; return; }
     load().then(d => { if(window.PUB_VIEWS.current !== v) return; const sn = document.getElementById('snap'); if(sn) sn.textContent = window.PUB_VIEWS.snapText(); VIEWS[v](d, el); }).catch(e => {
       el.innerHTML = `<div class="ointro"><strong>Data publik belum tersedia</strong> (${esc(e.message)}). Snapshot dibuat oleh GitHub Actions setelah secret
         <code>CF_RADAR_TOKEN</code> diisi; coba lagi beberapa saat lagi.</div>`; });
   },
-  leave(){ charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; } if(cmap){ cmap.remove(); cmap = null; } document.querySelectorAll('.synthetic, main > footer').forEach(n => n.hidden = false); },
+  leave(){ charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; } if(cmap){ cmap.remove(); cmap = null; } if(tmap){ tmap.remove(); tmap = null; } document.querySelectorAll('.synthetic, main > footer').forEach(n => n.hidden = false); },
   snapText: () => data ? `Data nyata · Cloudflare Radar (CC BY-NC 4.0) · snapshot ${tgl(data.generated_at)}` : 'Data nyata · Cloudflare Radar (CC BY-NC 4.0)'
 };
 })();

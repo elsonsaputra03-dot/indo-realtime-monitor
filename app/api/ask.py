@@ -824,6 +824,25 @@ def tool_internet_operator(ch, a: dict) -> dict:
                        "absolut) dan speed test sukarela pengguna; bukan KPI jaringan internal operator.", "_focus": place}
 
 
+# ---- menara telekomunikasi OpenStreetMap (pelengkap sebaran_sel)
+def _osm_towers_fact(place: dict | None, op: str | None, kab: list) -> list[str]:
+    try:
+        t = _snap("osm_towers_id.json", ttl_s=6 * 3600)
+    except Exception:  # noqa: BLE001 - data OSM opsional
+        return []
+    by = {k["k"]: k for k in t.get("kab") or []}
+    pick = lambda k: (k.get("op") or {}).get(op, 0) if op else k.get("total", 0)  # noqa: E731
+    who = f" milik/operator {op}" if op else ""
+    if place and place["level"] == 2:
+        n, where = pick(by.get(place["kode"], {})), place["nama"]
+    elif place:
+        n, where = sum(pick(k) for kd, k in by.items() if kd.split(".")[0] == place["prov_kode"]), f"Provinsi {place['prov_nama']}"
+    else:
+        n, where = (t.get("by_op") or {}).get(op, 0) if op else t.get("total", 0), "Indonesia"
+    tail = " (sebagian besar menara di OSM tidak mencantumkan pemiliknya)" if op else ""
+    return [f"OpenStreetMap mencatat {_n(n)} menara telekomunikasi{who} di {where} (data {str(t.get('data_timestamp', ''))[:10]}){tail}."]
+
+
 # ---- sebaran_sel (OpenCelliD)
 def tool_sebaran_sel(ch, a: dict) -> dict:
     c = _snap("cells_id.json", ttl_s=6 * 3600)
@@ -892,7 +911,8 @@ def tool_sebaran_sel(ch, a: dict) -> dict:
         top = sorted(kab, key=lambda k: -val(k))[:5]
         fakta.append("Kab/kota dengan sel terbanyak: " + ", ".join(f"{k['nama']} ({_n(val(k))})" for k in top) + ".")
         fakta.append(f"{sum(1 for k in kab if not val(k))} dari {len(kab)} kab/kota belum punya data sel{who}.")
-    return {"alat": "sebaran_sel", "fakta": [f for f in fakta if f], "sumber": "OpenCelliD (CC BY-SA 4.0)",
+    fakta += _osm_towers_fact(place, op, kab)
+    return {"alat": "sebaran_sel", "fakta": [f for f in fakta if f], "sumber": "OpenCelliD (CC BY-SA 4.0), OpenStreetMap (ODbL)",
             "catatan": "OpenCelliD adalah data crowdsourced (dikumpulkan aplikasi/relawan), bukan jumlah BTS resmi operator; "
                        "banyak daerah tercatat jauh lebih sedikit dari kenyataan.", "_focus": place}
 

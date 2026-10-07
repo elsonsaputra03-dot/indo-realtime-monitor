@@ -227,6 +227,7 @@
     <a data-view="pub-traffic">Traffic per operator</a>
     <a data-view="pub-region">Traffic per province</a>
     <a data-view="pub-cells">Cell distribution (OpenCelliD)</a>
+    <a data-view="pub-towers">Telecom towers (OSM)</a>
     <a data-view="pub-quality">Quality &amp; BGP routing</a>
     <div class="back"><a href="index.html">Back to portfolio</a></div>
   </nav>
@@ -621,7 +622,7 @@ function viewTwamp(){
 
 
 // ------------------------------------------------------------------ navigasi
-const TITLES = {'pub-cells': 'Public Internet: cell distribution per kabupaten/kota', 'pub-region': 'Public Internet: traffic per province', 'pub-outage': 'Public Internet: outage & anomaly', 'pub-traffic': 'Public Internet: traffic per operator', 'pub-quality': 'Public Internet: quality & BGP routing', 'oss-alarm': 'Assurance: alarm & incident', 'oss-inc': 'Assurance: incident by customer impact', 'oss-sleep': 'Assurance: sleeping cell', 'oss-sla': 'Assurance: customer SLA', 'oss-prov': 'Assurance: provisioning (simulasi)', summary: 'Summary', map: 'Site map', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
+const TITLES = {'pub-cells': 'Public Internet: cell distribution per kabupaten/kota', 'pub-towers': 'Public Internet: telecom towers (OpenStreetMap)', 'pub-region': 'Public Internet: traffic per province', 'pub-outage': 'Public Internet: outage & anomaly', 'pub-traffic': 'Public Internet: traffic per operator', 'pub-quality': 'Public Internet: quality & BGP routing', 'oss-alarm': 'Assurance: alarm & incident', 'oss-inc': 'Assurance: incident by customer impact', 'oss-sleep': 'Assurance: sleeping cell', 'oss-sla': 'Assurance: customer SLA', 'oss-prov': 'Assurance: provisioning (simulasi)', summary: 'Summary', map: 'Site map', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
 const closeModal = () => { $('modal').hidden = true; };
 $('modal').onclick = e => { if(e.target === $('modal')) closeModal(); };
 addEventListener('keydown', e => { if(e.key === 'Escape' && !$('modal').hidden) closeModal(); });

@@ -3,7 +3,7 @@
 'use strict';
 const ICON = {summary: 'speedometer', map: 'location-pin', wpc: 'warning', '2G': 'chart-line', '4G': 'chart-line', '5G': 'chart-line',
   'oss-alarm': 'bell', 'oss-inc': 'people', 'oss-sleep': 'clock', 'oss-sla': 'check-circle', 'oss-prov': 'list-rich',
-  'pub-outage': 'warning', 'pub-traffic': 'chart', 'pub-region': 'globe-alt', 'pub-cells': 'lan', 'pub-quality': 'share-all'};
+  'pub-outage': 'warning', 'pub-traffic': 'chart', 'pub-region': 'globe-alt', 'pub-cells': 'lan', 'pub-towers': 'location-pin', 'pub-quality': 'share-all'};
 const GROUP = {Laporan: 'g-lap', Report: 'g-lap', Teknologi: 'g-tek', Technology: 'g-tek', Assurance: 'g-ass'};
 function svg(n){ const d = (window.CUI_ICONS || {})[n]; return d ? `<svg class="ni" viewBox="${d[0]}" aria-hidden="true" fill="currentColor">${d[1]}</svg>` : ''; }
 
