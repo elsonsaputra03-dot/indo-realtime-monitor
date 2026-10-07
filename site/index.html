@@ -335,15 +335,14 @@
 
       <article class="project" id="governance" style="margin-top:22px">
         <div class="project-top">
-          <span class="status">Synthetic warehouse + a live report from a real BigQuery project · toolkit open source, 34 tests in CI</span>
+          <span class="status">Synthetic warehouse + a live report from a real BigQuery project · toolkit open source, 38 tests in CI</span>
           <h3>Data Governance Dashboard &amp; BigQuery FinOps Toolkit</h3>
-          <p class="summary">One governance dashboard with two sources. Six modules run on a synthetic warehouse (3,494 objects across 18
-            projects, 1.85 PB) and answer the questions a data platform lead asks every month: where storage and compute money goes, which
-            tables nobody reads, which loads are broken, what breaks downstream if a table changes, and what the data means. The
-            <b>live report</b> applies the same questions to a real BigQuery project through my open-source Python toolkit, which reads
+          <p class="summary">One governance dashboard with two sources. Seven modules run on a synthetic warehouse (3,494 objects across 18
+            projects, 1.85 PB) and answer the questions a data platform lead asks every month: where storage and compute money goes, which tables nobody reads, who runs the expensive queries, which loads are broken, what breaks downstream if a table changes, and what the data means, plus an app-store catalogue dashboard. The
+            <b>live report</b> applies the same questions to a real BigQuery project, on two small sample warehouses (public e-commerce data and a telco warehouse generated in SQL), through my open-source Python toolkit, which reads
             INFORMATION_SCHEMA and the Tables API: cost by user, pipeline and query pattern, partition, cluster, SELECT * and unused-table
             recommendations with evidence, lineage, a data dictionary, data quality checks and LLM-drafted descriptions applied only after
-            review. A re-implementation of a governance suite I built at work, with no employer code, design or data.</p>
+            review. A re-implementation of a governance suite I built at work, with no employer code or data; the interface uses the open-source CoreUI admin style.</p>
         </div>
 
         <div class="modules" role="list">
@@ -359,6 +358,10 @@
             <div class="md">Upstream and downstream graph with impact analysis: what breaks if this table changes.</div></a>
           <a class="mod" role="listitem" href="dictionary.html"><div class="mn">Data dictionary</div><div class="mv">29,428 columns · 87% described</div>
             <div class="md">Search across tables, columns and descriptions; documentation coverage and PII flags.</div></a>
+          <a class="mod" role="listitem" href="users.html"><div class="mn">User analytics</div><div class="mv">38 users · $12,154 in 30 days</div>
+            <div class="md">On-demand cost, failures and cache hits per user and service account; the most expensive queries.</div></a>
+          <a class="mod" role="listitem" href="crawler.html"><div class="mn">App crawler</div><div class="mv">3,051 apps · 12 countries</div>
+            <div class="md">App-store catalogue: genres, ratings, top charts per category, crawl history.</div></a>
           <a class="mod" role="listitem" href="bq-live.html"><div class="mn">Live report · real BigQuery</div><div class="mv">bq-governance-toolkit</div>
             <div class="md">The same questions on a real project, refreshed from the toolkit's latest snapshot on GitHub.</div></a>
         </div>

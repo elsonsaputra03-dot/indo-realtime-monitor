@@ -5,12 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data Governance — Data lineage (synthetic data)</title>
 <meta name="description" content="Table-level data lineage with impact analysis, rebuilt for a portfolio with synthetic data.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/gov.css">
 <style>
-  :root{--l0:#8F3F97; --l1:#2E5E8C; --l2:#3E8E5E; --l3:#D9722E}
+  :root{--l0:#5856D6; --l1:#3399FF; --l2:#2EB85C; --l3:#F9802B}
   .lin{display:grid;grid-template-columns:320px minmax(0,1fr);gap:14px;align-items:start}
   .side{position:sticky;top:12px}
   .side input,.side select{width:100%;border:1px solid var(--rule);border-radius:6px;padding:7px 9px;background:#fff;margin-bottom:8px}
@@ -18,11 +15,11 @@
   .item{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 6px;border-bottom:1px solid #EDF1F3;cursor:pointer;border-left:3px solid transparent}
   .item:hover{background:#FAFBFC}
   .item[aria-current="true"]{background:#EEF4FA;border-left-color:var(--active)}
-  .item .n{font-family:"Barlow Condensed",sans-serif;font-size:.95rem;overflow-wrap:anywhere}
+  .item .n{font-family:inherit;font-size:.95rem;overflow-wrap:anywhere}
   .item .m{font-size:.78rem;color:var(--muted)}
   .more{width:100%;margin-top:8px}
   .graph-head{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;margin-bottom:6px}
-  .graph-head h3{margin:0;font-family:"Barlow Condensed",sans-serif;font-size:1.25rem;overflow-wrap:anywhere}
+  .graph-head h3{margin:0;font-family:inherit;font-size:1.25rem;overflow-wrap:anywhere}
   .impact{background:#F7F9FA;border:1px solid var(--rule);border-radius:8px;padding:9px 12px;font-size:.9rem;margin:8px 0 12px}
   .impact strong{font-variant-numeric:tabular-nums}
   .depth{display:flex;gap:6px;align-items:center;margin-left:auto;font-size:.85rem;color:var(--muted)}
@@ -35,7 +32,7 @@
         padding:6px 8px;margin-bottom:8px;cursor:pointer;font-size:.8rem}
   .node:hover,.node:focus-visible{border-color:var(--ink)}
   .node .p{color:var(--muted);font-size:.74rem;overflow-wrap:anywhere}
-  .node .t{font-family:"Barlow Condensed",sans-serif;font-size:.92rem;overflow-wrap:anywhere;line-height:1.2}
+  .node .t{font-family:inherit;font-size:.92rem;overflow-wrap:anywhere;line-height:1.2}
   .node.focus{border:2px solid var(--ink);border-left-width:5px;box-shadow:0 0 0 3px rgba(233,180,76,.35)}
   .node.l0{border-left-color:var(--l0)} .node.l1{border-left-color:var(--l1)} .node.l2{border-left-color:var(--l2)} .node.l3{border-left-color:var(--l3)}
   .node.dim{opacity:.35}
@@ -242,5 +239,7 @@ current = start; renderList(); select(start);
 if(document.fonts) document.fonts.ready.then(drawEdges);
 })();
 </script>
+<script src="assets/cui-icons.js"></script>
+<script src="assets/gov-shell.js"></script>
 </body>
 </html>

@@ -5,18 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data Governance — Anomaly &amp; missing (synthetic data)</title>
 <meta name="description" content="Row-count anomaly and missing-partition monitor, rebuilt for a portfolio with synthetic data.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/gov.css">
 <style>
-  :root{--ok-bg:#E6F2EA; --drop:#2E5E8C; --spike:#E9B44C; --miss:#B3261E; --late:#8F3F97}
+  :root{--ok-bg:#E6F2EA; --drop:#3399FF; --spike:#F9B115; --miss:#E55353; --late:#5856D6}
   .filters.an{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.6fr) auto}
   .kpi .v.bad{color:var(--miss)} .kpi .v.good{color:var(--down)}
   .alerts-list{max-height:430px;overflow-y:auto}
   .al-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 2px;border-bottom:1px solid #EDF1F3;cursor:pointer}
   .al-row:hover{background:#FAFBFC}
-  .al-row .n{font-family:"Barlow Condensed",sans-serif;font-size:.98rem;overflow-wrap:anywhere}
+  .al-row .n{font-family:inherit;font-size:.98rem;overflow-wrap:anywhere}
   .al-row .m{font-size:.8rem;color:var(--muted)}
   .st{display:inline-block;font-size:.75rem;font-weight:600;border-radius:10px;padding:1px 8px;white-space:nowrap}
   .st.ok{background:#DCEFE3;color:#2F6B47} .st.missing{background:#F6DEDB;color:#8E2A22} .st.drop{background:#DCE6F0;color:#23476A}
@@ -27,7 +24,7 @@
   .hm th{font-size:.72rem;padding:2px 3px;text-align:center;border:0;color:var(--muted);font-weight:500}
   .hm th.tn{text-align:left;position:sticky;left:0;background:var(--paper);z-index:1}
   .hm td{padding:0;border:0}
-  .hm td.tn{position:sticky;left:0;background:var(--paper);padding:2px 10px 2px 0;font-family:"Barlow Condensed",sans-serif;font-size:.9rem;white-space:nowrap;z-index:1;cursor:pointer}
+  .hm td.tn{position:sticky;left:0;background:var(--paper);padding:2px 10px 2px 0;font-family:inherit;font-size:.9rem;white-space:nowrap;z-index:1;cursor:pointer}
   .hm td.tn:hover{color:var(--active);text-decoration:underline}
   .cell{display:block;min-width:46px;height:26px;line-height:26px;text-align:center;border-radius:4px;font-variant-numeric:tabular-nums;cursor:pointer}
   .cell.ok{background:var(--ok-bg);color:#2F4A3A}
@@ -251,7 +248,7 @@ function spark(t){
   const v = t.view.slice(-14), vals = v.map(p => p.value ?? 0), max = Math.max(...vals, 1), W = 96, H = 24, st = W / (v.length - 1);
   const pts = vals.map((x, i) => `${(i * st).toFixed(1)},${(H - 2 - x / max * (H - 4)).toFixed(1)}`).join(' ');
   const dots = v.map((p, i) => p.status !== 'ok' ? `<circle cx="${(i * st).toFixed(1)}" cy="${(H - 2 - (p.value ?? 0) / max * (H - 4)).toFixed(1)}" r="2.6"
-    fill="${{missing: '#B3261E', drop: '#2E5E8C', spike: '#C9901D', late: '#8F3F97'}[p.status]}"/>` : '').join('');
+    fill="${{missing: '#E55353', drop: '#3399FF', spike: '#F9B115', late: '#5856D6'}[p.status]}"/>` : '').join('');
   return `<svg class="spark" width="${W}" height="${H}" viewBox="-3 0 ${W + 6} ${H}" role="img" aria-label="Tren 14 periode"><polyline points="${pts}" fill="none" stroke="#8FA1AC" stroke-width="1.4"/>${dots}</svg>`;
 }
 
@@ -314,13 +311,13 @@ function openDetail(full, idx){
   $('d-title').textContent = `${t.dataset}.${t.table}`;
   $('d-meta').textContent = `${t.project} · ${FREQ_ID[t.freq]} · ${t.owner} · SLA ${String(SLA_H[t.freq]).padStart(2, '0')}.00 WIB`;
   const labels = v.map(p => pLabel(t.freq, p.date));
-  const COL = {ok: '#8FA1AC', missing: '#B3261E', drop: '#2E5E8C', spike: '#C9901D', late: '#8F3F97'};
+  const COL = {ok: '#8FA1AC', missing: '#E55353', drop: '#3399FF', spike: '#F9B115', late: '#5856D6'};
   if(window.Chart){
     chart && chart.destroy();
     chart = new Chart($('c-detail'), {type: 'line', data: {labels, datasets: [
       {label: 'Batas atas', data: v.map(p => p.expected ? p.expected + p.band : null), borderColor: 'transparent', pointRadius: 0, fill: '+1', backgroundColor: 'rgba(62,142,94,.12)'},
       {label: 'Batas bawah', data: v.map(p => p.expected ? Math.max(0, p.expected - p.band) : null), borderColor: 'transparent', pointRadius: 0, fill: false},
-      {label: 'Perkiraan (median)', data: v.map(p => p.expected ?? null), borderColor: '#3E8E5E', borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5},
+      {label: 'Perkiraan (median)', data: v.map(p => p.expected ?? null), borderColor: '#2EB85C', borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5},
       {label: 'Jumlah baris', data: v.map(p => p.value), borderColor: '#1D2A33', borderWidth: 2, spanGaps: false,
        pointRadius: v.map(p => p.status === 'ok' ? 2 : 6), pointBackgroundColor: v.map(p => COL[p.status]), pointBorderColor: v.map(p => COL[p.status])}]},
       options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
@@ -342,7 +339,7 @@ function bindOpen(els){
     el.onclick = go; el.onkeydown = e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(); } }; });
 }
 $('d-close').onclick = () => { $('detail').hidden = true; };
-if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; }
+if(window.Chart){ Chart.defaults.font.family = 'system-ui, "Segoe UI", Roboto, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; }
 
 // ------------------------------------------------------------------ orkestrasi
 function update(){
@@ -364,5 +361,7 @@ $('reset').onclick = () => { ['f-freq', 'f-owner', 'f-status', 'f-q'].forEach(id
 update();
 })();
 </script>
+<script src="assets/cui-icons.js"></script>
+<script src="assets/gov-shell.js"></script>
 </body>
 </html>

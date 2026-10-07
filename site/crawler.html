@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Governance — App crawler (synthetic data)</title>
+<meta name="description" content="App store catalogue dashboard: apps, developers, genres, ratings and top charts per category, rebuilt for a portfolio with synthetic data.">
+<link rel="stylesheet" href="assets/gov.css">
+<style>
+  .filters.ac{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.6fr) auto}
+  .kpis.k8 .kpi .v{font-size:1.3rem}
+  .app{display:flex;align-items:center;gap:10px;min-width:220px;white-space:normal}
+  .ico{width:34px;height:34px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;letter-spacing:.02em}
+  .app b{display:block;font-weight:600;line-height:1.25} .app small{color:var(--muted);font-size:.76rem}
+  .pf{display:inline-flex;align-items:center;gap:4px;font-size:.7rem;font-weight:700;border-radius:4px;padding:2px 7px;white-space:nowrap}
+  .pf.a{background:#DDF3E5;color:#1E6B3B} .pf.i{background:#E6EDF1;color:#252B36}
+  .stars{color:#F9B115;letter-spacing:-1px} .rt{color:var(--ink-2);font-size:.8rem;margin-left:4px}
+  .cc{display:inline-block;font-size:.7rem;font-weight:700;border-radius:10px;padding:1px 7px;background:#E1EEFF;color:#1F5FAE}
+  .plat{margin:6px 0 14px} .plat .row{display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:5px}
+  .bar{height:22px;border-radius:4px;background:#E7EAEE;overflow:hidden}
+  .bar b{display:flex;align-items:center;justify-content:center;height:22px;color:#fff;font-size:.75rem;font-weight:700}
+  ol.rank{margin:0;padding:0;list-style:none;counter-reset:r}
+  ol.rank li{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid #ECEEF2;counter-increment:r;font-size:.92rem}
+  ol.rank li::before{content:counter(r);width:20px;color:var(--muted);font-size:.8rem;text-align:right}
+  ol.rank li .n{margin-left:auto;font-size:.72rem;font-weight:700;background:var(--c-primary);color:#fff;border-radius:10px;padding:1px 8px}
+  .cat{display:grid;grid-template-columns:200px minmax(0,1fr);gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #ECEEF2}
+  .cat .cn{font-weight:600;font-size:.86rem;text-transform:uppercase;letter-spacing:.02em} .cat .cn small{display:block;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);border-radius:16px;padding:3px 10px 3px 4px;font-size:.8rem;white-space:nowrap;background:#fff}
+  .chip .ico{width:22px;height:22px;border-radius:6px;font-size:.6rem}
+  .chip i{font-style:normal;color:var(--muted);font-size:.72rem}
+  .stat dl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:0;font-size:.9rem} .stat dt{color:var(--muted)} .stat dd{margin:0;font-weight:600;text-align:right}
+  .crawl .seg2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 14px}
+  .opt{border:1px solid var(--rule);border-radius:6px;padding:12px;text-align:center;cursor:pointer;background:#fff}
+  .opt[aria-pressed="true"]{border-color:var(--c-success);background:#EEF8F2}
+  .opt small{display:block;color:var(--muted)}
+  .modes{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+  .mode{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:.86rem}
+  .mode[aria-pressed="true"]{background:var(--c-primary);border-color:var(--c-primary);color:#fff}
+  .crawl input[type=text]{width:100%;border:1px solid var(--rule);border-radius:6px;padding:8px 10px;margin-bottom:6px}
+  .go{width:100%;margin-top:10px;background:var(--c-primary);color:#fff;border:0;border-radius:6px;padding:10px;font-weight:600;cursor:pointer}
+  .go:disabled{opacity:.6;cursor:default}
+  .prog{height:10px;border-radius:5px;background:#E7EAEE;overflow:hidden;margin:8px 0} .prog b{display:block;height:10px;background:var(--c-success);transition:width .2s}
+  .log{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.76rem;background:#F7F8FA;border:1px solid var(--rule);border-radius:6px;padding:8px 10px;max-height:220px;overflow-y:auto;white-space:pre-wrap}
+  .empty-c{color:var(--muted);text-align:center;padding:40px 10px}
+  @media (max-width:820px){ .cat{grid-template-columns:minmax(0,1fr)} }
+</style>
+<!-- goatcounter:start -->
+<script>
+  window.goatcounter = {
+    path: function () { return location.pathname; },
+    referrer: function (r) { var ref = new URLSearchParams(location.search).get('ref'); return ref ? 'ref:' + ref : r; }
+  };
+</script>
+<script data-goatcounter="https://elsonsaputra.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<!-- goatcounter:end -->
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Modul"><a href="governance.html">Data Governance</a></nav>
+  <main>
+    <div class="synthetic" role="note"><strong>Data sintetis.</strong> Nama aplikasi, developer, rating, dan jumlah install dibangkitkan dengan biji tetap;
+      tidak ada data toko aplikasi yang diambil. Tab "Mulai crawling" adalah simulasi alur kerja. Modul scraping saya yang benar-benar berjalan
+      (dengan robots.txt, jeda per host, dan conditional GET) ada di <a href="index.html#project">Indonesia Realtime Monitor</a>.</div>
+
+    <div class="head"><div><h1>App crawler</h1><p id="snap"></p></div><div class="spacer"></div><button class="btn" id="csv">Export CSV</button></div>
+
+    <div class="filters ac">
+      <div><label for="f-pf">Platform</label><select id="f-pf"><option value="">Semua platform</option><option value="a">Play Store (Android)</option><option value="i">App Store (iOS)</option></select></div>
+      <div><label for="f-cc">Negara</label><select id="f-cc"></select></div>
+      <div><label for="f-g">Genre</label><select id="f-g"></select></div>
+      <div><label for="f-q">Cari aplikasi</label><input id="f-q" type="search" placeholder="nama aplikasi atau developer"></div>
+      <div><button class="btn" id="reset">Reset</button></div>
+    </div>
+
+    <div class="kpis k8" id="kpis"></div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Ringkasan</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="apps">Semua aplikasi</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="history">Sepanjang waktu</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="top">Top per kategori</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="crawl">Mulai crawling</button>
+    </div>
+    <div id="panel"></div>
+
+    <footer>Dibuat oleh <a href="index.html">Elson Saputra</a>. Data sintetis; tidak mencerminkan toko aplikasi atau aplikasi nyata mana pun.</footer>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="assets/gov-common.js"></script>
+<script>
+(() => {
+'use strict';
+const {rng, SNAP, DAY, $, esc, fmtNum, date} = window.GOV;
+const R = rng(271828), pick = a => a[Math.floor(R() * a.length)], between = (a, b) => a + R() * (b - a);
+if(window.Chart){ Chart.defaults.font.family = 'system-ui, "Segoe UI", Roboto, sans-serif'; Chart.defaults.color = '#6B7785'; Chart.defaults.borderColor = '#E7EAEE'; Chart.defaults.animation = false; }
+
+// ---------------------------------------------------------------- katalog fiktif
+const GENRES = ['Alat', 'Produktivitas', 'Komunikasi', 'Hiburan', 'Pendidikan', 'Keuangan', 'Belanja', 'Foto & Video', 'Musik & Audio', 'Kesehatan & Kebugaran',
+  'Perjalanan', 'Makanan & Minuman', 'Gaya Hidup', 'Berita', 'Bisnis', 'Sosial', 'Olahraga', 'Cuaca', 'Peta & Navigasi', 'Buku & Referensi',
+  'Game Aksi', 'Game Puzzle', 'Game Strategi', 'Game Kasual', 'Game Balap', 'Game Simulasi', 'Game Papan', 'Game Kata', 'Game Arkade', 'Game Olahraga'];
+const COUNTRIES = [['ID', 'Indonesia'], ['MY', 'Malaysia'], ['SG', 'Singapura'], ['TH', 'Thailand'], ['PH', 'Filipina'], ['VN', 'Vietnam'],
+  ['IN', 'India'], ['JP', 'Jepang'], ['KR', 'Korea Selatan'], ['AU', 'Australia'], ['GB', 'Inggris'], ['US', 'Amerika Serikat']];
+const W1 = ['Nusa', 'Kilat', 'Pintar', 'Rapi', 'Cerah', 'Lumbung', 'Jelajah', 'Teman', 'Ruang', 'Kanvas', 'Pena', 'Dompet', 'Pasar', 'Langkah', 'Awan',
+  'Bintang', 'Ombak', 'Taman', 'Nada', 'Kopi', 'Peta', 'Gema', 'Sinar', 'Rimba', 'Sahabat', 'Bijak', 'Lentera', 'Arus', 'Kota', 'Pulau'];
+const W2 = {'Alat': ['Scanner', 'Cleaner', 'Launcher', 'Keyboard', 'Kalkulator', 'File Manager'], 'Produktivitas': ['Notes', 'Planner', 'Docs', 'Tasks', 'Calendar'],
+  'Komunikasi': ['Chat', 'Mail', 'Call', 'Messenger'], 'Hiburan': ['TV', 'Stream', 'Show', 'Komik'], 'Pendidikan': ['Belajar', 'Kelas', 'Quiz', 'Kamus'],
+  'Keuangan': ['Pay', 'Wallet', 'Invest', 'Budget', 'Kredit'], 'Belanja': ['Mart', 'Shop', 'Diskon', 'Grosir'], 'Foto & Video': ['Cam', 'Editor', 'Collage', 'Studio'],
+  'Musik & Audio': ['Music', 'Radio', 'Podcast', 'Karaoke'], 'Kesehatan & Kebugaran': ['Fit', 'Sehat', 'Yoga', 'Step'], 'Perjalanan': ['Trip', 'Hotel', 'Tiket'],
+  'Makanan & Minuman': ['Resep', 'Food', 'Kuliner'], 'Gaya Hidup': ['Home', 'Style', 'Living'], 'Berita': ['News', 'Kabar', 'Harian'], 'Bisnis': ['Kasir', 'POS', 'Office'],
+  'Sosial': ['Social', 'Circle', 'Feed'], 'Olahraga': ['Score', 'Liga', 'Live'], 'Cuaca': ['Weather', 'Cuaca'], 'Peta & Navigasi': ['Maps', 'Rute', 'GPS'],
+  'Buku & Referensi': ['Books', 'Pustaka', 'Baca']};
+const DEVS = [...new Set(Array.from({length: 2600}, (_, i) => `${W1[i % 30]}${W1[Math.floor(i / 30) % 30].toLowerCase()}${pick(['', ' Labs', ' Studio', ' Digital', ' Tech', ' Games', ' Apps', ' Interactive'])}`))];
+const COLORS = ['#5856D6', '#3399FF', '#2EB85C', '#F9B115', '#E55353', '#1D8A99', '#F9802B', '#6B7785', '#9D4EDD', '#0EA5A4'];
+const lognorm = (mu, s) => Math.exp(mu + s * Math.sqrt(-2 * Math.log(R() || 1e-9)) * Math.cos(2 * Math.PI * R()));
+const FIRST = +SNAP - 68 * DAY;
+const APPS = [];
+for(let i = 0; i < 3051; i++){
+  const pf = i < 1897 ? 'a' : 'i', g = R() < .38 ? GENRES[20 + Math.floor(R() * 10)] : GENRES[Math.floor(Math.pow(R(), 1.6) * 20)];
+  const base = g.startsWith('Game') ? pick(['Hero', 'Quest', 'Run', 'Puzzle', 'Legends', 'Tycoon', 'Racer', 'Merge', 'Battle', 'Words', 'Chess', 'Saga']) : pick(W2[g] || ['App']);
+  const name = `${pick(W1)} ${base}${R() < .2 ? ' ' + pick(['Pro', 'Lite', 'Plus', '2', 'Go', 'Max']) : ''}`;
+  const reviews = Math.round(lognorm(pf === 'a' ? 8.2 : 6.6, 2));
+  const BUCKET = [1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7, 1e8, 5e8, 1e9];
+  const want = reviews * between(15, 60);                                    // install kira-kira 15-60x jumlah ulasan
+  const installs = pf === 'a' ? BUCKET.filter(x => x <= want).pop() || 1e3 : 0;
+  const rating = Math.round(Math.min(4.9, Math.max(2.4, 4.25 - lognorm(-1.6, .9) + between(-.2, .3))) * 10) / 10;
+  const countries = COUNTRIES.filter((c, k) => k === 0 || R() < (k < 6 ? .55 : .35)).map(c => c[0]);
+  APPS.push({id: i, pf, name, dev: DEVS[Math.floor(Math.pow(R(), 1.3) * DEVS.length)], g, installs, reviews, rating, countries,
+    first: FIRST + Math.floor(Math.pow(R(), 2.2) * 68) * DAY, score: Math.log10(reviews + 10) * rating * between(.7, 1.3), color: COLORS[i % COLORS.length]});
+}
+const SCRAPE_DAYS = 69;
+const initials = n => n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const icon = a => `<span class="ico" style="background:${a.color}" aria-hidden="true">${esc(initials(a.name))}</span>`;
+const stars = r => `<span class="stars" aria-label="rating ${r}">${'★'.repeat(Math.round(r))}${'☆'.repeat(5 - Math.round(r))}</span><span class="rt">${r.toFixed(1)}</span>`;
+const pfTag = p => p === 'a' ? '<span class="pf a">Android</span>' : '<span class="pf i">iOS</span>';
+const n0 = x => Math.round(x).toLocaleString('id-ID');
+const inst = x => x ? (x >= 1e6 ? (x / 1e6).toLocaleString('id-ID') + ' jt+' : x >= 1e3 ? (x / 1e3).toLocaleString('id-ID') + ' rb+' : x + '+') : '–';
+
+// ---------------------------------------------------------------- filter
+const state = {pf: '', cc: '', g: '', q: '', tab: 'overview', page: 0, sort: ['score', -1], topCc: 'ID', topPf: 'a'};
+$('f-cc').innerHTML = `<option value="">Semua negara (${COUNTRIES.length})</option>` + COUNTRIES.map(c => `<option value="${c[0]}">${c[1]}</option>`).join('');
+$('f-g').innerHTML = `<option value="">Semua genre (${GENRES.length})</option>` + GENRES.map(g => `<option>${esc(g)}</option>`).join('');
+$('snap').textContent = `Terakhir di-scrape ${date(SNAP)}, 05:03 WIB · ${n0(APPS.filter(a => a.pf === 'a').length)} Android · ${n0(APPS.filter(a => a.pf === 'i').length)} iOS · ${GENRES.length} genre · ${SCRAPE_DAYS} tanggal scrape`;
+function filtered(){
+  const q = state.q.trim().toLowerCase();
+  return APPS.filter(a => (!state.pf || a.pf === state.pf) && (!state.cc || a.countries.includes(state.cc)) && (!state.g || a.g === state.g)
+    && (!q || (a.name + ' ' + a.dev).toLowerCase().includes(q)));
+}
+const charts = []; const mk = (id, cfg) => { if(window.Chart && $(id)) charts.push(new Chart($(id), cfg)); };
+
+function render(){
+  charts.splice(0).forEach(c => c.destroy());
+  const apps = filtered(), A = apps.filter(a => a.pf === 'a'), I = apps.filter(a => a.pf === 'i');
+  const gcount = {}; apps.forEach(a => { gcount[a.g] = (gcount[a.g] || 0) + 1; });
+  const topG = Object.entries(gcount).sort((a, b) => b[1] - a[1])[0];
+  const avg = apps.length ? apps.reduce((s, a) => s + a.rating, 0) / apps.length : 0;
+  const ccs = new Set(apps.flatMap(a => a.countries));
+  $('kpis').innerHTML = [
+    [n0(apps.length), 'Total aplikasi', `${n0(A.length)} Android · ${n0(I.length)} iOS`, 'apps', '#3399FF'],
+    [n0(new Set(apps.map(a => a.dev)).size), 'Developer', 'developer unik', 'people', '#2EB85C'],
+    [avg.toFixed(2), 'Rata-rata rating', `${apps.filter(a => a.rating >= 4.5).length} aplikasi ≥ 4.5`, 'star', '#F9B115'],
+    [fmtNum(A.reduce((s, a) => s + a.installs, 0)), 'Total install', 'hanya Play Store yang menampilkan install', 'cloud-download', '#2EB85C'],
+    [Object.keys(gcount).length, 'Genre', 'kategori unik', 'list-rich', '#5856D6'],
+    [fmtNum(apps.reduce((s, a) => s + a.reviews, 0)), 'Ulasan', 'total ulasan di kedua toko', 'chart', '#3399FF'],
+    [topG ? esc(topG[0]) : '–', 'Genre teratas', topG ? `${n0(topG[1])} aplikasi` : '', 'tag', '#F9B115'],
+    [ccs.size, 'Negara', 'wilayah toko yang dipantau', 'globe-alt', '#E55353']]
+    .map(([v, k, d, ic, c]) => `<div class="kpi" data-ic="${ic}" data-c="${c}"><div class="v num">${v}</div><div class="k">${k}</div><div class="d muted">${d}</div></div>`).join('');
+  ({overview, apps: appsTab, history, top, crawl})[state.tab](apps, gcount);
+}
+
+function overview(apps, gcount){
+  const A = apps.filter(a => a.pf === 'a').length, I = apps.length - A, tot = Math.max(1, apps.length);
+  const G = Object.entries(gcount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  $('panel').innerHTML = `<div class="grid2">
+    <section class="card"><h3>Aplikasi per platform</h3>
+      ${[['Play Store (Android)', A, '#2EB85C'], ['App Store (iOS)', I, '#252B36']].map(([l, v, c]) => `<div class="plat"><div class="row"><span>${l}</span><b>${n0(v)}</b></div>
+        <div class="bar"><b style="width:${(v / tot * 100).toFixed(1)}%;background:${c}">${(v / tot * 100).toFixed(1)}%</b></div></div>`).join('')}
+      <h3 style="margin-top:18px">Aplikasi baru per tanggal scrape <span>pertama kali terlihat</span></h3><div class="chart" style="height:200px"><canvas id="c-new"></canvas></div></section>
+    <section class="card"><h3>Genre teratas</h3><ol class="rank">${G.map(([g, n]) => `<li>${esc(g)}<span class="n">${n0(n)} apps</span></li>`).join('')}</ol></section></div>`;
+  const days = {}; apps.forEach(a => { const d = new Date(a.first).toISOString().slice(5, 10); days[d] = (days[d] || 0) + 1; });
+  const L = Object.keys(days).sort();
+  mk('c-new', {type: 'bar', data: {labels: L, datasets: [{data: L.map(d => days[d]), backgroundColor: '#3399FF'}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {x: {ticks: {maxTicksLimit: 8}}, y: {type: 'logarithmic'}}}});
+}
+
+const COLS = [['name', 'Aplikasi'], ['pf', 'Platform'], ['g', 'Genre'], ['rating', 'Rating', 'r'], ['reviews', 'Ulasan', 'r'], ['installs', 'Install', 'r'], ['countries', 'Negara', 'r'], ['first', 'Pertama terlihat']];
+function appsTab(apps){
+  const [k, dir] = state.sort, val = (a, k) => k === 'countries' ? a.countries.length : a[k];
+  apps.sort((a, b) => { const x = val(a, k), y = val(b, k); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
+  const PAGE = 20, pages = Math.max(1, Math.ceil(apps.length / PAGE)); state.page = Math.min(state.page, pages - 1);
+  const view = apps.slice(state.page * PAGE, state.page * PAGE + PAGE);
+  $('panel').innerHTML = `<section class="card"><h3>Semua aplikasi <span>${n0(apps.length)} hasil</span></h3><div class="tw"><table id="at"><thead><tr><th>#</th>
+    ${COLS.map(([key, l, c]) => `<th class="${c || ''}" data-k="${key}" ${key === k ? `aria-sort="${dir < 0 ? 'descending' : 'ascending'}"` : ''}>${l}</th>`).join('')}</tr></thead><tbody>
+    ${view.map((a, i) => `<tr><td class="muted">${state.page * PAGE + i + 1}</td><td><div class="app">${icon(a)}<span><b>${esc(a.name)}</b><small>${esc(a.dev)}</small></span></div></td>
+      <td>${pfTag(a.pf)}</td><td>${esc(a.g)}</td><td class="r">${stars(a.rating)}</td><td class="r">${n0(a.reviews)}</td><td class="r">${inst(a.installs)}</td>
+      <td class="r"><span class="cc">${a.countries.length}</span></td><td>${date(new Date(a.first))}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">Tidak ada aplikasi untuk filter ini.</td></tr>'}
+    </tbody></table></div><div class="pager"><span class="muted">halaman ${state.page + 1} dari ${pages}</span><button class="btn" id="pg-prev" ${state.page ? '' : 'disabled'}>Sebelumnya</button>
+    <button class="btn" id="pg-next" ${state.page < pages - 1 ? '' : 'disabled'}>Berikutnya</button></div></section>`;
+  $('at').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const key = th.dataset.k;
+    state.sort = [key, state.sort[0] === key ? -state.sort[1] : (['name', 'g', 'pf'].includes(key) ? 1 : -1)]; state.page = 0; render(); });
+  $('pg-prev').onclick = () => { state.page--; render(); }; $('pg-next').onclick = () => { state.page++; render(); };
+}
+
+function history(apps){
+  const Rh = rng(99), days = Array.from({length: 30}, (_, i) => { const d = +SNAP - (29 - i) * DAY, ok = Rh() > .04;
+    return {d: new Date(d).toISOString().slice(5, 10), a: ok ? Math.round(1897 * (0.9 + Rh() * .1)) : 0, i: ok ? Math.round(1154 * (0.88 + Rh() * .12)) : Math.round(1154 * .5)}; });
+  const stat = (p, label) => { const X = apps.filter(a => a.pf === p);
+    return `<section class="card stat"><h3>${label} <span>sepanjang waktu</span></h3><dl>
+      <dt>Aplikasi unik</dt><dd>${n0(X.length)}</dd><dt>Developer unik</dt><dd>${n0(new Set(X.map(a => a.dev)).size)}</dd>
+      <dt>Genre</dt><dd>${new Set(X.map(a => a.g)).size}</dd><dt>Rata-rata rating</dt><dd>${X.length ? (X.reduce((s, a) => s + a.rating, 0) / X.length).toFixed(2) : '–'}</dd>
+      <dt>Total ulasan</dt><dd>${fmtNum(X.reduce((s, a) => s + a.reviews, 0))}</dd>${p === 'a' ? `<dt>Total install</dt><dd>${fmtNum(X.reduce((s, a) => s + a.installs, 0))}</dd>` : ''}
+      <dt>Pertama di-scrape</dt><dd>${date(new Date(FIRST))}</dd><dt>Terakhir di-scrape</dt><dd>${date(SNAP)}</dd><dt>Hari scraping</dt><dd>${SCRAPE_DAYS}</dd></dl></section>`; };
+  const fails = days.filter(d => !d.a);
+  $('panel').innerHTML = `<div class="grid2 wide-left"><section class="card"><h3>Riwayat scraping <span>30 hari terakhir, aplikasi per run</span></h3>
+      <div class="chart"><canvas id="c-hist"></canvas></div>
+      <p class="muted" style="margin:8px 0 0;font-size:.85rem">${fails.length ? `${fails.length} run gagal (${fails.map(d => d.d).join(', ')}): sumber menolak permintaan, run dicoba ulang keesokan harinya, tidak dipaksa.` : 'Semua run berhasil.'}</p></section>
+    ${stat('a', 'Play Store')}</div><div class="grid2" style="margin-top:16px">${stat('i', 'App Store')}
+    <section class="card"><h3>10 genre teratas sepanjang waktu</h3><ol class="rank">${Object.entries(apps.reduce((m, a) => (m[a.g] = (m[a.g] || 0) + 1, m), {}))
+      .sort((a, b) => b[1] - a[1]).slice(0, 10).map(([g, n]) => `<li>${esc(g)}<span class="n">${n0(n)}</span></li>`).join('')}</ol></section></div>`;
+  mk('c-hist', {type: 'bar', data: {labels: days.map(d => d.d), datasets: [{label: 'Play Store', data: days.map(d => d.a), backgroundColor: '#2EB85C', stack: 's'},
+    {label: 'App Store', data: days.map(d => d.i), backgroundColor: '#252B36', stack: 's'}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {position: 'bottom', labels: {boxWidth: 12}}}, scales: {x: {stacked: true, ticks: {maxTicksLimit: 10}}, y: {stacked: true}}}});
+}
+
+function top(apps){
+  const cats = [...new Set(apps.map(a => a.g))].sort((a, b) => GENRES.indexOf(a) - GENRES.indexOf(b));
+  const noise = (a, c) => (Math.imul(a.id + 1, 2654435761) ^ c.charCodeAt(0) * 97 ^ c.charCodeAt(1) * 131) >>> 0;
+  $('panel').innerHTML = `<section class="card"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:10px">
+      <div><label class="muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase" for="t-pf">Platform</label><br><select id="t-pf" class="btn"><option value="a">Play Store</option><option value="i">App Store</option></select></div>
+      <div><label class="muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase" for="t-cc">Negara</label><br><select id="t-cc" class="btn">${COUNTRIES.map(c => `<option value="${c[0]}">${c[1]}</option>`).join('')}</select></div>
+      <span class="muted" style="font-size:.85rem">Chart: Top Free · ${date(SNAP)} · 10 teratas per kategori</span></div>
+    <div id="cats"></div></section>`;
+  $('t-pf').value = state.topPf; $('t-cc').value = state.topCc;
+  const draw = () => {
+    const X = apps.filter(a => a.pf === state.topPf && a.countries.includes(state.topCc));
+    $('cats').innerHTML = cats.map(c => { const list = X.filter(a => a.g === c).sort((a, b) => (b.score * (1 + (noise(b, state.topCc) % 100) / 400)) - (a.score * (1 + (noise(a, state.topCc) % 100) / 400))).slice(0, 10);
+      return list.length ? `<div class="cat"><div class="cn">${esc(c)}<small>${list.length} aplikasi</small></div><div class="chips">${list.map((a, i) => `<span class="chip">${icon(a)}${esc(a.name)} <i>#${i + 1}</i></span>`).join('')}</div></div>` : ''; }).join('')
+      || '<div class="empty-c">Tidak ada aplikasi untuk kombinasi ini.</div>';
+  };
+  $('t-pf').onchange = e => { state.topPf = e.target.value; draw(); }; $('t-cc').onchange = e => { state.topCc = e.target.value; draw(); };
+  draw();
+}
+
+function crawl(){
+  $('panel').innerHTML = `<div class="grid2"><section class="card crawl"><h3>Mulai crawling baru <span>simulasi</span></h3>
+      <div class="muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase">Platform</div>
+      <div class="seg2"><button type="button" class="opt" data-p="a" aria-pressed="true"><b>Play Store</b><small>Android</small></button>
+        <button type="button" class="opt" data-p="i" aria-pressed="true"><b>App Store</b><small>iOS</small></button></div>
+      <div class="muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase">Mode crawl</div>
+      <div class="modes"><button type="button" class="mode" data-m="kw" aria-pressed="true">Kata kunci</button><button type="button" class="mode" data-m="pkg" aria-pressed="false">Package ID</button>
+        <button type="button" class="mode" data-m="cat" aria-pressed="false">Kategori</button></div>
+      <label for="kw" class="muted" style="font-size:.85rem">Pisahkan beberapa kata kunci dengan koma</label>
+      <input id="kw" type="text" value="kasir, belajar, cuaca">
+      <button type="button" class="go" id="go">Cari di kedua toko</button></section>
+    <section class="card"><h3>Progres crawling</h3><div id="prog"><div class="empty-c">Belum ada crawling yang berjalan.</div></div></section></div>`;
+  const sel = {p: new Set(['a', 'i']), m: 'kw'};
+  $('panel').querySelectorAll('.opt').forEach(b => b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true';
+    if(!on && sel.p.size === 1) return; b.setAttribute('aria-pressed', on); on ? sel.p.add(b.dataset.p) : sel.p.delete(b.dataset.p); });
+  $('panel').querySelectorAll('.mode').forEach(b => b.onclick = () => { sel.m = b.dataset.m; $('panel').querySelectorAll('.mode').forEach(x => x.setAttribute('aria-pressed', x === b));
+    $('kw').value = {kw: 'kasir, belajar, cuaca', pkg: 'com.example.nusa.pay, com.example.kilat.notes', cat: 'Keuangan, Pendidikan'}[sel.m]; });
+  $('go').onclick = () => {
+    const terms = $('kw').value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 6);
+    if(!terms.length){ $('kw').focus(); return; }
+    $('go').disabled = true;
+    const steps = []; terms.forEach(t => [...sel.p].forEach(p => steps.push({t, p})));
+    let i = 0, found = 0; const lines = [];
+    $('prog').innerHTML = `<div class="prog"><b id="pb" style="width:0%"></b></div><div class="muted" id="ps" style="font-size:.85rem"></div><div class="log" id="lg"></div>`;
+    const tick = () => {
+      if(i >= steps.length){ $('ps').textContent = `Selesai: ${steps.length} permintaan, ${found} aplikasi cocok di katalog contoh.`; $('go').disabled = false; return; }
+      const s = steps[i++], q = s.t.toLowerCase();
+      const hit = APPS.filter(a => a.pf === s.p && (a.name.toLowerCase().includes(q) || a.g.toLowerCase().includes(q) || a.dev.toLowerCase().includes(q) || (W2[a.g] || []).some(w => w.toLowerCase() === q))).length;
+      found += hit;
+      lines.push(`${new Date().toLocaleTimeString('id-ID')}  ${s.p === 'a' ? 'play ' : 'appst'}  "${s.t}"  -> ${hit} aplikasi  (jeda 1.5 dtk per host)`);
+      $('lg').textContent = lines.join('\n'); $('lg').scrollTop = 1e6;
+      $('pb').style.width = (i / steps.length * 100).toFixed(0) + '%'; $('ps').textContent = `${i} dari ${steps.length} permintaan`;
+      setTimeout(tick, 450);
+    };
+    tick();
+  };
+}
+
+// ---------------------------------------------------------------- interaksi
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; state.page = 0;
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === b)); render(); });
+const onF = () => { state.pf = $('f-pf').value; state.cc = $('f-cc').value; state.g = $('f-g').value; state.q = $('f-q').value; state.page = 0; render(); };
+['f-pf', 'f-cc', 'f-g'].forEach(id => $(id).onchange = onF);
+let qT; $('f-q').oninput = () => { clearTimeout(qT); qT = setTimeout(onF, 200); };
+$('reset').onclick = () => { ['f-pf', 'f-cc', 'f-g', 'f-q'].forEach(id => $(id).value = ''); onF(); };
+$('csv').onclick = () => {
+  const csv = ['app,developer,platform,genre,rating,reviews,installs,countries,first_seen'].concat(filtered().map(a =>
+    [a.name, a.dev, a.pf === 'a' ? 'android' : 'ios', a.g, a.rating, a.reviews, a.installs, a.countries.join('|'), new Date(a.first).toISOString().slice(0, 10)]
+      .map(v => /[,"]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(','))).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = 'app-catalogue.csv'; a.click();
+};
+render();
+})();
+</script>
+<script src="assets/cui-icons.js"></script>
+<script src="assets/gov-shell.js"></script>
+</body>
+</html>

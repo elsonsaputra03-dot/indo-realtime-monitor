@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data Governance — Table usage (synthetic data)</title>
 <meta name="description" content="Table usage analysis: unused, rarely used and most-read tables, rebuilt for a portfolio with synthetic data.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/gov.css">
 <style>
   .filters.tu{grid-template-columns:repeat(2,minmax(0,1fr)) minmax(0,1.6fr) auto}
@@ -15,7 +12,7 @@
   .banner strong{font-variant-numeric:tabular-nums}
   .strong{background:#F6DEDB;color:#8E2A22}
   .split{display:inline-flex;width:90px;height:7px;border-radius:3px;overflow:hidden;background:var(--soft);vertical-align:middle;margin-right:6px}
-  .split .j{background:#2E5E8C} .split .u{background:#E9B44C}
+  .split .j{background:#3399FF} .split .u{background:#F9B115}
 </style>
 <!-- goatcounter:start -->
 <script>
@@ -161,5 +158,7 @@ $('pg-next').onclick = () => { state.page++; render(); };
 render();
 })();
 </script>
+<script src="assets/cui-icons.js"></script>
+<script src="assets/gov-shell.js"></script>
 </body>
 </html>

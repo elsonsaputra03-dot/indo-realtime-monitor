@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data Governance — Storage &amp; Cost (synthetic data)</title>
 <meta name="description" content="Warehouse storage and cost governance dashboard, rebuilt for a portfolio with synthetic data.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/gov.css">
 <!-- goatcounter:start -->
 <script>
@@ -40,7 +37,7 @@
   <main>
     <div class="synthetic" role="note"><strong>Data sintetis.</strong> Semua nama project, tabel, pemilik, dan angka dibuat oleh
       generator acak berbiji tetap untuk portofolio. Ini re-implementasi konsep dashboard governance yang saya bangun di pekerjaan,
-      tanpa kode, desain, atau data milik perusahaan mana pun.</div>
+      tanpa kode atau data milik perusahaan mana pun; tampilannya memakai gaya template open-source CoreUI.</div>
 
     <div class="head">
       <div>
@@ -157,7 +154,7 @@ function groupBy(rows, key){
 // ------------------------------------------------------------------ render: ledger & KPI
 const charts = {};
 function chart(id, cfg){ if(charts[id]) charts[id].destroy(); if(!window.Chart) return; charts[id] = new Chart($(id), cfg); }
-window.Chart && (Chart.defaults.font.family = 'Barlow, system-ui, sans-serif', Chart.defaults.color = '#5D6D78', Chart.defaults.borderColor = '#E3E9EC');
+window.Chart && (Chart.defaults.font.family = 'system-ui, "Segoe UI", Roboto, sans-serif', Chart.defaults.color = '#5D6D78', Chart.defaults.borderColor = '#E3E9EC');
 
 function renderLedger(rows){
   const g = groupBy(rows, t => t.project), total = g.reduce((s, x) => s + x.size, 0), cst = g.reduce((s, x) => s + x.cost, 0);
@@ -223,8 +220,8 @@ function renderDaily(){
       line('Ukuran (TB)', h.map(d => d.size / TiB), css('--lt'), 'y1')]},
     options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
       scales: {y: {title: {display: true, text: 'USD'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'TB'}}}}});
-  chart('c-tables', {type: 'line', data: {labels, datasets: [line('Objek', h.map(d => d.tables), '#3E8E5E', 'y'),
-      line('Baris (miliar)', h.map(d => d.rows / 1e9), '#8F3F97', 'y1')]},
+  chart('c-tables', {type: 'line', data: {labels, datasets: [line('Objek', h.map(d => d.tables), '#2EB85C', 'y'),
+      line('Baris (miliar)', h.map(d => d.rows / 1e9), '#5856D6', 'y1')]},
     options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
       scales: {y: {title: {display: true, text: 'Objek'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'Miliar baris'}}}}});
   chart('c-tier', {type: 'line', data: {labels, datasets: [line('Active', h.map(d => d.active / TiB), css('--active'), 'y', {fill: true, backgroundColor: 'rgba(46,94,140,.55)'}),
@@ -320,5 +317,7 @@ $('export').onclick = () => {
 update();
 })();
 </script>
+<script src="assets/cui-icons.js"></script>
+<script src="assets/gov-shell.js"></script>
 </body>
 </html>

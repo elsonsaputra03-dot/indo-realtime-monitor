@@ -3,16 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BigQuery Governance &amp; FinOps — live report</title>
+<title>BigQuery live · Data Governance</title>
 <meta name="description" content="Governance and FinOps report from a real BigQuery project, produced by bq-governance-toolkit from INFORMATION_SCHEMA.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/gov.css">
 <style>
   .live{background:#EAF3EC;border:1px solid #B8D8C1;border-radius:8px;padding:9px 14px;font-size:.88rem;margin-bottom:12px}
   .warn{background:#FFF8EC;border:1px solid #EBD3A6;border-radius:8px;padding:8px 14px;font-size:.86rem;margin-bottom:8px}
-  .kpis{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+  .kpis{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
   .sec{margin:22px 0 10px;font-size:1.15rem}
   .rail a{cursor:pointer}
   td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
@@ -25,17 +22,26 @@
   #lin{width:100%;height:auto;display:block}
   #lin .node rect{fill:#fff;stroke:#8FA1AC;rx:6}
   #lin .node.ext rect{stroke-dasharray:4 3;fill:#F6F8F9}
-  #lin .node.sel rect{stroke:#1D2A33;stroke-width:2.5}
-  #lin .node.down rect{fill:#FBEFD2;stroke:#C9901D}
-  #lin .node text{font:12px Barlow,system-ui,sans-serif;fill:#1D2A33}
+  #lin .node.sel rect{stroke:#252B36;stroke-width:2.5}
+  #lin .node.down rect{fill:#FBEFD2;stroke:#F9B115}
+  #lin .node text{font:12px system-ui,"Segoe UI",Roboto,sans-serif;fill:#252B36}
   #lin .node text.ds{font-size:10.5px;fill:#5D6D78}
   #lin .node{cursor:pointer}
   #lin path{fill:none;stroke:#B9C6CE;stroke-width:1.4}
   #lin path.view{stroke-dasharray:5 4}
-  #lin path.hot{stroke:#C9901D;stroke-width:2.2}
+  #lin path.hot{stroke:#F9B115;stroke-width:2.2}
   .lgd{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted);margin-top:6px}
   .search{border:1px solid var(--rule);border-radius:6px;padding:7px 10px;min-width:260px;font:inherit}
   .muted{color:var(--muted)}
+  .live{background:#E9F7EF;border-color:#B7E4C7;color:#1E5E36;border-radius:6px}
+  .warn{border-radius:6px}
+  .domains{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fff;border:1px solid var(--rule);border-top:3px solid var(--c-info);border-radius:6px;padding:10px 14px;margin-bottom:16px}
+  .domains .lbl{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);margin-right:6px}
+  .chip{border:1px solid var(--rule);background:#fff;border-radius:16px;padding:4px 12px;cursor:pointer;font-size:.86rem}
+  .chip[aria-pressed="true"]{background:var(--c-primary);border-color:var(--c-primary);color:#fff}
+  .domains .note{flex-basis:100%;font-size:.8rem;color:var(--muted)}
+  .pane[hidden]{display:none}
+  .pane>h2.sec{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 </style>
 <!-- goatcounter:start -->
 <script>
@@ -72,11 +78,13 @@
     <div class="back"><a href="index.html">Back to portfolio</a></div>
   </nav>
   <main>
-    <div class="live" role="note"><strong>Real data.</strong> Produced by <code>bqgov run</code> against a real BigQuery sandbox project (a small demo
-      warehouse built from <code>bigquery-public-data.thelook_ecommerce</code>), read from <code>INFORMATION_SCHEMA</code> and the Tables API.
-      Dollar amounts are tiny because the warehouse is tiny; the method is the same at any scale. Emails are replaced by stable ids.</div>
+    <div class="live" role="note"><strong>Real BigQuery project.</strong> Produced by <code>bqgov run</code> against a real BigQuery sandbox project,
+      read from <code>INFORMATION_SCHEMA</code> and the Tables API. It holds two small sample warehouses: e-commerce tables copied from
+      <code>bigquery-public-data.thelook_ecommerce</code>, and a telco warehouse (<code>tel_*</code>) whose rows are generated in SQL, so the network
+      data is synthetic while the jobs, costs, lineage and checks are real. Dollar amounts are tiny because the warehouses are tiny; the method is the same at any scale.
+      Emails are replaced by stable ids.</div>
     <div id="warnings"></div>
-    <div class="head"><div><h1>BigQuery governance &amp; FinOps</h1><p id="snap">Loading the latest snapshot…</p></div></div>
+    <div class="head"><div><h1>BigQuery live</h1><p id="snap">Loading the latest snapshot…</p></div></div>
     <div id="app"><div class="empty" id="loading">Loading <code>snapshots/latest.json</code> from GitHub…</div></div>
     <footer>Built by <a href="index.html">Elson Saputra</a> with <a href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit">bq-governance-toolkit</a>.
       Costs are on-demand estimates from list prices, not a billing export.</footer>
@@ -94,15 +102,73 @@ const mb = b => b >= 2 ** 30 ? (b / 2 ** 30).toFixed(2) + ' GiB' : (b / 2 ** 20)
 const num = n => Number(n || 0).toLocaleString('en-US');
 const when = iso => iso ? new Date(iso).toLocaleString('en-GB', {day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC'}) + ' UTC' : '–';
 const short = (t, proj) => t.startsWith(proj + '.') ? t.slice(proj.length + 1) : t;
-if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; Chart.defaults.animation = false; }
+if(window.Chart){ Chart.defaults.font.family = 'system-ui, "Segoe UI", Roboto, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; Chart.defaults.animation = false; }
 
-fetch(SRC, {cache: 'no-store'}).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(render).catch(e => {
+const DOM_LABEL = {gov: 'E-commerce (thelook)', tel: 'Telco (data sintetis)'};
+let RAW = null, DOM = new URLSearchParams(location.search).get('ds') || 'all';
+const charts = [], mk = (el, cfg) => charts.push(new Chart(el, cfg));
+const prefix = d => d.split('_')[0];
+function filt(r, d){
+  if(d === 'all') return r;
+  const P = r.meta.project, inDom = t => { const s = String(t).split('.'); return s.length === 3 && s[0] === P && prefix(s[1]) === d; };
+  const edges = r.lineage.edges.filter(e => inDom(e.target));
+  const nodes = [...new Set(r.lineage.nodes.filter(inDom).concat(edges.flatMap(e => [e.source, e.target])))];
+  const storage = r.storage.filter(x => inDom(x.table)), dictionary = r.dictionary.filter(x => inDom(x.table)), dq = r.dq.filter(x => inDom(x.table));
+  const tabs = new Set(dictionary.map(x => x.table)), described = dictionary.filter(x => x.description).length;
+  return {...r, meta: {...r.meta, datasets: r.meta.datasets.filter(x => prefix(x) === d)}, storage, dictionary, dq,
+    usage: Object.fromEntries(Object.entries(r.usage).filter(([t]) => inDom(t))),
+    recommendations: r.recommendations.filter(x => inDom(x.table)),
+    lineage: {nodes, edges, impact: (r.lineage.impact || []).filter(x => inDom(x.table))},
+    summary: {...r.summary, tables: tabs.size, columns: dictionary.length, column_doc_pct: dictionary.length ? Math.round(1000 * described / dictionary.length) / 10 : 0,
+      table_doc_pct: '–', storage_gib: Math.round(storage.reduce((a, x) => a + (x.logical_bytes || 0), 0) / 2 ** 30 * 1000) / 1000,
+      storage_usd_month: storage.reduce((a, x) => a + (x.cost_usd_month || 0), 0),
+      dq: {pass: dq.filter(x => x.status === 'pass').length, warn: dq.filter(x => x.status === 'warn').length, fail: dq.filter(x => x.status === 'fail').length}}};
+}
+function draw(){
+  const doms = [...new Set(RAW.meta.datasets.map(prefix))];
+  if(DOM !== 'all' && !doms.includes(DOM)) DOM = 'all';
+  render(filt(RAW, DOM));
+  const bar = document.createElement('div'); bar.className = 'domains'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Warehouse');
+  bar.innerHTML = `<span class="lbl">Warehouse</span>` + ['all', ...doms].map(d => `<button type="button" class="chip" data-d="${esc(d)}" aria-pressed="${d === DOM}">${
+      d === 'all' ? 'Semua' : esc(DOM_LABEL[d] || d + '_*')}</button>`).join('')
+    + `<span class="note">Filter berlaku untuk tabel, storage, rekomendasi, lineage, dictionary, dan data quality. Biaya query dihitung per job untuk seluruh project.</span>`;
+  $('app').prepend(bar);
+  bar.querySelectorAll('.chip').forEach(b => b.onclick = () => { DOM = b.dataset.d;
+    const u = new URL(location.href); DOM === 'all' ? u.searchParams.delete('ds') : u.searchParams.set('ds', DOM); history.replaceState(null, '', u); draw(); });
+  panes();
+}
+// bagi laporan menjadi tab, satu per bagian
+function panes(){
+  const app = $('app'), groups = []; let g = null;
+  [...app.children].forEach(el => {
+    if(el.classList.contains('domains')) return;
+    if(el.id === 'overview' || el.matches('h2.sec')){ g = {id: el.id, t: el.id === 'overview' ? 'Overview' : el.textContent, els: []}; groups.push(g); }
+    if(g) g.els.push(el);
+  });
+  const IC = {overview: 'speedometer', cost: 'dollar', recs: 'check-circle', lineage: 'share-all', storage: 'storage', dictionary: 'contact', dq: 'apps-settings'};
+  const tabs = document.createElement('div'); tabs.className = 'tabs'; tabs.setAttribute('role', 'tablist');
+  groups.forEach(x => {
+    const p = document.createElement('div'); p.className = 'pane'; p.dataset.p = x.id; p.setAttribute('role', 'tabpanel');
+    x.els[0].before(p); x.els.forEach(e => p.appendChild(e));
+    tabs.insertAdjacentHTML('beforeend', `<button class="tab" role="tab" type="button" data-p="${x.id}">${window.cuiIcon ? cuiIcon(IC[x.id] || 'list') : ''}${esc(x.t)}</button>`);
+  });
+  app.querySelector('.pane')?.before(tabs);
+  const show = id => { if(!groups.some(x => x.id === id)) id = 'overview';
+    app.querySelectorAll('.pane').forEach(p => p.hidden = p.dataset.p !== id);
+    tabs.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.p === id)); };
+  tabs.onclick = e => { const t = e.target.closest('.tab'); if(!t) return; show(t.dataset.p); history.replaceState(null, '', '#' + t.dataset.p); };
+  show(location.hash.slice(1));
+}
+window.addEventListener('hashchange', () => { const t = document.querySelector(`.tab[data-p="${CSS.escape(location.hash.slice(1))}"]`); t?.click(); });
+
+fetch(SRC, {cache: 'no-store'}).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(r => { RAW = r; draw(); }).catch(e => {
   $('app').innerHTML = `<div class="empty">Could not load the snapshot (${esc(e.message)}). The Markdown version is on
     <a href="https://github.com/elsonsaputra03-dot/bq-governance-toolkit/blob/main/snapshots/REPORT.md">GitHub</a>.</div>`;
   $('snap').textContent = 'Snapshot unavailable';
 });
 
 function render(r){
+  charts.splice(0).forEach(c => c.destroy());
   const m = r.meta, s = r.summary, c = r.costs, P = m.project;
   $('snap').innerHTML = `Project <code>${esc(P)}</code> · ${esc(m.location)} · collected ${esc(when(m.collected_at))} · job window ${m.lookback_days} days ·
     datasets ${m.datasets.map(esc).join(', ')} · $${m.prices.on_demand_per_tib}/TiB on-demand`;
@@ -112,7 +178,7 @@ function render(r){
   $('app').innerHTML = `
     <section id="overview"><div class="kpis">
       ${kpi('Tables / columns', `${s.tables} / ${s.columns}`, `${m.datasets.length} datasets catalogued`)}
-      ${kpi('Documented columns', s.column_doc_pct + '%', `tables: ${s.table_doc_pct}%`)}
+      ${kpi('Documented columns', s.column_doc_pct + '%', s.table_doc_pct === '–' ? 'columns in this warehouse' : `tables: ${s.table_doc_pct}%`)}
       ${kpi('Storage', s.storage_gib + ' GiB', usd(s.storage_usd_month) + ' / month · ' + esc(m.storage_source))}
       ${kpi('Query cost, window', usd(c.total_usd), `${num(c.jobs)} jobs · ${num(c.cache_hit_jobs)} cache hits`)}
       ${kpi('Recommendations', r.recommendations.length, r.recommendations.map(x => x.type).join(', ') || 'none')}
@@ -170,19 +236,18 @@ function render(r){
 
   // grafik biaya
   if(window.Chart){
-    new Chart($('c-day'), {type: 'bar', data: {labels: c.by_day.map(d => d.date), datasets: [{label: 'USD', data: c.by_day.map(d => d.cost_usd), backgroundColor: '#2E5E8C'}]},
+    mk($('c-day'), {type: 'bar', data: {labels: c.by_day.map(d => d.date), datasets: [{label: 'USD', data: c.by_day.map(d => d.cost_usd), backgroundColor: '#3399FF'}]},
       options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: x => usd(x.parsed.y)}}}, scales: {y: {ticks: {callback: v => usd(v)}}}}});
-    new Chart($('c-pipe'), {type: 'bar', data: {labels: c.by_pipeline.map(d => d.pipeline), datasets: [{label: 'USD', data: c.by_pipeline.map(d => d.cost_usd), backgroundColor: '#C9901D'}]},
+    mk($('c-pipe'), {type: 'bar', data: {labels: c.by_pipeline.map(d => d.pipeline), datasets: [{label: 'USD', data: c.by_pipeline.map(d => d.cost_usd), backgroundColor: '#F9B115'}]},
       options: {indexAxis: 'y', maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: x => usd(x.parsed.x)}}}, scales: {x: {ticks: {callback: v => usd(v)}}}}});
   }
   lineage(r.lineage, P);
   dictionary(r.dictionary, P);
-  document.querySelectorAll('.rail a[href^="#"]').forEach(a => a.addEventListener('click', () => {
-    document.querySelectorAll('.rail a').forEach(x => x.removeAttribute('aria-current')); a.setAttribute('aria-current', 'page'); }));
 }
 
 // lineage: lapisan menurut jalur terpanjang dari sumber; kotak putus-putus = tabel project lain
 function lineage(L, P){
+  if(!L.nodes.length){ $('lin').innerHTML = ''; $('lin').removeAttribute('viewBox'); $('lin-sel').textContent = 'No lineage for this warehouse in the job window.'; return; }
   const nodes = L.nodes, edges = L.edges, depth = Object.fromEntries(nodes.map(n => [n, 0]));
   for(let i = 0; i < nodes.length; i++) edges.forEach(e => { depth[e.target] = Math.max(depth[e.target], depth[e.source] + 1); });
   const layers = []; nodes.forEach(n => (layers[depth[n]] ||= []).push(n));
@@ -217,5 +282,7 @@ function dictionary(rows, P){
 }
 })();
 </script>
+<script src="assets/cui-icons.js"></script>
+<script src="assets/gov-shell.js"></script>
 </body>
 </html>

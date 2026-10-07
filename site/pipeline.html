@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data Governance — Pipeline cost (synthetic data)</title>
 <meta name="description" content="Pipeline compute cost, reliability, and optimization recommendations, rebuilt for a portfolio with synthetic data.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/gov.css">
 <style>
   .kpis.five{grid-template-columns:repeat(5,minmax(0,1fr))}
@@ -15,7 +12,7 @@
   .rec{border:1px solid var(--rule);border-left:4px solid var(--up);border-radius:8px;padding:10px 12px;background:#fff}
   .rec.warn{border-left-color:var(--lt)} .rec.info{border-left-color:var(--active)}
   .rec .rt{font-size:.8rem;color:var(--muted)}
-  .rec .rn{font-family:"Barlow Condensed",sans-serif;font-size:1rem;margin:2px 0;overflow-wrap:anywhere}
+  .rec .rn{font-family:inherit;font-size:1rem;margin:2px 0;overflow-wrap:anywhere}
   .rec .rd{font-size:.86rem}
   .rec .rs{font-weight:700;color:var(--down);margin-top:4px;font-size:.9rem}
   .filters.pc{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.6fr) auto}
@@ -90,7 +87,7 @@
 'use strict';
 const {SNAP, $, esc, usd, date, pipelines, SLOT_PRICE} = window.GOV;
 const P = pipelines();
-if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; }
+if(window.Chart){ Chart.defaults.font.family = 'system-ui, "Segoe UI", Roboto, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; }
 const SCHED = {hourly: 'per jam', daily: 'harian', weekly: 'mingguan'};
 const months = Array.from({length: 12}, (_, i) => new Date(Date.UTC(SNAP.getUTCFullYear(), SNAP.getUTCMonth() - 11 + i, 1)));
 const mLabel = d => d.toLocaleDateString('id-ID', {month: 'short', year: '2-digit'});
@@ -131,11 +128,11 @@ $('kpis').innerHTML = [
 
 if(window.Chart){
   new Chart($('c-trend'), {type: 'line', data: {labels: months.map(mLabel), datasets: [{label: 'Biaya compute (USD)',
-    data: months.map((_, i) => P.reduce((s, p) => s + p.monthly[i], 0)), borderColor: '#2E5E8C', backgroundColor: 'rgba(46,94,140,.12)', fill: true, tension: .3, pointRadius: 3}]},
+    data: months.map((_, i) => P.reduce((s, p) => s + p.monthly[i], 0)), borderColor: '#3399FF', backgroundColor: 'rgba(46,94,140,.12)', fill: true, tension: .3, pointRadius: 3}]},
     options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => usd(c.parsed.y)}}}, scales: {y: {ticks: {callback: v => usd(v)}}}}});
   const top = P.slice(0, 15);
   new Chart($('c-top'), {type: 'bar', data: {labels: top.map(p => p.name), datasets: [{label: 'USD/bulan', data: top.map(p => p.cost),
-    backgroundColor: top.map(p => p.status === 'paused' ? '#B8C6CE' : p.tier === 1 ? '#B3261E' : '#E9B44C')}]},
+    backgroundColor: top.map(p => p.status === 'paused' ? '#B8C6CE' : p.tier === 1 ? '#E55353' : '#F9B115')}]},
     options: {indexAxis: 'y', maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => usd(c.parsed.x)}}},
       scales: {x: {ticks: {callback: v => usd(v)}}, y: {ticks: {font: {size: 11}}}}}});
 }
@@ -150,7 +147,7 @@ const state = {k: 'cost', dir: -1};
 const COLS = [['name', 'Job'], ['project', 'Project'], ['schedule', 'Jadwal'], ['tier', 'Tier'], ['status', 'Status'], ['cost', 'Biaya/bulan', 'r'],
   ['slotMonth', 'Slot-hour', 'r'], ['success', 'Sukses', 'r'], ['duration', 'Durasi rata-rata', 'r'], ['tables', 'Tabel tujuan', 'r'], ['trend', 'Tren 12 bulan']];
 function spark(m){ const max = Math.max(...m, 1e-9), W = 90, H = 22, st = W / (m.length - 1);
-  return `<svg width="${W}" height="${H}" viewBox="-2 0 ${W + 4} ${H}" aria-hidden="true"><polyline fill="none" stroke="#2E5E8C" stroke-width="1.4"
+  return `<svg width="${W}" height="${H}" viewBox="-2 0 ${W + 4} ${H}" aria-hidden="true"><polyline fill="none" stroke="#3399FF" stroke-width="1.4"
     points="${m.map((v, i) => `${(i * st).toFixed(1)},${(H - 2 - v / max * (H - 4)).toFixed(1)}`).join(' ')}"/></svg>`; }
 function render(){
   const q = $('f-q').value.trim().toLowerCase(), fs = $('f-status').value, ft = $('f-tier').value, fsc = $('f-sched').value;
@@ -173,5 +170,7 @@ $('reset').onclick = () => { ['f-status', 'f-tier', 'f-sched', 'f-q'].forEach(id
 render();
 })();
 </script>
+<script src="assets/cui-icons.js"></script>
+<script src="assets/gov-shell.js"></script>
 </body>
 </html>

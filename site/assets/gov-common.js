@@ -108,7 +108,7 @@ const pct = (a, b) => b ? (a / b * 100) : 0;
 const delta = (now, prev, fmt, invert) => { if(!prev) return ''; const d = (now - prev) / prev * 100; if(Math.abs(d) < .05) return '<span class="muted">tetap</span>';
   const up = d > 0; return `<span class="${up !== !!invert ? 'up' : 'down'}">${up ? '+' : ''}${d.toFixed(1)}%</span>`; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const PALETTE = ['#2E5E8C', '#E9B44C', '#3E8E5E', '#8F3F97', '#D9722E', '#5D6D78', '#1D8A99', '#B3261E'];
+const PALETTE = ['#3399FF', '#F9B115', '#2EB85C', '#5856D6', '#F9802B', '#5D6D78', '#1D8A99', '#E55353'];
 
 // ------------------------------------------------------------------ metadata: domain, kolom, lineage
 // Memakai RNG terpisah per nama objek (hash), sehingga urutan TABLES di atas tidak berubah.
