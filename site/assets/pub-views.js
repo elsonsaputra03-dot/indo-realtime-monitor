@@ -59,6 +59,27 @@ function drops(s){
     if(med > 0.1 && v < 0.6 * med) out.push({t, v, med, ratio: v / med}); });
   return out;
 }
+// celah data: >= 6 jam berturut-turut hampir nol (mis. ASN tidak terlihat), dikeluarkan dari deteksi gangguan
+function gaps(s){
+  const out = new Set(); if(!s || !s.t) return out; let run = [];
+  const flush = () => { if(run.length >= 6) run.forEach(t => out.add(t)); run = []; };
+  s.t.forEach((t, i) => { const v = s.v[i]; if(v == null || v <= .02) run.push(t); else flush(); }); flush();
+  return out;
+}
+const OPC = {'Telkomsel': '#D62839', 'Indosat': '#E0A100', 'XL Axiata': '#1F6FD1', 'Tri (IOH)': '#7B3FC4', 'Telkom Indonesia': '#E36414', 'Smartfren': '#C2185B'};
+const opColor = l => OPC[l] || '#2E5E8C';
+function spark(v, col){
+  const x = v.filter(a => a != null); if(x.length < 2) return '<svg class="po-sp"></svg>';
+  const W = 220, H = 44, n = v.length, p = v.map((a, i) => [i / (n - 1) * W, H - 3 - (a == null ? 0 : a) * (H - 6)]);
+  const line = p.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ',' + q[1].toFixed(1)).join('');
+  return `<svg class="po-sp" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${line}L${W},${H}L0,${H}Z" fill="${col}22"/><path d="${line}" fill="none" stroke="${col}" stroke-width="1.4"/></svg>`;
+}
+const hero = (d, title, sub, stats) => `<div class="pub-hero"><div class="ph-l"><span class="ph-live"><i></i>DATA NYATA · DIPERBARUI TIAP 3 JAM</span>
+    <div class="ph-t">${title}</div><div class="ph-s">${sub}</div></div>
+  <div class="ph-r">${stats.map(([v, k, c]) => `<div class="ph-k ${c || ''}"><b>${v}</b><span>${k}</span></div>`).join('')}</div></div>
+  <div class="pub-src">Sumber <a href="${esc(d.attribution.url)}" target="_blank" rel="noopener noreferrer">Cloudflare Radar</a> ·
+  <a href="${esc(d.attribution.license_url)}" target="_blank" rel="noopener noreferrer">${esc(d.attribution.license)}</a> · snapshot ${tgl(d.generated_at)} ·
+  pandangan dari luar jaringan operator, bukan data OSS internal</div>`;
 const avg = (a) => { const x = a.filter(v => v != null); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; };
 
 const VIEWS = {
@@ -71,12 +92,10 @@ const VIEWS = {
     anos.forEach(a => { const m = mk(a.startDate); if(m) (months[m] ||= {o: 0, a: 0}).a++; });
     const M = Object.keys(months).sort();
     const causes = {}; outs.forEach(o => { const c = CAUSE[o.cause] || o.cause || 'Tidak diketahui'; causes[c] = (causes[c] || 0) + 1; });
-    el.innerHTML = head(d) + `<div class="kpis" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
-      ${kpi(fmt(outs.length), 'gangguan tercatat', '12 bulan, Indonesia')}
-      ${kpi(fmt(anos.length), 'anomali trafik', 'deteksi otomatis Radar')}
-      ${kpi(fmt(opsHit.size), 'operator utama terdampak', 'dari ' + Object.keys(d.asns).length + ' yang dipantau')}
-      ${kpi(outs[0] ? tglD(outs[0].startDate) : '–', 'gangguan terakhir', outs[0] ? esc(CAUSE[outs[0].cause] || outs[0].cause || '') : '')}
-    </div>
+    el.innerHTML = hero(d, 'Gangguan &amp; anomali internet', 'Gangguan yang dikonfirmasi tim Radar dan penurunan trafik yang terdeteksi otomatis di Indonesia, 12 bulan terakhir', [
+        [fmt(outs.length), 'gangguan tercatat', outs.length ? 'bad' : 'good'], [fmt(anos.length), 'anomali trafik'],
+        [fmt(opsHit.size) + '/' + Object.keys(d.asns).length, 'operator utama terdampak'],
+        [outs[0] ? tglD(outs[0].startDate) : '–', 'gangguan terakhir' + (outs[0] ? ' · ' + esc(CAUSE[outs[0].cause] || outs[0].cause || '') : '')]]) + `
     <div class="grid2" style="margin-bottom:14px">
       <section class="card"><h3>Kejadian per bulan</h3><div class="chart" style="height:220px"><canvas id="p-month"></canvas></div></section>
       <section class="card"><h3>Penyebab gangguan <span>menurut catatan Radar</span></h3>${table([{l: 'Penyebab', k: 'c'}, {l: 'Jumlah', k: 'n', n: 1}],
@@ -103,34 +122,63 @@ const VIEWS = {
   'pub-traffic'(d, el){
     const keys = Object.keys(d.asns).filter(k => d.traffic[k] && (d.traffic[k].http || d.traffic[k].netflows));
     pickAsn = keys.includes(pickAsn) ? pickAsn : keys[0];
-    const rows = keys.map(k => { const s = d.traffic[k].http || d.traffic[k].netflows, n = s.v.length, w = Math.min(168, Math.floor(n / 2));
-      const last = avg(s.v.slice(n - w)), prev = avg(s.v.slice(n - 2 * w, n - w)), dr = drops(s);
-      return {k, label: d.asns[k].label, name: d.asns[k].name, change: last != null && prev ? (last / prev - 1) * 100 : null, drops: dr.length,
-              worst: dr.sort((a, b) => a.ratio - b.ratio)[0], src: d.traffic[k].http ? 'HTTP' : 'NetFlows'}; });
-    el.innerHTML = head(d) + `<div class="ointro">Trafik dinormalisasi oleh Radar (0 = terendah, 1 = tertinggi dalam periode), jadi yang dibandingkan adalah <b>pola</b>, bukan volume
-      antar-operator. Penurunan tidak normal dihitung di sini: nilai satu jam di bawah 60% median jam yang sama pada hari yang sama di minggu-minggu lain.</div>
-    ${card('Ringkasan per operator', '28 hari terakhir, per jam', table([
-      {l: 'Operator', h: r => `<b>${esc(r.label)}</b> <span class="muted">AS${r.k}</span><br><small class="muted">${esc(r.name)}</small>`, w: 1},
-      {l: 'Perubahan 7 hari terakhir', n: 1, h: r => r.change == null ? '–' : `<span class="${r.change < -10 ? 'up' : ''}">${r.change > 0 ? '+' : ''}${fmt(r.change, 1)}%</span>`},
-      {l: 'Jam turun tidak normal', n: 1, h: r => r.drops ? `<span class="opill crit">${r.drops}</span>` : '0'},
-      {l: 'Penurunan terdalam', h: r => r.worst ? `${tgl(r.worst.t)}<br><small class="muted">${fmt(r.worst.ratio * 100)}% dari normal</small>` : '–'},
-      {l: 'Sumber', k: 'src'}], rows, 'Data trafik belum tersedia.'))}
-    <section class="card"><h3>Pola trafik per jam <span>operator vs Indonesia</span></h3>
-      <div class="pub-chips" role="group" aria-label="Pilih operator">${keys.map(k => `<button type="button" class="pub-chip" data-k="${k}" aria-pressed="${k === pickAsn}">${esc(d.asns[k].label)}</button>`).join('')}</div>
-      <div class="chart" style="height:300px"><canvas id="p-traffic"></canvas></div>
-      <p class="onote">Titik merah = jam dengan penurunan tidak normal. Waktu dalam WIB.</p></section>`;
+    const ser = k => d.traffic[k].http || d.traffic[k].netflows;
+    const hourOf = t => (new Date(t).getUTCHours() + 7) % 24;
+    const rows = keys.map(k => { const s = ser(k), n = s.v.length, w = Math.min(168, Math.floor(n / 2));
+      const last = avg(s.v.slice(n - w)), prev = avg(s.v.slice(n - 2 * w, n - w)), gp = gaps(s), dr = drops(s).filter(x => !gp.has(x.t));
+      const byH = Array.from({length: 24}, () => []); s.t.forEach((t, i) => { if(s.v[i] != null && !gp.has(t)) byH[hourOf(t)].push(s.v[i]); });
+      const hv = byH.map(a => avg(a) || 0), peak = hv.indexOf(Math.max(...hv)), low = hv.indexOf(Math.min(...hv));
+      return {k, label: d.asns[k].label, name: d.asns[k].name, change: last != null && prev ? (last / prev - 1) * 100 : null, drops: dr.length, gaps: gp.size,
+              worst: dr.sort((a, b) => a.ratio - b.ratio)[0], peak, low, spark: s.v.slice(-168), src: d.traffic[k].http ? 'HTTP' : 'NetFlows'}; });
+    const totalDrops = rows.reduce((a, r) => a + r.drops, 0), best = rows.slice().sort((a, b) => (b.change || -99) - (a.change || -99))[0];
+    el.innerHTML = hero(d, 'Trafik per operator', 'Pola trafik per jam 5 operator besar selama 28 hari, dilihat dari jaringan Cloudflare', [
+        [keys.length, 'operator dipantau'], [totalDrops, 'jam turun tidak normal', totalDrops ? 'bad' : 'good'],
+        [best ? (best.change > 0 ? '+' : '') + fmt(best.change, 1) + '%' : '–', best ? 'tumbuh tertinggi · ' + esc(best.label) : '']]) +
+    `<div class="pub-ops">${rows.map(r => `<button type="button" class="pub-op" data-k="${r.k}" aria-pressed="${r.k === pickAsn}" style="--oc:${opColor(r.label)}">
+        <div class="po-h"><b>${esc(r.label)}</b><span>AS${r.k}</span></div>
+        <div class="po-v ${r.change == null ? '' : r.change >= 0 ? 'pos' : 'neg'}">${r.change == null ? '–' : (r.change >= 0 ? '▲ ' : '▼ ') + fmt(Math.abs(r.change), 1) + '%'}<small>7 hari vs sebelumnya</small></div>
+        ${spark(r.spark, opColor(r.label))}
+        <div class="po-f"><span class="${r.drops ? 'bad' : 'ok'}">${r.drops ? r.drops + ' jam turun' : 'normal'}</span>${r.gaps ? `<span class="gap">${r.gaps} jam tanpa data</span>` : ''}
+          <span>puncak ${String(r.peak).padStart(2, '0')}.00</span></div></button>`).join('')}</div>
+    <section class="card pub-main"><div class="pm-h"><h3 id="p-tt"></h3>
+        <div class="pub-seg" role="group" aria-label="Rentang">${[7, 14, 28].map(n => `<button type="button" data-n="${n}" aria-pressed="${n === 28}">${n} hari</button>`).join('')}</div></div>
+      <div class="chart" style="height:320px"><canvas id="p-traffic"></canvas></div>
+      <div class="pub-leg"><span><i class="ln"></i>operator terpilih</span><span><i class="ln dash"></i>Indonesia (semua jaringan)</span><span><i class="dot"></i>jam turun tidak normal</span></div></section>
+    <section class="card" style="margin-top:14px"><h3>Peta panas 28 hari × 24 jam <span id="p-hm-s"></span></h3><div id="p-hm"></div>
+      <div class="pub-leg"><span>sepi</span><span class="hm-scale"></span><span>ramai</span><span><i class="sq bad"></i>turun tidak normal</span><span><i class="sq gap"></i>tanpa data</span></div></section>
+    <details class="pub-method"><summary>Cara membaca &amp; metode</summary><p>Radar menormalisasi trafik tiap jaringan ke 0–1 (0 = jam tersepi, 1 = jam teramai dalam periode),
+      jadi yang dibandingkan adalah <b>pola</b>, bukan volume antar-operator. <b>Turun tidak normal</b>: nilai satu jam di bawah 60% median jam yang sama pada hari yang sama di minggu-minggu lain.
+      <b>Tanpa data</b>: ≥ 6 jam berturut-turut bernilai hampir nol, kemungkinan celah pengukuran, tidak dihitung sebagai gangguan. Waktu dalam WIB.</p></details>`;
+    let range = 28;
     const draw = () => {
       charts.splice(0).forEach(c => c.destroy());
-      const s = d.traffic[pickAsn].http || d.traffic[pickAsn].netflows, id = d.traffic.ID && (d.traffic.ID.http || d.traffic.ID.netflows);
-      const dr = new Set(drops(s).map(x => x.t)), lab = s.t.map(t => new Date(t).toLocaleString('id-ID', {day: '2-digit', month: 'short', hour: '2-digit', timeZone: 'Asia/Jakarta'}));
-      chart(document.getElementById('p-traffic'), {type: 'line', data: {labels: lab, datasets: [
-        {label: d.asns[pickAsn].label, data: s.v, borderColor: '#2E5E8C', borderWidth: 1.4, pointRadius: s.t.map(t => dr.has(t) ? 3.5 : 0), pointBackgroundColor: '#B3261E', tension: .2},
-        ...(id ? [{label: 'Indonesia (semua)', data: s.t.map(t => { const j = id.t.indexOf(t); return j < 0 ? null : id.v[j]; }), borderColor: '#B7C4CC', borderWidth: 1, pointRadius: 0, tension: .2}] : [])]},
-        options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, plugins: {legend: {position: 'bottom'}},
-          scales: {x: {ticks: {maxTicksLimit: 10}}, y: {min: 0, max: 1}}}});
-      el.querySelectorAll('.pub-chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === pickAsn));
+      const s = ser(pickAsn), id = d.traffic.ID && ser('ID'), r = rows.find(x => x.k === pickAsn), col = opColor(r.label);
+      const gp = gaps(s), n0 = Math.max(0, s.t.length - range * 24), T = s.t.slice(n0), V = s.v.slice(n0).map((v, i) => gp.has(T[i]) ? null : v), dr = new Set(drops(s).filter(x => !gp.has(x.t)).map(x => x.t));
+      document.getElementById('p-tt').innerHTML = `${esc(r.label)} <span>AS${r.k} · ${esc(r.name)} · sumber ${r.src}</span>`;
+      const lab = T.map(t => new Date(t).toLocaleString('id-ID', {weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta'}));
+      const cv = document.getElementById('p-traffic'), g = cv.getContext('2d').createLinearGradient(0, 0, 0, 320);
+      g.addColorStop(0, col + '55'); g.addColorStop(1, col + '05');
+      chart(cv, {type: 'line', data: {labels: lab, datasets: [
+        {label: r.label, data: V, borderColor: col, backgroundColor: g, fill: true, borderWidth: 1.6, tension: .25,
+         pointRadius: T.map(t => dr.has(t) ? 4 : 0), pointBackgroundColor: '#E5383B', pointBorderColor: '#fff', pointBorderWidth: 1.5},
+        ...(id ? [{label: 'Indonesia', data: T.map(t => { const j = id.t.indexOf(t); return j < 0 ? null : id.v[j]; }), borderColor: '#8FA1AC', borderDash: [4, 4], borderWidth: 1, pointRadius: 0, tension: .25}] : [])]},
+        options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+          plugins: {legend: {display: false}, tooltip: {backgroundColor: '#15212A', padding: 10, callbacks: {label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y * 100)}% dari puncak`}}},
+          scales: {x: {grid: {display: false}, ticks: {maxTicksLimit: range === 7 ? 7 : 10, autoSkip: true, callback: function(v){ return this.getLabelForValue(v).split(',')[0]; }}},
+                   y: {min: 0, max: 1, grid: {color: '#EDF1F3'}, ticks: {callback: v => v * 100 + '%'}}}}});
+      // peta panas: baris = hari, kolom = jam WIB
+      const days = {}; s.t.forEach((t, i) => { const w = new Date(new Date(t).getTime() + 7 * 36e5), key = w.toISOString().slice(0, 10);
+        (days[key] ||= Array(24).fill(undefined))[w.getUTCHours()] = {v: s.v[i], t}; });
+      const shade = v => { const x = Math.max(0, Math.min(1, v)); return `hsl(${210 - x * 20},${45 + x * 30}%,${96 - x * 62}%)`; };
+      document.getElementById('p-hm-s').textContent = `${r.label} · nilai 0–100% dari puncak`;
+      document.getElementById('p-hm').innerHTML = `<div class="hm"><div class="hm-r hm-hd"><span></span>${Array.from({length: 24}, (_, h) => `<span>${h % 3 ? '' : String(h).padStart(2, '0')}</span>`).join('')}</div>` +
+        Object.keys(days).sort().map(k => `<div class="hm-r"><span>${new Date(k + 'T00:00:00Z').toLocaleDateString('id-ID', {weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC'})}</span>${days[k].map(c =>
+          !c || c.v == null ? '<i class="na"></i>' : `<i class="${gp.has(c.t) ? 'gap' : dr.has(c.t) ? 'bad' : ''}" style="background:${gp.has(c.t) ? '' : shade(c.v)}" title="${tgl(c.t)}: ${fmt(c.v * 100)}%"></i>`).join('')}</div>`).join('') + '</div>';
+      el.querySelectorAll('.pub-op').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === pickAsn));
     };
-    el.querySelectorAll('.pub-chip').forEach(b => b.onclick = () => { pickAsn = b.dataset.k; draw(); });
+    el.querySelectorAll('.pub-op').forEach(b => b.onclick = () => { pickAsn = b.dataset.k; draw(); });
+    el.querySelectorAll('.pub-seg button').forEach(b => b.onclick = () => { range = +b.dataset.n;
+      el.querySelectorAll('.pub-seg button').forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); });
     if(pickAsn) draw();
   },
 
@@ -148,7 +196,10 @@ const VIEWS = {
     pickGeo = rows.some(r => r.g === pickGeo) ? pickGeo : rows[0].g;
     const cell = (k, g) => { const v = opShare[k][g], n = nat[g]; if(v == null) return '–'; const idx = n ? v / n : null;
       return `<span title="indeks ${idx == null ? '–' : fmt(idx, 2)} terhadap porsi nasional" class="${idx > 1.3 ? 'pub-hi' : idx < .7 ? 'pub-lo' : ''}">${fmt(v, 1)}%</span>`; };
-    el.innerHTML = head(d) + `<div class="ointro">Radar membagi trafik Indonesia per <b>provinsi</b> (ADM1, tersedia sejak September 2025). Angka = porsi trafik 7 hari terakhir.
+    const downN = rows.filter(r => r.tr && r.tr.change != null && r.tr.change <= -10).length;
+    el.innerHTML = hero(d, 'Trafik per provinsi', 'Porsi trafik internet tiap provinsi dan sebaran trafik tiap operator, 7 hari terakhir', [
+        [rows.length, 'provinsi'], [downN, 'provinsi turun ≥ 10%', downN ? 'bad' : 'good'],
+        [esc(rows[0].name), fmt(rows[0].nat, 1) + '% trafik nasional']]) + `<div class="ointro">Radar membagi trafik Indonesia per <b>provinsi</b> (ADM1, tersedia sejak September 2025). Angka = porsi trafik 7 hari terakhir.
       Kolom operator = porsi trafik operator itu yang berasal dari provinsi tersebut; <span class="pub-hi">hijau</span> berarti operator relatif lebih kuat di sana dibanding rata-rata nasional,
       <span class="pub-lo">merah</span> relatif lebih lemah. Level lebih kecil dari provinsi (kota, site, sel) tidak tersedia di data publik.</div>
     <div class="grid2" style="margin-bottom:14px">
@@ -205,7 +256,10 @@ const VIEWS = {
       jit: num(x.jitterIdle), loss: num(x.packetLoss)})).sort((a, b) => (a.key === 'ID') - (b.key === 'ID') || (b.dl || 0) - (a.dl || 0));
     const bg = Object.entries(d.bgp).map(([k, s]) => ({k, ...s}));
     const pctV = s => s.routes_total ? (s.routes_valid || 0) / s.routes_total * 100 : null;
-    el.innerHTML = head(d) + `<div>
+    const nat = sp.find(x => x.key === 'ID'), rv = bg.map(pctV).filter(v => v != null);
+    el.innerHTML = hero(d, 'Kualitas &amp; routing BGP', 'Kecepatan dari speed test pengguna dan kesehatan routing BGP operator Indonesia', [
+        [nat ? fmt(nat.dl, 0) + ' Mbps' : '–', 'median unduh Indonesia'], [nat ? fmt(nat.lat, 0) + ' ms' : '–', 'median latensi'],
+        [rv.length ? fmt(avg(rv), 1) + '%' : '–', 'route RPKI valid (rata-rata operator)'], [fmt(d.hijacks.length), 'BGP hijack terbaru', d.hijacks.length ? 'bad' : 'good']]) + `<div>
       ${card('Kecepatan per operator', 'speed test pengguna di speed.cloudflare.com, median 90 hari', table([
         {l: 'Jaringan', h: r => r.key === 'ID' ? '<b>Indonesia (semua jaringan)</b>' : `<b>${asnName(d, r.key)}</b>`, w: 1},
         {l: 'Unduh (Mbps)', n: 1, h: r => fmt(r.dl, 1)}, {l: 'Unggah (Mbps)', n: 1, h: r => fmt(r.ul, 1)},
@@ -245,16 +299,18 @@ function cellsView(c, g, el){
   const K = c.kab, byK = Object.fromEntries(K.map(k => [k.k, k])), provs = [...new Set(K.map(k => k.prov))].filter(Boolean).sort();
   const tot = c.cells_indonesia || Object.values(c.by_op).reduce((s, v) => s + v, 0), recent = K.reduce((s, k) => s + k.recent, 0), inK = K.reduce((s, k) => s + k.total, 0);
   const radio = c.by_radio, rT = Object.values(radio).reduce((s, v) => s + v, 0);
-  el.innerHTML = `<div class="ointro pub-real"><strong>Data nyata, publik.</strong> Sumber <a href="${esc(c.attribution.url)}" target="_blank" rel="noopener noreferrer">OpenCelliD</a>,
-    lisensi <a href="${esc(c.attribution.license_url)}" target="_blank" rel="noopener noreferrer">${esc(c.attribution.license)}</a>; batas wilayah ${esc(c.attribution.boundaries)}.
-    Diperbarui mingguan (${tgl(c.generated_at)}). Posisi sel adalah <b>perkiraan dari pengukuran ponsel relawan</b>, bukan koordinat BTS resmi, sehingga hanya ditampilkan
-    teragregasi per kabupaten/kota. Wilayah yang jarang dilewati relawan bisa tampak lebih sedikit selnya daripada kenyataan.</div>
-  <div class="kpis" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
-    ${kpi(fmt(tot), 'sel tercatat', `${fmt(inK)} di dalam batas ${fmt(K.filter(k => k.total).length)} kab/kota`)}
-    ${kpi(fmt(rT ? ((radio['4G'] || 0) + (radio['5G'] || 0)) / rT * 100 : 0) + '%', 'sel 4G + 5G', `5G: ${fmt(radio['5G'] || 0)} sel`)}
-    ${kpi(fmt(inK ? recent / inK * 100 : 0) + '%', 'terlihat 12 bulan terakhir', 'sisanya data lama')}
-    ${kpi(esc(Object.entries(c.by_op).filter(([o]) => o !== 'Lainnya').sort((a, b) => b[1] - a[1])[0]?.[0] || '–'), 'operator dengan sel terbanyak', '')}
-  </div>
+  const topOp = Object.entries(c.by_op).filter(([o]) => o !== 'Lainnya').sort((a, b) => b[1] - a[1])[0];
+  el.innerHTML = `<div class="pub-hero"><div class="ph-l"><span class="ph-live"><i></i>DATA NYATA · DIPERBARUI MINGGUAN</span>
+      <div class="ph-t">Sebaran sel seluler</div><div class="ph-s">Sel 2G–5G yang terekam ponsel relawan OpenCelliD, diringkas per kabupaten/kota</div></div>
+    <div class="ph-r"><div class="ph-k"><b>${fmt(tot)}</b><span>sel tercatat</span></div>
+      <div class="ph-k"><b>${fmt(K.filter(k => k.total).length)}/${K.length}</b><span>kab/kota punya data</span></div>
+      <div class="ph-k"><b>${fmt(rT ? ((radio['4G'] || 0) + (radio['5G'] || 0)) / rT * 100 : 0)}%</b><span>sel 4G + 5G</span></div>
+      <div class="ph-k"><b>${fmt(inK ? recent / inK * 100 : 0)}%</b><span>terlihat 12 bulan terakhir</span></div></div></div>
+  <div class="pub-src">Sumber <a href="${esc(c.attribution.url)}" target="_blank" rel="noopener noreferrer">OpenCelliD</a> ·
+    <a href="${esc(c.attribution.license_url)}" target="_blank" rel="noopener noreferrer">${esc(c.attribution.license)}</a> · batas wilayah ${esc(c.attribution.boundaries)} ·
+    diperbarui ${tgl(c.generated_at)} · operator terbanyak ${topOp ? esc(topOp[0]) : '–'}</div>
+  <div class="ointro">Posisi sel adalah <b>perkiraan dari pengukuran ponsel relawan</b>, bukan koordinat BTS resmi, sehingga hanya ditampilkan per kabupaten/kota.
+    Wilayah yang jarang dilewati relawan bisa tampak lebih sedikit selnya daripada kenyataan; angka cocok untuk membandingkan pola, bukan menghitung BTS.</div>
   <section class="card" style="margin-bottom:14px"><h3>Peta per kabupaten/kota</h3>
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px">
       <div class="pub-chips" role="group" aria-label="Operator">${['', ...c.ops.filter(o => o !== 'Lainnya')].map(o => `<button type="button" class="pub-chip" data-cop="${esc(o)}" aria-pressed="${o === cOp}">${o || 'Semua operator'}</button>`).join('')}</div>
