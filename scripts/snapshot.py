@@ -120,7 +120,7 @@ def src_food_prices(_c: httpx.Client, out: str) -> dict:
     if os.path.exists(path):
         cached = json.load(open(path, encoding="utf-8"))
         age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(cached["generated_at"])).total_seconds() / 3600
-        if age_h < 12 and cached.get("items"):
+        if age_h < 12 and cached.get("items") and len({(i["commodity_id"], i["prov_id"]) for i in cached["items"]}) == len(cached["items"]):
             return {"file": None, "count": len(cached["items"]), "note": f"cache {age_h:.0f} jam"}
     today = datetime.now(WIB).date()
     items, failed, raw, sample = [], [], 0, None

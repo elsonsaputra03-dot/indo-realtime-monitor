@@ -99,5 +99,8 @@ def fetch_commodity(commodity_id: int, dates: list[date]) -> dict:
                         break
     except Exception as exc:  # noqa: BLE001
         out.update(status="error", error=f"{type(exc).__name__}: {exc}"[:300])
+    # server mengembalikan data terakhir yang tersedia untuk tanggal mana pun yang diminta: hari ini dan kemarin bisa
+    # menghasilkan baris yang sama persis, jadi satu baris per (provinsi, tanggal)
+    out["items"] = list({(x["prov_id"], x["price_date"]): x for x in out["items"]}.values())
     out["ms"] = int((time.monotonic() - t0) * 1000)
     return out
