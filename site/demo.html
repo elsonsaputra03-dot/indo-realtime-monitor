@@ -231,8 +231,8 @@ const get = name => fetch(`data/${name}?v=${Date.now() / 3.6e6 | 0}`).then(r => 
 const map = L.map('map', {preferCanvas: true}).setView([-2.5, 118], 5);
 const DATA_ATTR = ' | Data: BMKG, USGS, NASA FIRMS, Open-Meteo, PIHPS-BI';
 const bases = {
-  'Peta terang': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, subdomains: 'abcd',
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO' + DATA_ATTR}),
+  'Peta terang': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom: 16,
+    attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors' + DATA_ATTR}),
   'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18,
     attribution: '&copy; OpenStreetMap contributors' + DATA_ATTR})};
 bases['Peta terang'].addTo(map);
@@ -259,7 +259,7 @@ const nf = v => v == null ? '–' : v.toLocaleString('id-ID');
 const setN = (k, v) => { const e = $('n-' + k); if(e && v != null){ e.textContent = nf(v); e.hidden = false; } };
 const renderSummary = () => {
   $('k-quake').textContent = nf(summary.quake); $('k-fire').textContent = nf(summary.fire); $('k-news').textContent = nf(summary.news);
-  if(summary.aqMax){ $('k-aq').textContent = summary.aqMax.aqi; $('k-aq-l').textContent = 'AQI tertinggi · ' + summary.aqMax.city; }
+  if(summary.aqMax){ $('k-aq').textContent = summary.aqMax.aqi; $('k-aq-l').textContent = 'AQI maks · ' + summary.aqMax.city; }
   setN('quake', summary.quake); setN('news', summary.news); setN('aq', summary.aqN); setN('risk', summary.riskN);
   if(summary.at) $('live').lastChild.textContent = 'LIVE SNAPSHOT · ' + fmt(summary.at);
 };
