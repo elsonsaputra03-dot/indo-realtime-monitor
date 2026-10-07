@@ -6,78 +6,133 @@
 <title>Indonesia Realtime Monitor — Live snapshot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-  :root{--ink:#1D2A33;--muted:#5D6D78;--rule:#CBD5DB;--panel:#fff;--sea:#DCE6EA;--accent:#2E5E8C;
-        --m3:#8FB3C4;--m4:#E9B44C;--m5:#D9722E;--m6:#A3261E;--fire:#6B1E0A;--ok:#3E8E5E;--fail:#B3261E}
+  :root{--ink:#14212B;--muted:#5F6F7B;--rule:#E3E8EE;--panel:#fff;--bg:#F3F6FA;--accent:#3B5BDB;--brand1:#1F3A8A;--brand2:#6D4AFF;
+        --m3:#7FB3D5;--m4:#F2B33D;--m5:#E8692E;--m6:#C92A2A;--fire:#E8590C;--ok:#2F9E44;--fail:#E03131;--warn:#F08C00;
+        --shadow:0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.06)}
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;font-family:Barlow,system-ui,sans-serif;color:var(--ink);background:var(--sea)}
+  html,body{margin:0;height:100%;font-family:"Plus Jakarta Sans",Barlow,system-ui,sans-serif;color:var(--ink);background:var(--bg)}
   a{color:var(--accent)}
-  .app{display:grid;grid-template-columns:390px 1fr;height:100%}
-  aside{background:var(--panel);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0}
-  header{padding:16px 20px 12px;border-bottom:1px solid var(--rule)}
-  .back{font-size:.85rem;text-decoration:none}
-  h1{font-size:1.4rem;margin:6px 0 4px;line-height:1.15}
-  .sub{color:var(--muted);font-size:.88rem;margin:0}
-  .tabs{display:flex;border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:none}
-  .tab{flex:1 0 auto;white-space:nowrap;padding:10px 3px;font-size:.84rem!important;font-size:.86rem!important;border:0;background:none;font:inherit;font-weight:600;font-size:.9rem;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
-  .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
-  .tab:focus-visible,select:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-  .list{overflow-y:auto;flex:1;min-height:0}
-  .row{display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:center;width:100%;padding:11px 20px;border:0;border-bottom:1px solid #EEF2F4;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer}
-  .row:hover{background:#F5F8F9}
-  .big{font-size:1.8rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
-  .title{font-weight:500;font-size:.94rem;line-height:1.3}
-  .meta{color:var(--muted);font-size:.82rem;margin-top:2px;font-variant-numeric:tabular-nums}
+  .app{display:grid;grid-template-columns:410px 1fr;height:100%}
+  aside{background:var(--panel);display:flex;flex-direction:column;min-height:0;box-shadow:4px 0 24px rgba(16,24,40,.08);z-index:500;position:relative}
+
+  /* header */
+  header{position:relative;padding:16px 20px 18px;color:#fff;overflow:hidden;
+    background:radial-gradient(120% 140% at 100% 0%,rgba(109,74,255,.55) 0%,rgba(109,74,255,0) 55%),linear-gradient(135deg,#0F1E4A 0%,#1F3A8A 60%,#2B4DB8 100%)}
+  header::after{content:"";position:absolute;right:-40px;bottom:-60px;width:220px;height:220px;border-radius:50%;
+    background:repeating-radial-gradient(circle,rgba(255,255,255,.07) 0 1px,transparent 1px 14px);pointer-events:none}
+  .hnav{display:flex;justify-content:space-between;gap:8px;position:relative;z-index:1}
+  .back{font-size:.78rem;text-decoration:none;color:#C9D6FF;font-weight:600;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14)}
+  .back:hover{background:rgba(255,255,255,.16);color:#fff}
+  .back.ai{background:linear-gradient(135deg,#6D4AFF,#3B82F6);border-color:transparent;color:#fff}
+  .live{display:inline-flex;align-items:center;gap:7px;margin-top:14px;font-size:.7rem;font-weight:700;letter-spacing:.12em;color:#B9F6CA;position:relative;z-index:1}
+  .live i{width:8px;height:8px;border-radius:50%;background:#40C057;box-shadow:0 0 0 0 rgba(64,192,87,.6);animation:pulse 2s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(64,192,87,0)}100%{box-shadow:0 0 0 0 rgba(64,192,87,0)}}
+  @media (prefers-reduced-motion:reduce){.live i{animation:none}}
+  h1{font-size:1.5rem;margin:4px 0 2px;line-height:1.15;letter-spacing:-.01em;position:relative;z-index:1}
+  .sub{color:#C9D6FF;font-size:.8rem;margin:0;position:relative;z-index:1}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;position:relative;z-index:1}
+  .kpi{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:9px 9px 8px;backdrop-filter:blur(6px)}
+  .kpi .ic{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;margin-bottom:6px}
+  .kpi .ic svg{width:13px;height:13px;fill:#fff}
+  .kpi b{display:block;font-size:1.12rem;font-variant-numeric:tabular-nums;line-height:1.1}
+  .kpi span{display:block;font-size:.66rem;color:#C9D6FF;line-height:1.25;margin-top:2px}
+
+  /* tabs */
+  .tabs{display:flex;flex-wrap:wrap;gap:4px;padding:10px 12px;border-bottom:1px solid var(--rule);background:#FAFBFD}
+  .tab{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:7px 11px;border:1px solid transparent;border-radius:999px;background:none;
+    font:inherit;font-weight:600;font-size:.8rem;color:var(--muted);cursor:pointer;transition:background .15s,color .15s}
+  .tab svg{width:14px;height:14px;fill:currentColor;opacity:.85}
+  .tab:hover{background:#EEF2F8;color:var(--ink)}
+  .tab[aria-selected="true"]{background:var(--ink);color:#fff}
+  .tab .n{font-size:.68rem;padding:0 6px;border-radius:999px;background:rgba(127,140,160,.18);font-variant-numeric:tabular-nums}
+  .tab[aria-selected="true"] .n{background:rgba(255,255,255,.2)}
+  .tab:focus-visible,select:focus-visible,.row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* lists */
+  .list{overflow-y:auto;flex:1;min-height:0;padding:6px 0 10px}
+  .row{display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:center;width:calc(100% - 20px);margin:4px 10px;padding:10px 12px;border:1px solid transparent;
+    border-radius:12px;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+  .row:hover{background:#F6F8FC;border-color:var(--rule)}
+  .big{font-size:1.6rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+  .title{font-weight:600;font-size:.9rem;line-height:1.3}
+  .meta{color:var(--muted);font-size:.78rem;margin-top:2px;font-variant-numeric:tabular-nums}
   .empty{padding:22px 20px;color:var(--muted)}
-  .filter{padding:10px 20px;border-bottom:1px solid #EEF2F4}
-  select{font:inherit;font-size:.9rem;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;background:#fff;color:var(--ink)}
-  .chip{display:inline-block;font-size:.75rem;padding:1px 7px;border-radius:10px;background:#E6EDF1;margin:4px 4px 0 0}
-  .news{display:block;padding:11px 20px;border-bottom:1px solid #EEF2F4;color:inherit;text-decoration:none}
-  .news:hover{background:#F5F8F9}
-  .aqi{display:inline-block;min-width:52px;text-align:center;padding:5px 4px;border-radius:6px;font-weight:700;font-variant-numeric:tabular-nums}
-  .status{border-top:1px solid var(--rule);padding:10px 20px 14px;font-size:.84rem;max-height:30vh;overflow-y:auto}
-  .status h2{font-size:.95rem;margin:0 0 6px}
-  .srow{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center;padding:2px 0}
-  .dot{width:10px;height:10px;border-radius:50%} .dot.ok{background:var(--ok)} .dot.error{background:var(--fail)}
-  .note{color:var(--muted);font-size:.78rem;padding-left:18px;overflow-wrap:anywhere}
-  #map{height:100%}
-  .rbar{height:5px;background:#EEF2F4;border-radius:3px;margin-top:5px;display:flex;overflow:hidden}
-  .rbar span{height:5px}
-  .rnote{padding:10px 20px;font-size:.8rem;color:var(--muted);border-bottom:1px solid #EEF2F4;line-height:1.45}
-  .rscore{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
-  .legend{background:#fff;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;font:500 .8rem Barlow,sans-serif;line-height:1.6}
+  .filter{padding:6px 20px 10px}
+  select{font:inherit;font-size:.86rem;padding:7px 10px;border:1px solid var(--rule);border-radius:10px;background:#fff;color:var(--ink)}
+  .chip{display:inline-block;font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:999px;background:#EEF2F8;color:#3B4A5A;margin:5px 4px 0 0}
+  .news{display:block;margin:4px 10px;padding:11px 12px;border-radius:12px;color:inherit;text-decoration:none;border:1px solid transparent}
+  .news:hover{background:#F6F8FC;border-color:var(--rule)}
+  .aqi{display:inline-block;min-width:52px;text-align:center;padding:7px 4px;border-radius:10px;font-weight:800;font-variant-numeric:tabular-nums}
+  .rbar{height:6px;background:#EEF2F8;border-radius:999px;margin-top:7px;display:flex;overflow:hidden}
+  .rbar span{height:6px}
+  .rnote{margin:6px 14px 8px;padding:10px 12px;font-size:.76rem;color:var(--muted);line-height:1.5;background:#F6F8FC;border-radius:10px;border:1px solid var(--rule)}
+  .rscore{display:grid;place-items:center;width:46px;height:46px;border-radius:12px;font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  .rank{color:var(--muted);font-weight:700;font-size:.75rem;margin-right:4px}
+
+  /* status */
+  .status{border-top:1px solid var(--rule);font-size:.82rem;background:#FAFBFD}
+  .status summary{display:flex;align-items:center;gap:8px;padding:11px 20px;cursor:pointer;list-style:none;font-weight:700}
+  .status summary::-webkit-details-marker{display:none}
+  .status summary::after{content:"▾";margin-left:auto;color:var(--muted);transition:transform .15s}
+  .status[open] summary::after{transform:rotate(180deg)}
+  .spill{font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#E6F6EA;color:#2B8A3E}
+  .spill.bad{background:#FFE8E8;color:#C92A2A}
+  .sbody{padding:0 20px 12px;max-height:32vh;overflow-y:auto}
+  .srow{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center;padding:3px 0}
+  .dot{width:8px;height:8px;border-radius:50%} .dot.ok{background:var(--ok)} .dot.error{background:var(--fail);box-shadow:0 0 0 3px #FFE3E3}
+  .note{color:var(--muted);font-size:.74rem;padding-left:18px;overflow-wrap:anywhere}
+
+  /* map */
+  #map{height:100%;background:#E9EEF3}
+  .leaflet-control-layers,.legend{background:rgba(255,255,255,.92)!important;backdrop-filter:blur(8px);border:1px solid rgba(20,33,43,.08)!important;
+    border-radius:14px!important;box-shadow:var(--shadow)!important;font:500 .78rem "Plus Jakarta Sans",sans-serif!important;color:var(--ink)}
+  .leaflet-control-layers-expanded{padding:10px 12px!important}
+  .leaflet-control-layers-separator{border-top-color:var(--rule)!important}
+  .leaflet-control-zoom a{border-radius:10px!important}
+  .leaflet-bar{border:0!important;box-shadow:var(--shadow)!important;border-radius:12px!important;overflow:hidden}
+  .leaflet-popup-content-wrapper{border-radius:14px;box-shadow:0 10px 30px rgba(16,24,40,.18);font-family:"Plus Jakarta Sans",sans-serif}
+  .legend{padding:10px 12px;line-height:1.75}
+  .legend .lh{font-weight:700;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 8px;vertical-align:-1px}
   .legend i:first-of-type{margin-left:0}
-  .aqi-marker{border-radius:5px;font:700 11px/20px Barlow,sans-serif;text-align:center;border:1px solid rgba(0,0,0,.35)}
-  @media (max-width:760px){.app{grid-template-columns:1fr;grid-template-rows:55vh auto}aside{order:2}.tab{font-size:.84rem;padding:10px 2px}}
-  .wrow{display:block;width:100%;padding:12px 20px;border:0;border-bottom:1px solid #EEF2F4;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer}
-  .wrow:hover{background:#F5F8F9}
-  .wrow .wt{display:flex;justify-content:space-between;gap:10px;font-weight:600;font-size:.95rem}
-  .wrow .wn{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:500;font-size:.85rem;white-space:nowrap}
-  .tech{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:10px;background:#EAF0F7;color:#2E5E8C;margin:5px 4px 0 0}
-  #webpanel{position:fixed;top:0;right:0;bottom:0;left:390px;background:#fff;z-index:1200;display:flex;flex-direction:column;
+  .aqi-marker{border-radius:7px;font:800 11px/20px "Plus Jakarta Sans",sans-serif;text-align:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+  .maptitle{position:absolute;top:12px;left:56px;z-index:450;pointer-events:none;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+    border:1px solid rgba(20,33,43,.08);border-radius:14px;box-shadow:var(--shadow);padding:8px 14px;font-size:.78rem;color:var(--muted)}
+  .maptitle b{color:var(--ink);font-size:.86rem;display:block}
+  .mapwrap{position:relative;min-height:0;height:100%}
+
+  header,.tabs,.status{flex-shrink:0}
+  @media (max-width:760px){html,body{height:auto}.app{grid-template-columns:1fr;grid-template-rows:60vh auto;height:auto}aside{order:2}
+    .kpis{grid-template-columns:repeat(2,1fr)}.maptitle,.legend{display:none}.list{max-height:70vh}}
+  .wrow{display:block;width:calc(100% - 20px);margin:4px 10px;padding:12px;border:1px solid var(--rule);border-radius:12px;background:#fff;text-align:left;font:inherit;color:inherit;cursor:pointer;transition:box-shadow .15s}
+  .wrow:hover{box-shadow:var(--shadow)}
+  .wrow .wt{display:flex;justify-content:space-between;gap:10px;font-weight:700;font-size:.9rem}
+  .wrow .wn{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600;font-size:.8rem;white-space:nowrap}
+  .tech{display:inline-block;font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:999px;background:#EDF2FF;color:#3B5BDB;margin:6px 4px 0 0}
+  #webpanel{position:fixed;top:0;right:0;bottom:0;left:410px;background:#fff;z-index:1200;display:flex;flex-direction:column;
     border-left:1px solid var(--rule);box-shadow:-6px 0 18px rgba(0,0,0,.08)}
   #webpanel[hidden]{display:none}
-  .wp-head{padding:14px 22px 10px;border-bottom:1px solid var(--rule)}
-  .wp-head h2{margin:0;font-size:1.25rem;display:flex;justify-content:space-between;align-items:center;gap:10px}
-  .wp-close{border:1px solid var(--rule);background:#fff;border-radius:8px;font-size:1rem;width:34px;height:34px;cursor:pointer}
-  .wp-src{color:var(--muted);font-size:.84rem;margin-top:4px;line-height:1.45}
+  .wp-head{padding:16px 22px 12px;border-bottom:1px solid var(--rule)}
+  .wp-head h2{margin:0;font-size:1.2rem;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .wp-close{border:1px solid var(--rule);background:#fff;border-radius:10px;font-size:1rem;width:34px;height:34px;cursor:pointer}
+  .wp-src{color:var(--muted);font-size:.82rem;margin-top:4px;line-height:1.45}
   .wp-tools{display:flex;flex-wrap:wrap;gap:8px;padding:10px 22px;border-bottom:1px solid #EEF2F4;align-items:center}
   .wp-tools[hidden]{display:none}
-  .wp-tools input{font:inherit;font-size:.9rem;padding:6px 9px;border:1px solid var(--rule);border-radius:6px;min-width:220px}
+  .wp-tools input{font:inherit;font-size:.88rem;padding:7px 10px;border:1px solid var(--rule);border-radius:10px;min-width:220px}
   .wp-body{overflow:auto;flex:1;padding:0 22px 22px}
   .wp-body h3{font-size:1rem;margin:18px 0 6px}
-  .wp-count{color:var(--muted);font-size:.82rem;margin:10px 0 4px}
-  table.wtab{border-collapse:collapse;width:100%;font-size:.88rem}
-  table.wtab th{position:sticky;top:0;background:#F5F8F9;text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);cursor:pointer;white-space:nowrap;font-weight:600}
+  .wp-count{color:var(--muted);font-size:.8rem;margin:10px 0 4px}
+  table.wtab{border-collapse:collapse;width:100%;font-size:.86rem}
+  table.wtab th{position:sticky;top:0;background:#F6F8FC;text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);cursor:pointer;white-space:nowrap;font-weight:700}
   table.wtab th.num,table.wtab td.num{text-align:right;font-variant-numeric:tabular-nums}
   table.wtab th[aria-sort=none]::after{content:" ↕";color:#9AA8B1;font-weight:400}
   table.wtab th[aria-sort=ascending]::after{content:" ▲"} table.wtab th[aria-sort=descending]::after{content:" ▼"}
   table.wtab td{padding:7px 10px;border-bottom:1px solid #EEF2F4;vertical-align:top}
   table.wtab tr:hover td{background:#FAFBFC}
-  .bar{height:8px;background:#2E5E8C;border-radius:4px;min-width:2px}
+  .bar{height:8px;background:var(--accent);border-radius:4px;min-width:2px}
   @media (max-width:760px){#webpanel{left:0}}
 </style>
 <!-- goatcounter:start -->
@@ -94,18 +149,24 @@
 <div class="app">
   <aside>
     <header>
-      <a class="back" href="index.html">← Portofolio Elson Saputra</a>
-      <a class="back" href="tanya.html" style="float:right">Tanya Data (AI) →</a>
+      <div class="hnav"><a class="back" href="index.html">← Portofolio</a><a class="back ai" href="tanya.html">✦ Ask the Data</a></div>
+      <div class="live" id="live"><i></i>LIVE SNAPSHOT</div>
       <h1>Indonesia Realtime Monitor</h1>
-      <p class="sub" id="summary">Memuat snapshot data…</p>
+      <p class="sub" id="summary">Gempa, titik panas, kualitas udara, berita bencana, dan harga pangan dari sumber publik, diperbarui tiap jam.</p>
+      <div class="kpis" aria-label="Ringkasan">
+        <div class="kpi"><div class="ic" style="background:#E8692E"><svg viewBox="0 0 24 24"><path d="M2 13h3l2-6 4 12 3-9 2 3h6v2h-7l-1-1.5-3 9-4-12-1 3.5H2z"/></svg></div><b id="k-quake">–</b><span>gempa · 7 hari</span></div>
+        <div class="kpi"><div class="ic" style="background:#E8590C"><svg viewBox="0 0 24 24"><path d="M13 2s1 3-1.5 6S8 12 8 15a4 4 0 0 0 8 0c0-1.5-.6-2.6-1-3 2 .5 3 2.5 3 4.5A6 6 0 0 1 6 16c0-6 7-8 7-14z"/></svg></div><b id="k-fire">–</b><span>titik panas</span></div>
+        <div class="kpi"><div class="ic" style="background:#8F3F97"><svg viewBox="0 0 24 24"><path d="M4 8h10a3 3 0 1 0-3-3h2a1 1 0 1 1 1 1H4v2zm0 4h15a3 3 0 1 1-3 3h2a1 1 0 1 0 1-1H4v-2zm0-2h8v2H4z"/></svg></div><b id="k-aq">–</b><span id="k-aq-l">AQI tertinggi</span></div>
+        <div class="kpi"><div class="ic" style="background:#3B82F6"><svg viewBox="0 0 24 24"><path d="M4 4h13v4h3v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4zm2 2v12h11V6H6zm2 2h7v2H8V8zm0 4h7v2H8v-2z"/></svg></div><b id="k-news">–</b><span>berita bencana</span></div>
+      </div>
     </header>
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="risk">Risiko</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="quake">Gempa</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="aq">Udara</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="news">Berita</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="food">Pangan</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="web">Data Web</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="risk"><svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm0 4.5L19.5 19h-15L12 6.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>Risiko<span class="n" id="n-risk" hidden></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="quake"><svg viewBox="0 0 24 24"><path d="M2 13h3l2-6 4 12 3-9 2 3h6v2h-7l-1-1.5-3 9-4-12-1 3.5H2z"/></svg>Gempa<span class="n" id="n-quake" hidden></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="aq"><svg viewBox="0 0 24 24"><path d="M4 8h10a3 3 0 1 0-3-3h2a1 1 0 1 1 1 1H4v2zm0 4h15a3 3 0 1 1-3 3h2a1 1 0 1 0 1-1H4v-2zm0-2h8v2H4z"/></svg>Udara<span class="n" id="n-aq" hidden></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="news"><svg viewBox="0 0 24 24"><path d="M4 4h13v4h3v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4zm2 2v12h11V6H6zm2 2h7v2H8V8zm0 4h7v2H8v-2z"/></svg>Berita<span class="n" id="n-news" hidden></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="food"><svg viewBox="0 0 24 24"><path d="M7 2v9a3 3 0 0 0 2 2.8V22h2v-8.2A3 3 0 0 0 13 11V2h-2v6h-1V2H9v6H8V2H7zm9 0c-1.7 0-3 2-3 5v6h2v9h2V2h-1z"/></svg>Pangan<span class="n" id="n-food" hidden></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="web"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm2 2v3h6V7H5zm8 0v3h6V7h-6zm-8 5v5h6v-5H5zm8 0v5h6v-5h-6z"/></svg>Data Web<span class="n" id="n-web" hidden></span></button>
     </div>
     <div class="list" id="p-risk" role="tabpanel">
       <div class="rnote">Indeks risiko komposit per kabupaten/kota (0–100) dari 5 komponen: titik panas 30%, gempa 25%,
@@ -133,14 +194,17 @@
         robots.txt untuk halaman HTML. Klik dataset untuk membuka tabelnya.</div>
       <div id="web-items"><div class="empty">Memuat…</div></div>
     </div>
-    <section class="status" aria-live="polite">
-      <h2>Status sumber data</h2>
-      <div id="status"></div>
-      <p class="meta" style="margin-top:8px">Snapshot statis, diperbarui tiap jam oleh GitHub Actions. Versi lengkap (Kafka, ClickHouse,
-        Airflow, data quality, AI lokal) ada di <a href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor" target="_blank" rel="noopener noreferrer">repository</a>.</p>
-    </section>
+    <details class="status" aria-live="polite">
+      <summary>Status sumber data <span class="spill" id="spill">memuat…</span></summary>
+      <div class="sbody">
+        <div id="status"></div>
+        <p class="meta" style="margin-top:8px">Snapshot statis, diperbarui tiap jam oleh GitHub Actions. Versi lengkap (Kafka, ClickHouse,
+          Airflow, data quality, AI lokal) ada di <a href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor" target="_blank" rel="noopener noreferrer">repository</a>.</p>
+      </div>
+    </details>
   </aside>
-  <div id="map" role="region" aria-label="Peta"></div>
+  <div class="mapwrap"><div id="map" role="region" aria-label="Peta"></div>
+    <div class="maptitle"><b>Peta risiko &amp; kejadian</b>Klik wilayah, titik, atau kotak AQI untuk detail</div></div>
   <section id="webpanel" role="dialog" aria-modal="false" aria-labelledby="wp-title" hidden>
     <div class="wp-head"><h2><span id="wp-title"></span><button class="wp-close" id="wp-close" aria-label="Tutup tabel">✕</button></h2>
       <div class="wp-src" id="wp-src"></div></div>
@@ -165,32 +229,39 @@ const TOPIC = {gempa:'Gempa', banjir_longsor:'Banjir & longsor', kebakaran:'Keba
 const get = name => fetch(`data/${name}?v=${Date.now() / 3.6e6 | 0}`).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)));
 
 const map = L.map('map', {preferCanvas: true}).setView([-2.5, 118], 5);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18,
-  attribution: '&copy; OpenStreetMap contributors | Data: BMKG, USGS, NASA FIRMS, Open-Meteo, PIHPS-BI'}).addTo(map);
+const DATA_ATTR = ' | Data: BMKG, USGS, NASA FIRMS, Open-Meteo, PIHPS-BI';
+const bases = {
+  'Peta terang': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, subdomains: 'abcd',
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO' + DATA_ATTR}),
+  'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18,
+    attribution: '&copy; OpenStreetMap contributors' + DATA_ATTR})};
+bases['Peta terang'].addTo(map);
 map.createPane('riskPane'); map.getPane('riskPane').style.zIndex = 350;
 const layers = {risk: L.layerGroup().addTo(map), quake: L.layerGroup().addTo(map), fire: L.layerGroup().addTo(map),
                 aq: L.layerGroup().addTo(map)};
-L.control.layers(null, {'Indeks risiko kab/kota': layers.risk, 'Gempa': layers.quake, 'Titik panas (FIRMS)': layers.fire,
-  'Kualitas udara': layers.aq}, {collapsed: false}).addTo(map);
+L.control.layers(bases, {'Indeks risiko kab/kota': layers.risk, 'Gempa': layers.quake, 'Titik panas (FIRMS)': layers.fire,
+  'Kualitas udara': layers.aq}, {collapsed: innerWidth < 760}).addTo(map);
 const RISK_BREAKS = [[65, '#4B2991'], [50, '#7163B5'], [35, '#9E9AD1'], [20, '#C9CDE8'], [0, '#EEF0F7']];
 const riskColor = v => RISK_BREAKS.find(([b]) => v >= b)[1];
 const COMP = {titik_panas: ['Titik panas', '#6B1E0A'], gempa: ['Gempa', '#D9722E'], udara: ['Kualitas udara', '#8F3F97'],
               berita: ['Berita bencana', '#2E5E8C'], pangan: ['Harga pangan', '#3E8E5E']};
 const legend = L.control({position: 'bottomright'});
 legend.onAdd = () => { const d = L.DomUtil.create('div', 'legend');
-  d.innerHTML = `Gempa <i style="background:${css('--m3')}"></i>&lt;4<i style="background:${css('--m4')}"></i>4–5
+  d.innerHTML = `<div class="lh">Gempa (magnitudo)</div><i style="background:${css('--m3')}"></i>&lt;4<i style="background:${css('--m4')}"></i>4–5
     <i style="background:${css('--m5')}"></i>5–6<i style="background:${css('--m6')}"></i>6+<br>
-    <i style="background:${css('--fire')};margin-left:0"></i>Titik panas (ukuran = FRP)<br>Kotak angka: US AQI ibu kota provinsi<br>
-    Indeks risiko ${RISK_BREAKS.slice().reverse().map(([b, c]) => `<i style="background:${c};border-radius:2px"></i>${b}+`).join('')}`; return d; };
+    <div class="lh">Titik panas</div><i style="background:${css('--fire')}"></i>ukuran = FRP (kekuatan api)<br>
+    <div class="lh">Kualitas udara</div>kotak angka = US AQI ibu kota provinsi<br>
+    <div class="lh">Indeks risiko kab/kota</div>${RISK_BREAKS.slice().reverse().map(([b, c]) => `<i style="background:${c};border-radius:3px"></i>${b}+`).join('')}`; return d; };
 legend.addTo(map);
 
 const summary = {};
+const nf = v => v == null ? '–' : v.toLocaleString('id-ID');
+const setN = (k, v) => { const e = $('n-' + k); if(e && v != null){ e.textContent = nf(v); e.hidden = false; } };
 const renderSummary = () => {
-  const parts = [];
-  if(summary.quake != null) parts.push(`${summary.quake} gempa (7 hari)`);
-  if(summary.fire != null) parts.push(`${summary.fire.toLocaleString('id-ID')} titik panas`);
-  if(summary.news != null) parts.push(`${summary.news} berita`);
-  $('summary').textContent = parts.join(', ') + (summary.at ? `. Snapshot ${fmt(summary.at)}.` : '');
+  $('k-quake').textContent = nf(summary.quake); $('k-fire').textContent = nf(summary.fire); $('k-news').textContent = nf(summary.news);
+  if(summary.aqMax){ $('k-aq').textContent = summary.aqMax.aqi; $('k-aq-l').textContent = 'AQI tertinggi · ' + summary.aqMax.city; }
+  setN('quake', summary.quake); setN('news', summary.news); setN('aq', summary.aqN); setN('risk', summary.riskN);
+  if(summary.at) $('live').lastChild.textContent = 'LIVE SNAPSHOT · ' + fmt(summary.at);
 };
 
 async function loadQuakes(){
@@ -219,7 +290,7 @@ async function loadFires(){
     const d = await get('hotspots.json'), fire = css('--fire');
     summary.fire = d.points.length;
     for(const [lat, lon, frp, conf, t] of d.points){
-      L.circleMarker([lat, lon], {radius: Math.min(2 + Math.sqrt(frp || 0) / 2, 9), stroke: false, fillColor: fire, fillOpacity: .75})
+      L.circleMarker([lat, lon], {radius: Math.min(1.5 + Math.sqrt(frp || 0) / 2.5, 8), stroke: false, fillColor: fire, fillOpacity: .5})
         .bindPopup(`<strong>Titik panas</strong><br>${fmt(t + 'Z')}<br>FRP ${frp} MW, confidence ${conf === 'h' ? 'high' : 'nominal'}`)
         .addTo(layers.fire);
     }
@@ -232,6 +303,7 @@ async function loadAQ(){
   try{
     const rows = (await get('air_quality.json')).filter(r => r.us_aqi >= 0).sort((a, b) => b.us_aqi - a.us_aqi);
     box.innerHTML = '';
+    summary.aqN = rows.length; if(rows[0]) summary.aqMax = {aqi: Math.round(rows[0].us_aqi), city: rows[0].city}; renderSummary();
     for(const r of rows){
       const a = Math.round(r.us_aqi), [bg, fg, label] = aqiCat(a);
       const icon = L.divIcon({className: '', html: `<div class="aqi-marker" style="background:${bg};color:${fg}">${a}</div>`, iconSize: [30, 20], iconAnchor: [15, 10]});
@@ -304,9 +376,10 @@ async function loadRisk(){
                 dashArray: f.properties.approx ? '3 3' : null};
       }, onEachFeature: (f, l) => { const it = byKode[f.properties.k]; if(it){ l.bindPopup(riskPopup(it), {maxWidth: 360}); polys[it.kode] = l; } }});
     layers.risk.addLayer(layer);
-    box.innerHTML = risk.items.slice(0, 25).map((it, i) => `<button class="row" data-k="${it.kode}" style="grid-template-columns:54px 1fr">
-        <div class="rscore" style="color:${it.skor >= 35 ? riskColor(it.skor) : '#5D6D78'}">${it.skor.toFixed(0)}</div>
-        <div><div class="title">${i + 1}. ${esc(it.nama)}</div><div class="meta">${esc(it.prov)}</div>${riskBar(it)}</div></button>`).join('')
+    summary.riskN = risk.items.length; renderSummary();
+    box.innerHTML = risk.items.slice(0, 25).map((it, i) => `<button class="row" data-k="${it.kode}" style="grid-template-columns:46px 1fr">
+        <div class="rscore" style="background:${riskColor(it.skor)};color:${it.skor >= 35 ? '#fff' : '#3B4A5A'}">${it.skor.toFixed(0)}</div>
+        <div><div class="title"><span class="rank">#${i + 1}</span>${esc(it.nama)}</div><div class="meta">${esc(it.prov)}</div>${riskBar(it)}</div></button>`).join('')
       + `<div class="rnote">Warna batang: ${Object.values(COMP).map(([n, c]) => `<span style="color:${c}">■</span> ${n}`).join(' · ')}.
          ${risk.batas_diperkirakan} wilayah memakai batas perkiraan (garis putus-putus) karena poligon sumbernya tidak valid.</div>`;
     box.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
@@ -319,10 +392,12 @@ async function loadRisk(){
 async function loadMeta(){
   try{
     const m = await get('meta.json'); summary.at = m.generated_at;
+    const src = Object.values(m.sources), okN = src.filter(s => s.status === 'ok').length;
+    $('spill').textContent = `${okN}/${src.length} OK`; $('spill').classList.toggle('bad', okN < src.length);
     $('status').innerHTML = Object.values(m.sources).map(s => `<div class="srow"><span class="dot ${s.status}"></span>
       <span>${esc(s.label)}</span><span class="meta">${s.status === 'ok' ? s.count.toLocaleString('id-ID') : 'gagal'}</span></div>
       ${s.note ? `<div class="note">${esc(s.note)}</div>` : ''}`).join('');
-  }catch(e){ $('status').innerHTML = '<div class="meta">Snapshot belum pernah dibuat.</div>'; }
+  }catch(e){ $('status').innerHTML = '<div class="meta">Snapshot belum pernah dibuat.</div>'; $('spill').textContent = '–'; }
   renderSummary();
 }
 
