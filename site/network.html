@@ -111,6 +111,33 @@
   .trace table td{padding:3px 6px;font-size:.82rem;vertical-align:top} .trace code{font-size:.78rem;word-break:break-all}
   .flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.85rem;margin:6px 0 10px}
   .flow span{background:#F1F4F6;border-radius:6px;padding:4px 8px} .flow b{color:var(--muted)}
+/* oss-assurance */
+  .ointro{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.9rem;color:var(--ink-2)}
+  .onote{font-size:.84rem;color:var(--muted);margin:8px 0 0}
+  .oflow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:4px 0 14px}
+  .onode{flex:1 1 140px;background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px 12px}
+  .onode b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:1.6rem;line-height:1.1}
+  .onode span{font-size:.82rem;color:var(--muted)}
+  .oarrow{align-self:center;color:var(--muted);font-weight:700}
+  .opill{display:inline-block;font-size:.74rem;border-radius:10px;padding:1px 8px;background:#E6EDF1;white-space:nowrap}
+  .opill.crit{background:#F6DEDB;color:#8E2A22} .opill.warn{background:#FBEFD5;color:#7A5410}
+  .obar{height:8px;background:#E3E9EC;border-radius:4px;overflow:hidden;min-width:80px}
+  .obar i{display:block;height:100%;background:var(--active)}
+  .ogrid3{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr);gap:14px}
+  .oinc button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #EDF1F3;background:none;padding:9px 10px;cursor:pointer}
+  .oinc button:hover{background:var(--soft)}
+  .oinc button[aria-pressed="true"]{background:#EAF0F7;box-shadow:inset 3px 0 0 var(--active)}
+  .oinc .t{display:flex;justify-content:space-between;gap:8px;font-weight:600} .oinc .s{font-size:.82rem;color:var(--muted)}
+  #o-map{height:340px;border-radius:8px;border:1px solid var(--rule)}
+  .otree{font-size:.86rem;max-height:300px;overflow:auto}
+  .otree ul{list-style:none;margin:0;padding-left:16px;border-left:1px dashed var(--rule)}
+  .otree > ul{padding-left:0;border-left:0}
+  .otree .root{color:#8E2A22;font-weight:700}
+  #o-mix td{white-space:normal}
+  .olegend{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted);margin:6px 0}
+  .olegend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+  @media (max-width:980px){.ogrid3{grid-template-columns:minmax(0,1fr)}}
+  @media (max-width:1100px){.ogrid3 .grid2{grid-template-columns:minmax(0,1fr)}}
 </style>
 <!-- goatcounter:start -->
 <script>
@@ -135,7 +162,11 @@
     <a data-view="4G">4G</a>
     <a data-view="5G">5G</a>
     <h2>Assurance</h2>
-    <a href="oss.html">Alarm, insiden &amp; SLA</a>
+    <a data-view="oss-alarm">Alarm &amp; insiden</a>
+    <a data-view="oss-inc">Dampak pelanggan</a>
+    <a data-view="oss-sleep">Sel tidur senyap</a>
+    <a data-view="oss-sla">SLA pelanggan</a>
+    <a data-view="oss-prov">Provisioning</a>
     <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
   </nav>
   <main>
@@ -157,6 +188,7 @@
 <div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="m-title"><div class="box" id="modal-box"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="assets/oss-views.js"></script>
 <script src="assets/kalimantan.js"></script>
 <script src="assets/net-data.js"></script>
 <script>
@@ -524,15 +556,21 @@ function viewTwamp(){
 
 
 // ------------------------------------------------------------------ navigasi
-const TITLES = {summary: 'Ringkasan', map: 'Peta site', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
+const TITLES = {'oss-alarm': 'Assurance: alarm & insiden', 'oss-inc': 'Assurance: insiden menurut dampak pelanggan', 'oss-sleep': 'Assurance: sel tidur senyap', 'oss-sla': 'Assurance: SLA pelanggan', 'oss-prov': 'Assurance: provisioning (simulasi)', summary: 'Ringkasan', map: 'Peta site', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
 const closeModal = () => { $('modal').hidden = true; };
 $('modal').onclick = e => { if(e.target === $('modal')) closeModal(); };
 addEventListener('keydown', e => { if(e.key === 'Escape' && !$('modal').hidden) closeModal(); });
-function go(v){ state.view = v; document.querySelectorAll('.rail a[data-view]').forEach(a => a.dataset.view === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')); scrollTo(0, 0); render(); }
+function go(v){ state.view = v; history.replaceState(null, '', '#' + v); document.querySelectorAll('.rail a[data-view]').forEach(a => a.dataset.view === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')); scrollTo(0, 0); render(); }
 function render(){
   charts.splice(0).forEach(c => c.destroy()); closeModal();
   if(leaf && state.view !== 'map'){ leaf.remove(); leaf = null; }
   $('title').textContent = TITLES[state.view]; $('export').hidden = state.view !== 'wpc';
+  if(window.OSS_VIEWS){ window.OSS_VIEWS.current = state.view;                    // tampilan Assurance (assets/oss-views.js)
+    if(window.OSS_VIEWS.has(state.view)){ $('filters').hidden = true; window.OSS_VIEWS.snap ??= $('snap').textContent;
+      $('snap').textContent = 'Seminggu operasi sintetis, 28 Sep – 4 Okt 2026 · jaringan yang sama · data OSS dari repo telco-oss-assurance';
+      window.OSS_VIEWS.render(state.view, $('view')); return; }
+    if(window.OSS_VIEWS.snap != null) $('snap').textContent = window.OSS_VIEWS.snap;
+    window.OSS_VIEWS.leave(); }
   $('filters').hidden = state.view === 'summary';                     // Ringkasan selalu menampilkan seluruh data
   if(state.view === 'summary'){
     const keep = {vendor: state.vendor, branch: state.branch, cluster: state.cluster, q: state.q};
@@ -554,7 +592,7 @@ $('export').onclick = () => { const q = v => `"${String(v).replace(/"/g, '""')}"
     r.c.site.kab.replace('Kabupaten ', '').toUpperCase(), r.c.site.branch, r.c.site.id, r.c.bts, r.c.ci, r.kpi, r.v.toFixed(4), r.thr].map(q).join(','))).join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = `daily-wpc-synthetic-${dates[state.wpcD].toISOString().slice(0, 10)}.csv`; a.click(); };
 window.NET_UI = {sitePopup, map: () => leaf};   // untuk inspeksi di console
-render();
+{ const h = decodeURIComponent(location.hash.slice(1)); if(TITLES[h]) go(h); else render(); }     // network.html#oss-alarm dst.
 })();
 
 </script>
