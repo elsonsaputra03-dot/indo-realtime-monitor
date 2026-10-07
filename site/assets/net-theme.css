@@ -1,0 +1,82 @@
+/* Network KPI Monitor: lapisan tampilan (NOC). Dimuat setelah gov-classic.css dan gaya halaman, jadi hanya menimpa tampilan. */
+:root{--bg:#EEF2F6; --paper:#FFFFFF; --rule:#DCE3EA; --ink:#14212B; --ink-2:#33434F; --muted:#64748B; --active:#1F6FD1; --lt:#3DDC84;
+  --navy:#0B1620; --navy-2:#13283A; --glow:rgba(64,170,255,.18); --shadow:0 1px 2px rgba(16,32,48,.05),0 4px 14px rgba(16,32,48,.05)}
+body{background:var(--bg)}
+
+/* ---------------- sidebar ---------------- */
+.rail{background:linear-gradient(180deg,#0A141C 0%,#0F2131 55%,#12293C 100%);padding:0 0 18px;border-right:1px solid #0A141C}
+.rail .brand{display:grid;grid-template-columns:34px minmax(0,1fr);column-gap:10px;align-items:center;padding:18px 18px 16px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:6px}
+.rail .brand::before{grid-row:1/span 2}
+.rail .brand strong,.rail .brand span{grid-column:2}
+.rail .brand::before{content:"";flex:none;width:34px;height:34px;border-radius:9px;
+  background:radial-gradient(circle at 50% 75%,#fff 0 2.5px,transparent 3px),
+             radial-gradient(circle at 50% 75%,transparent 0 7px,#fff 7.5px 9px,transparent 9.5px),
+             radial-gradient(circle at 50% 75%,transparent 0 12px,#fff 12.5px 14px,transparent 14.5px),
+             linear-gradient(135deg,#1F6FD1,#3DDC84)}
+.rail .brand strong{font-size:1rem;letter-spacing:.01em} .rail .brand span{font-size:.76rem}
+.rail h2{display:flex;align-items:center;gap:8px;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:#7E93A3;margin:16px 18px 6px}
+.rail h2::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gc,#7E93A3);box-shadow:0 0 0 3px color-mix(in srgb,var(--gc,#7E93A3) 25%,transparent)}
+.rail h2.g-lap{--gc:#4EA8FF} .rail h2.g-tek{--gc:#2EC4B6} .rail h2.g-ass{--gc:#F4A261} .rail h2.g-pub{--gc:#3DDC84}
+.rail h2.g-pub::after{content:"LIVE";margin-left:auto;font-size:.58rem;letter-spacing:.08em;color:#0B1620;background:#3DDC84;border-radius:4px;padding:1px 5px}
+.rail a{display:flex;align-items:center;gap:10px;margin:1px 10px;padding:8px 10px;border-radius:8px;border-left:0;color:#B9C7D2;font-size:.9rem;transition:background .12s,color .12s}
+.rail a .ni{width:17px;height:17px;flex:none;opacity:.75}
+.rail a:hover{background:rgba(255,255,255,.06);color:#fff}
+.rail a[aria-current="page"]{background:linear-gradient(90deg,rgba(64,170,255,.22),rgba(64,170,255,.06));color:#fff;box-shadow:inset 3px 0 0 #4EA8FF}
+.rail a[aria-current="page"] .ni{opacity:1}
+.rail .back{border-top:1px solid rgba(255,255,255,.07);margin-top:14px;padding-top:8px}
+
+/* ---------------- header band ---------------- */
+main{padding:20px 26px 36px}
+.net-hero{position:relative;overflow:hidden;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;
+  background:linear-gradient(120deg,#0E1A24 0%,#15324A 60%,#1D4E6E 100%);color:#E8F0F5;border-radius:14px;padding:18px 22px;margin-bottom:16px;box-shadow:var(--shadow)}
+.net-hero::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 88% 15%,var(--glow),transparent 45%);pointer-events:none}
+.net-hero .head{margin:0;flex:1;min-width:260px;position:relative;z-index:1}
+.net-hero .head h1{color:#fff;font-family:"Barlow Condensed",sans-serif;font-size:2rem;font-weight:700;letter-spacing:.01em}
+.net-hero .head p{color:#A9BFCD}
+.net-hero .head .btn{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:#fff}
+.net-hero .head .btn:hover{background:rgba(255,255,255,.18)}
+.nh-r{display:flex;flex-direction:column;align-items:flex-end;gap:8px;position:relative;z-index:1}
+.nh-badge{display:inline-flex;align-items:center;gap:7px;font-size:.68rem;letter-spacing:.12em;font-weight:700;border-radius:20px;padding:5px 11px;
+  background:rgba(244,162,97,.16);color:#FFC48C;border:1px solid rgba(244,162,97,.35)}
+.nh-badge i{width:7px;height:7px;border-radius:50%;background:#F4A261}
+.nh-about{font-size:.8rem;color:#A9BFCD}
+.nh-about summary{cursor:pointer;list-style:none;text-align:right} .nh-about summary::-webkit-details-marker{display:none}
+.nh-about summary::after{content:" ▾"} .nh-about[open] summary::after{content:" ▴"}
+.nh-about p{max-width:520px;margin:6px 0 0;background:rgba(0,0,0,.2);border-radius:8px;padding:8px 10px;color:#D3DEE6}
+main > .synthetic{display:none}
+body.pub-active .net-hero{display:none}
+
+/* ---------------- filter bar ---------------- */
+.filters{background:var(--paper);border:1px solid var(--rule);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px}
+.filters label,.mapctl label{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.filters select,.filters input,.mapctl select{border-radius:8px;border-color:var(--rule);background:#F8FAFC}
+.filters select:focus,.filters input:focus{background:#fff;border-color:#1F6FD1;outline:none;box-shadow:0 0 0 3px rgba(31,111,209,.15)}
+.btn{border-radius:8px}
+
+/* ---------------- cards, KPI, tables ---------------- */
+.card{border-radius:12px;border-color:var(--rule);box-shadow:var(--shadow);padding:16px 18px}
+.card h3{font-size:1rem;letter-spacing:.01em}
+.kpi,.sc,.tech,.ointro,.onode,.impact,details.cat{border-radius:12px;box-shadow:var(--shadow);border-color:var(--rule)}
+.kpi{position:relative;transition:transform .12s,box-shadow .12s}
+.kpi:hover,.sc:hover,.tech:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(16,32,48,.09)}
+.kpi .v,.sc .v,.tech .big2{letter-spacing:.01em}
+.sc,.tech{transition:transform .12s,box-shadow .12s}
+.ointro{background:linear-gradient(90deg,#F5F9FC,#FFFFFF);border-left:4px solid #4EA8FF}
+.tw{border-radius:8px}
+table thead th{position:sticky;top:0;background:#F6F9FB;z-index:1;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--rule)}
+tbody tr:nth-child(even) td{background:#FAFCFD}
+tbody tr:hover td{background:#EEF5FC}
+.tabs{border-bottom:0;gap:6px;margin-bottom:14px}
+.tab{border:1px solid var(--rule);border-radius:20px;padding:6px 14px;background:#fff;color:var(--ink-2)}
+.tab[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.opill,.badge,.diag{border-radius:6px}
+#map,#o-map,#p-map,#c-map{border-radius:12px!important;box-shadow:var(--shadow)}
+footer{border-top:1px solid var(--rule);padding-top:12px}
+
+@media (max-width:820px){
+  main{padding:14px}
+  .rail{padding:6px 4px;display:flex;overflow-x:auto;height:auto;position:static} .rail .brand,.rail h2{display:none}
+  .rail a{margin:0 2px;white-space:nowrap;flex:none} .rail a .ni{display:none} .rail .back{margin:0;border:0;padding:0}
+  .nh-r{align-items:flex-start}
+}
+@media (prefers-reduced-motion:reduce){.kpi,.sc,.tech,.rail a{transition:none}}

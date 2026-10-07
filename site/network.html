@@ -202,6 +202,7 @@
 </script>
 <script data-goatcounter="https://elsonsaputra.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <!-- goatcounter:end -->
+<link rel="stylesheet" href="assets/net-theme.css">
 </head>
 <body>
 <div class="shell">
@@ -221,7 +222,7 @@
     <a data-view="oss-sleep">Sel tidur senyap</a>
     <a data-view="oss-sla">SLA pelanggan</a>
     <a data-view="oss-prov">Provisioning</a>
-    <h2>Internet publik · data nyata</h2>
+    <h2>Internet publik</h2>
     <a data-view="pub-outage">Gangguan &amp; anomali</a>
     <a data-view="pub-traffic">Trafik per operator</a>
     <a data-view="pub-region">Trafik per provinsi</a>
@@ -250,6 +251,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="assets/oss-views.js"></script>
 <script src="assets/pub-views.js"></script>
+<script src="assets/cui-icons.js"></script>
+<script src="assets/net-theme.js"></script>
 <script src="assets/kalimantan.js"></script>
 <script src="assets/net-data.js"></script>
 <script>
@@ -261,7 +264,8 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const dl = d => d.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'});
 const charts = []; const chart = (el, cfg) => { if(window.Chart && el) charts.push(new Chart(el, cfg)); };
-if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#5D6D78'; Chart.defaults.borderColor = '#E3E9EC'; Chart.defaults.animation = false; }
+if(window.Chart){ Chart.defaults.font.family = 'Barlow, system-ui, sans-serif'; Chart.defaults.color = '#64748B'; Chart.defaults.borderColor = '#E8EEF3'; Chart.defaults.animation = false;
+  Object.assign(Chart.defaults.plugins.tooltip, {backgroundColor: '#14212B', padding: 10, cornerRadius: 8, titleFont: {weight: '600'}}); Chart.defaults.plugins.legend.labels.usePointStyle = true; }
 const COLORS = ['#2E5E8C', '#B3261E', '#3E8E5E', '#C9901D', '#8F3F97', '#1D8A99', '#5D6D78', '#D9722E', '#6B4E9B', '#2F7A4D', '#A33B6B', '#3A6F9F'];
 const VENDORS = [['EID', '#2E5E8C'], ['ZTE', '#C9901D'], ['KAL', '#1D2A33']];
 const TECH_COL = {'2G': '#8F3F97', '4G': '#2E5E8C', '5G': '#3E8E5E'};
