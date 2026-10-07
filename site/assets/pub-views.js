@@ -15,7 +15,19 @@ const CAUSE = {POWER_OUTAGE: 'Listrik padam', CABLE_CUT: 'Kabel putus', WEATHER:
   MILITARY_ACTION: 'Aksi militer', UNKNOWN: 'Tidak diketahui'};
 const TYPE = {NATIONWIDE: 'Nasional', REGIONAL: 'Regional', NETWORK: 'Jaringan operator', PLATFORM: 'Platform'};
 const COLORS = ['#B3261E', '#2E5E8C', '#C9901D', '#3E8E5E', '#8F3F97', '#1D8A99'];
-let data = null, loading = null, charts = [], pickAsn = null;
+let data = null, loading = null, charts = [], pickAsn = null, lmap = null, pickGeo = null, regOp = 'ID';
+const DIRS = [['Southeast', 'Tenggara'], ['Southwest', 'Barat Daya'], ['Northeast', 'Timur Laut'], ['North', 'Utara'], ['South', 'Selatan'], ['East', 'Timur'],
+  ['West', 'Barat'], ['Central', 'Tengah'], ['Highland', 'Pegunungan']];
+function provName(n){
+  n = String(n || '');
+  const fixed = {'Jakarta': 'DKI Jakarta', 'Special Region of Yogyakarta': 'DI Yogyakarta', 'Yogyakarta': 'DI Yogyakarta', 'Aceh': 'Aceh', 'Riau Islands': 'Kepulauan Riau',
+    'Bangka-Belitung Islands': 'Kepulauan Bangka Belitung', 'Bangka–Belitung Islands': 'Kepulauan Bangka Belitung', 'Bangka Belitung Islands': 'Kepulauan Bangka Belitung'};
+  if(fixed[n]) return fixed[n];
+  let x = n.replace(/\bJava\b/g, 'Jawa').replace(/\bSumatra\b/g, 'Sumatera').replace(/ Province$/, '');
+  for(const [en, id] of DIRS) if(x.startsWith(en + ' ')) { x = x.slice(en.length + 1) + ' ' + id; break; }
+  return x;
+}
+const median = a => { const x = a.filter(v => v != null).sort((p, q) => p - q); return x.length ? x[Math.floor(x.length / 2)] : null; };
 
 const kpi = (v, k, sub = '') => `<div class="kpi"><div class="v">${v}</div><div class="k">${k}</div>${sub ? `<div class="d" style="color:var(--muted)">${sub}</div>` : ''}</div>`;
 const table = (cols, rows, empty) => rows.length ? `<div class="tw"><table><thead><tr>${cols.map(c => `<th class="${c.n ? 'r' : ''}">${esc(c.l)}</th>`).join('')}</tr></thead>
@@ -118,6 +130,66 @@ const VIEWS = {
     if(pickAsn) draw();
   },
 
+  'pub-region'(d, el){
+    const geo = Object.fromEntries((d.geo || []).map(g => [String(g.geoId), g]));
+    const share = k => { const s = ((d.adm1 || {})[k] || {}).summary_0 || {}; return Object.fromEntries(Object.entries(s).filter(([g]) => geo[g]).map(([g, v]) => [g, num(v)])); };
+    const nat = share('ID'), ops = Object.keys(d.asns).filter(k => (d.adm1 || {})[k]), opShare = Object.fromEntries(ops.map(k => [k, share(k)]));
+    const ts = (d.adm1_ts || {}).netflows || (d.adm1_ts || {}).http, tsSrc = (d.adm1_ts || {}).netflows ? 'NetFlows' : 'HTTP';
+    const trend = g => { const v = ts && ts.s[g]; if(!v || v.length < 10) return null;
+      const last = avg(v.slice(-7)), prev = avg(v.slice(0, -7)), med = median(v.slice(0, -1)), lo = Math.min(...v.filter(x => x != null));
+      const iMin = v.indexOf(lo); return {change: prev ? (last / prev - 1) * 100 : null, minRatio: med ? lo / med : null, minT: ts.t[iMin]}; };
+    const rows = Object.keys(geo).filter(g => nat[g] != null || ops.some(k => opShare[k][g] != null)).map(g => ({g, name: provName(geo[g].name), en: geo[g].name, nat: nat[g], tr: trend(g)}))
+      .sort((a, b) => (b.nat || 0) - (a.nat || 0));
+    if(!rows.length){ el.innerHTML = head(d) + '<div class="ointro">Data level provinsi belum tersedia di snapshot ini; akan terisi pada pengambilan berikutnya.</div>'; return; }
+    pickGeo = rows.some(r => r.g === pickGeo) ? pickGeo : rows[0].g;
+    const cell = (k, g) => { const v = opShare[k][g], n = nat[g]; if(v == null) return '–'; const idx = n ? v / n : null;
+      return `<span title="indeks ${idx == null ? '–' : fmt(idx, 2)} terhadap porsi nasional" class="${idx > 1.3 ? 'pub-hi' : idx < .7 ? 'pub-lo' : ''}">${fmt(v, 1)}%</span>`; };
+    el.innerHTML = head(d) + `<div class="ointro">Radar membagi trafik Indonesia per <b>provinsi</b> (ADM1, tersedia sejak September 2025). Angka = porsi trafik 7 hari terakhir.
+      Kolom operator = porsi trafik operator itu yang berasal dari provinsi tersebut; <span class="pub-hi">hijau</span> berarti operator relatif lebih kuat di sana dibanding rata-rata nasional,
+      <span class="pub-lo">merah</span> relatif lebih lemah. Level lebih kecil dari provinsi (kota, site, sel) tidak tersedia di data publik.</div>
+    <div class="grid2" style="margin-bottom:14px">
+      <section class="card"><h3>Peta porsi trafik <span>ukuran lingkaran = porsi</span></h3>
+        <div class="pub-chips" role="group" aria-label="Pilih jaringan">${['ID', ...ops].map(k => `<button type="button" class="pub-chip" data-op="${k}" aria-pressed="${k === regOp}">${k === 'ID' ? 'Indonesia' : esc(d.asns[k].label)}</button>`).join('')}</div>
+        <div id="p-map" style="height:360px;border-radius:8px;border:1px solid var(--rule)"></div>
+        <p class="onote">Titik = pusat provinsi dari Radar, bukan lokasi BTS. Lingkaran merah = porsi provinsi turun ≥ 10% dalam 7 hari terakhir.</p></section>
+      <section class="card"><h3 id="p-geo-t">Tren harian</h3><div class="chart" style="height:300px"><canvas id="p-geo"></canvas></div>
+        <p class="onote">Porsi harian provinsi terhadap trafik Indonesia, 28 hari (${tsSrc}). Penurunan tajam satu hari biasanya tanda gangguan regional (listrik, kabel, cuaca).</p></section></div>
+    ${card('Porsi trafik per provinsi', `${rows.length} provinsi · klik baris untuk tren`, `<div class="tw"><table class="pub-reg"><thead><tr><th>Provinsi</th><th class="r">Porsi nasional</th>
+      ${ops.map(k => `<th class="r">${esc(d.asns[k].label)}</th>`).join('')}<th class="r">Perubahan 7 hari</th><th>Hari terendah</th></tr></thead><tbody>
+      ${rows.map(r => `<tr data-g="${r.g}" tabindex="0" aria-selected="${r.g === pickGeo}"><td title="${esc(r.en)}"><b>${esc(r.name)}</b></td><td class="r">${fmt(r.nat, 2)}%</td>
+        ${ops.map(k => `<td class="r">${cell(k, r.g)}</td>`).join('')}
+        <td class="r">${!r.tr || r.tr.change == null ? '–' : `<span class="${r.tr.change <= -10 ? 'up' : ''}">${r.tr.change > 0 ? '+' : ''}${fmt(r.tr.change, 1)}%</span>`}</td>
+        <td>${r.tr && r.tr.minRatio != null ? `${tglD(r.tr.minT)} <small class="${r.tr.minRatio < .7 ? 'up' : 'muted'}">${fmt(r.tr.minRatio * 100)}% dari median</small>` : '–'}</td></tr>`).join('')}
+      </tbody></table></div>`)}`;
+    const drawTrend = () => {
+      charts.splice(0).forEach(c => c.destroy());
+      const r = rows.find(x => x.g === pickGeo); document.getElementById('p-geo-t').innerHTML = `Tren harian · ${esc(r.name)}`;
+      el.querySelectorAll('tr[data-g]').forEach(tr => tr.setAttribute('aria-selected', tr.dataset.g === pickGeo));
+      const H = (d.adm1_ts || {}).http, N = (d.adm1_ts || {}).netflows, lab = (N || H).t.map(t => tglD(t));
+      chart(document.getElementById('p-geo'), {type: 'line', data: {labels: lab, datasets: [
+        ...(N && N.s[pickGeo] ? [{label: 'NetFlows', data: N.s[pickGeo], borderColor: '#2E5E8C', pointRadius: 2, tension: .2}] : []),
+        ...(H && H.s[pickGeo] ? [{label: 'HTTP', data: H.s[pickGeo], borderColor: '#C9901D', pointRadius: 2, tension: .2}] : [])]},
+        options: {maintainAspectRatio: false, plugins: {legend: {position: 'bottom'}}, scales: {y: {ticks: {callback: v => v + '%'}}, x: {ticks: {maxTicksLimit: 8}}}}});
+    };
+    const drawMap = () => {
+      if(!window.L) return;
+      if(lmap){ lmap.remove(); lmap = null; }
+      lmap = L.map('p-map', {preferCanvas: true, scrollWheelZoom: false}).setView([-2.5, 118], 4.3);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 10, attribution: '&copy; OpenStreetMap contributors · data: Cloudflare Radar (CC BY-NC 4.0)'}).addTo(lmap);
+      const src = regOp === 'ID' ? nat : opShare[regOp], mx = Math.max(...Object.values(src).filter(v => v != null), 1);
+      rows.forEach(r => { const g = geo[r.g], v = src[r.g]; if(v == null || g.latitude == null) return;
+        const down = r.tr && r.tr.change != null && r.tr.change <= -10;
+        L.circleMarker([+g.latitude, +g.longitude], {radius: 4 + 22 * Math.sqrt(v / mx), color: down ? '#B3261E' : '#2E5E8C', weight: 1.5, fillOpacity: .35})
+          .bindTooltip(`<b>${esc(r.name)}</b><br>${fmt(v, 2)}% ${regOp === 'ID' ? 'trafik Indonesia' : 'trafik ' + esc(d.asns[regOp].label)}`)
+          .on('click', () => { pickGeo = r.g; drawTrend(); }).addTo(lmap); });
+    };
+    el.querySelectorAll('tr[data-g]').forEach(tr => { const go = () => { pickGeo = tr.dataset.g; drawTrend(); };
+      tr.onclick = go; tr.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); go(); } }; });
+    el.querySelectorAll('.pub-chip[data-op]').forEach(b => b.onclick = () => { regOp = b.dataset.op;
+      el.querySelectorAll('.pub-chip[data-op]').forEach(x => x.setAttribute('aria-pressed', x.dataset.op === regOp)); drawMap(); });
+    drawMap(); drawTrend();
+  },
+
   'pub-quality'(d, el){
     const sp = (d.speed_ops || []).map(x => ({...x, dl: num(x.bandwidthDownload), ul: num(x.bandwidthUpload), lat: num(x.latencyIdle), latL: num(x.latencyLoaded),
       jit: num(x.jitterIdle), loss: num(x.packetLoss)})).sort((a, b) => (a.key === 'ID') - (b.key === 'ID') || (b.dl || 0) - (a.dl || 0));
@@ -156,14 +228,14 @@ const VIEWS = {
 window.PUB_VIEWS = {
   has: v => v in VIEWS,
   render(v, el){
-    charts.splice(0).forEach(c => c.destroy());
+    charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; }
     document.querySelectorAll('.synthetic, main > footer').forEach(n => n.hidden = true);
     el.innerHTML = '<div class="empty">Memuat data Cloudflare Radar…</div>';
     load().then(d => { if(window.PUB_VIEWS.current !== v) return; const sn = document.getElementById('snap'); if(sn) sn.textContent = window.PUB_VIEWS.snapText(); VIEWS[v](d, el); }).catch(e => {
       el.innerHTML = `<div class="ointro"><strong>Data publik belum tersedia</strong> (${esc(e.message)}). Snapshot dibuat oleh GitHub Actions setelah secret
         <code>CF_RADAR_TOKEN</code> diisi; coba lagi beberapa saat lagi.</div>`; });
   },
-  leave(){ charts.splice(0).forEach(c => c.destroy()); document.querySelectorAll('.synthetic, main > footer').forEach(n => n.hidden = false); },
+  leave(){ charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; } document.querySelectorAll('.synthetic, main > footer').forEach(n => n.hidden = false); },
   snapText: () => data ? `Data nyata · Cloudflare Radar (CC BY-NC 4.0) · snapshot ${tgl(data.generated_at)}` : 'Data nyata · Cloudflare Radar (CC BY-NC 4.0)'
 };
 })();

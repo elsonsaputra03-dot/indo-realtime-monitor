@@ -118,6 +118,8 @@
   .pub-chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
   td.wrap{white-space:normal;min-width:160px}
   .muted{color:var(--muted)}
+  .pub-hi{color:#1E5E36;font-weight:600} .pub-lo{color:#8E2A22}
+  table.pub-reg tr[data-g]{cursor:pointer} table.pub-reg tr[aria-selected="true"] td{background:#EAF0F7}
 /* oss-assurance */
   .ointro{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.9rem;color:var(--ink-2)}
   .onote{font-size:.84rem;color:var(--muted);margin:8px 0 0}
@@ -177,6 +179,7 @@
     <h2>Internet publik · data nyata</h2>
     <a data-view="pub-outage">Gangguan &amp; anomali</a>
     <a data-view="pub-traffic">Trafik per operator</a>
+    <a data-view="pub-region">Trafik per provinsi</a>
     <a data-view="pub-quality">Kualitas &amp; routing BGP</a>
     <div class="back"><a href="index.html">Kembali ke portofolio</a></div>
   </nav>
@@ -568,7 +571,7 @@ function viewTwamp(){
 
 
 // ------------------------------------------------------------------ navigasi
-const TITLES = {'pub-outage': 'Internet publik: gangguan & anomali', 'pub-traffic': 'Internet publik: trafik per operator', 'pub-quality': 'Internet publik: kualitas & routing BGP', 'oss-alarm': 'Assurance: alarm & insiden', 'oss-inc': 'Assurance: insiden menurut dampak pelanggan', 'oss-sleep': 'Assurance: sel tidur senyap', 'oss-sla': 'Assurance: SLA pelanggan', 'oss-prov': 'Assurance: provisioning (simulasi)', summary: 'Ringkasan', map: 'Peta site', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
+const TITLES = {'pub-region': 'Internet publik: trafik per provinsi', 'pub-outage': 'Internet publik: gangguan & anomali', 'pub-traffic': 'Internet publik: trafik per operator', 'pub-quality': 'Internet publik: kualitas & routing BGP', 'oss-alarm': 'Assurance: alarm & insiden', 'oss-inc': 'Assurance: insiden menurut dampak pelanggan', 'oss-sleep': 'Assurance: sel tidur senyap', 'oss-sla': 'Assurance: SLA pelanggan', 'oss-prov': 'Assurance: provisioning (simulasi)', summary: 'Ringkasan', map: 'Peta site', wpc: 'Daily WPC Monitoring', '2G': 'KPI 2G', '4G': 'KPI 4G', '5G': 'KPI 5G', prod: 'Productivity & availability', twamp: 'Transport (TWAMP)'};
 const closeModal = () => { $('modal').hidden = true; };
 $('modal').onclick = e => { if(e.target === $('modal')) closeModal(); };
 addEventListener('keydown', e => { if(e.key === 'Escape' && !$('modal').hidden) closeModal(); });

@@ -29,7 +29,7 @@ LABEL_RULES = [("TELKOMSEL", "Telkomsel"), ("INDOSAT", "Indosat"), ("HUTCHISON",
 ATTRIBUTION = {"source": "Cloudflare Radar", "url": "https://radar.cloudflare.com/id",
                "license": "CC BY-NC 4.0", "license_url": "https://creativecommons.org/licenses/by-nc/4.0/"}
 FILE = "radar_id.json"
-SCHEMA = 3                      # naikkan saat isi snapshot berubah: snapshot lama langsung diambil ulang
+SCHEMA = 4                      # naikkan saat isi snapshot berubah: snapshot lama langsung diambil ulang
 
 
 class Radar:
@@ -86,7 +86,7 @@ def pick(d: dict, *keys):
 
 def collect(radar: Radar) -> dict:
     out = {"schema": SCHEMA, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "attribution": ATTRIBUTION,
-           "asns": {}, "outages": [], "anomalies": [], "traffic": {}, "speed": [], "speed_ops": [], "adm1": {}, "geo": None, "probe": {}, "bgp": {}, "hijacks": [], "leaks": []}
+           "asns": {}, "outages": [], "anomalies": [], "traffic": {}, "speed": [], "speed_ops": [], "adm1": {}, "geo": [], "adm1_ts": {}, "bgp": {}, "hijacks": [], "leaks": []}
 
     for asn in ASNS:
         r = radar.get(f"entities/asns/{asn}")
@@ -137,12 +137,15 @@ def collect(radar: Radar) -> dict:
         r = radar.get("netflows/summary/ADM1", location="ID", dateRange="7d", limitPerGroup=60, **params)
         if r:
             out["adm1"][key] = {k: v for k, v in r.items() if k != "meta"}
-    out["geo"] = radar.get("geolocations", location="ID", limit=100)
-    for name, path, params in [("http_tsg_adm1", "http/timeseries_groups/ADM1", {"location": "ID", "dateRange": "28d", "aggInterval": "1d", "limitPerGroup": 40}),
-                               ("netflows_tsg_adm1", "netflows/timeseries_groups/ADM1", {"location": "ID", "dateRange": "28d", "aggInterval": "1d", "limitPerGroup": 40})]:
-        r = radar.get(path, **params)   # percobaan: struktur dicatat di status untuk dipakai tampilan berikutnya
-        if r:
-            out["probe"][name] = r
+    g = radar.get("geolocations", location="ID", limit=100)
+    out["geo"] = [pick(x, "geoId", "name", "code", "type", "latitude", "longitude") for x in (g or {}).get("geolocations", [])]
+    # porsi harian tiap provinsi terhadap trafik Indonesia, 28 hari (untuk mendeteksi provinsi yang turun)
+    for name, path in [("http", "http/timeseries_groups/ADM1"), ("netflows", "netflows/timeseries_groups/ADM1")]:
+        r = radar.get(path, location="ID", dateRange="28d", aggInterval="1d", limitPerGroup=40)
+        s0 = (r or {}).get("serie_0")
+        if s0 and s0.get("timestamps"):
+            out["adm1_ts"][name] = {"t": s0["timestamps"], "s": {k: [None if v is None else round(float(v), 4) for v in vals]
+                                                                 for k, vals in s0.items() if k != "timestamps" and isinstance(vals, list)}}
 
     for asn in ASNS:
         r = radar.get("bgp/routes/stats", asn=asn)
@@ -170,8 +173,8 @@ def write_status(path: Path) -> None:
                       for k, v in (snap.get("traffic") or {}).items()},
           "asns": {k: v.get("label") for k, v in (snap.get("asns") or {}).items()},
           "adm1_sample": {k: (json.dumps(v)[:1500]) for k, v in list((snap.get("adm1") or {}).items())[:2]},
-          "geo_sample": json.dumps(snap.get("geo"))[:1500],
-          "probe_sample": {k: json.dumps(v)[:1500] for k, v in (snap.get("probe") or {}).items()},
+          "geo_count": len(snap.get("geo") or []),
+          "adm1_ts": {k: {"days": len(v.get("t", [])), "groups": len(v.get("s", {})), "first_t": (v.get("t") or [None])[0]} for k, v in (snap.get("adm1_ts") or {}).items()},
           "samples": {k: (snap.get(k) or [None])[0] for k in ("outages", "anomalies", "speed_ops", "hijacks", "leaks")}
                      | {"bgp": next(iter((snap.get("bgp") or {}).values()), None)}}
     path.with_name("radar_status.json").write_text(json.dumps(st, indent=1), encoding="utf-8")
