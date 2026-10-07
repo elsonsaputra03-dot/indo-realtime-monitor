@@ -27,6 +27,10 @@ function provName(n){
   for(const [en, id] of DIRS) if(x.startsWith(en + ' ')) { x = x.slice(en.length + 1) + ' ' + id; break; }
   return x;
 }
+let cells = null, cellsLoading = null, cmap = null, cOp = '', cMetric = 'pop', cProv = '', cSort = ['total', -1], cQ = '';
+function loadCells(){ return cells ? Promise.resolve(cells) : (cellsLoading ||= Promise.all([
+  fetch('data/cells_id.json?v=' + (Date.now() / 36e5 | 0)).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+  fetch('data/kabkota_id.geojson').then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })]).then(([c, g]) => (cells = {c, g}))); }
 const median = a => { const x = a.filter(v => v != null).sort((p, q) => p - q); return x.length ? x[Math.floor(x.length / 2)] : null; };
 
 const kpi = (v, k, sub = '') => `<div class="kpi"><div class="v">${v}</div><div class="k">${k}</div>${sub ? `<div class="d" style="color:var(--muted)">${sub}</div>` : ''}</div>`;
@@ -190,6 +194,12 @@ const VIEWS = {
     drawMap(); drawTrend();
   },
 
+  'pub-cells'(_, el){
+    loadCells().then(({c, g}) => { if(window.PUB_VIEWS.current === 'pub-cells') cellsView(c, g, el); }).catch(e => {
+      el.innerHTML = `<div class="ointro"><strong>Data sebaran sel belum tersedia</strong> (${esc(e.message)}). Data dibuat oleh workflow mingguan
+        <code>opencellid.yml</code> setelah secret <code>OPENCELLID_KEY</code> diisi.</div>`; });
+  },
+
   'pub-quality'(d, el){
     const sp = (d.speed_ops || []).map(x => ({...x, dl: num(x.bandwidthDownload), ul: num(x.bandwidthUpload), lat: num(x.latencyIdle), latL: num(x.latencyLoaded),
       jit: num(x.jitterIdle), loss: num(x.packetLoss)})).sort((a, b) => (a.key === 'ID') - (b.key === 'ID') || (b.dl || 0) - (a.dl || 0));
@@ -225,17 +235,87 @@ const VIEWS = {
   }
 };
 
+function cellsView(c, g, el){
+  const R4 = k => (k.radio['4G'] || 0) + (k.radio['5G'] || 0);
+  const val = k => cOp ? (k.op[cOp] || 0) : k.total;
+  const METRICS = {pop: ['Sel per 100 ribu penduduk', k => k.pend ? val(k) / k.pend * 1e5 : null, 1],
+    area: ['Sel per 1.000 km²', k => k.luas ? val(k) / k.luas * 1e3 : null, 1],
+    modern: ['Porsi 4G + 5G', k => { const t = cOp ? ['4G', '5G'].reduce((s, r) => s + (k.op_radio[cOp + '|' + r] || 0), 0) : R4(k); return val(k) ? t / val(k) * 100 : null; }, 0],
+    total: ['Jumlah sel', k => val(k), 0]};
+  const K = c.kab, byK = Object.fromEntries(K.map(k => [k.k, k])), provs = [...new Set(K.map(k => k.prov))].filter(Boolean).sort();
+  const tot = c.cells_indonesia || Object.values(c.by_op).reduce((s, v) => s + v, 0), recent = K.reduce((s, k) => s + k.recent, 0), inK = K.reduce((s, k) => s + k.total, 0);
+  const radio = c.by_radio, rT = Object.values(radio).reduce((s, v) => s + v, 0);
+  el.innerHTML = `<div class="ointro pub-real"><strong>Data nyata, publik.</strong> Sumber <a href="${esc(c.attribution.url)}" target="_blank" rel="noopener noreferrer">OpenCelliD</a>,
+    lisensi <a href="${esc(c.attribution.license_url)}" target="_blank" rel="noopener noreferrer">${esc(c.attribution.license)}</a>; batas wilayah ${esc(c.attribution.boundaries)}.
+    Diperbarui mingguan (${tgl(c.generated_at)}). Posisi sel adalah <b>perkiraan dari pengukuran ponsel relawan</b>, bukan koordinat BTS resmi, sehingga hanya ditampilkan
+    teragregasi per kabupaten/kota. Wilayah yang jarang dilewati relawan bisa tampak lebih sedikit selnya daripada kenyataan.</div>
+  <div class="kpis" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
+    ${kpi(fmt(tot), 'sel tercatat', `${fmt(inK)} di dalam batas ${fmt(K.filter(k => k.total).length)} kab/kota`)}
+    ${kpi(fmt(rT ? ((radio['4G'] || 0) + (radio['5G'] || 0)) / rT * 100 : 0) + '%', 'sel 4G + 5G', `5G: ${fmt(radio['5G'] || 0)} sel`)}
+    ${kpi(fmt(inK ? recent / inK * 100 : 0) + '%', 'terlihat 12 bulan terakhir', 'sisanya data lama')}
+    ${kpi(esc(Object.entries(c.by_op).filter(([o]) => o !== 'Lainnya').sort((a, b) => b[1] - a[1])[0]?.[0] || '–'), 'operator dengan sel terbanyak', '')}
+  </div>
+  <section class="card" style="margin-bottom:14px"><h3>Peta per kabupaten/kota</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px">
+      <div class="pub-chips" role="group" aria-label="Operator">${['', ...c.ops.filter(o => o !== 'Lainnya')].map(o => `<button type="button" class="pub-chip" data-cop="${esc(o)}" aria-pressed="${o === cOp}">${o || 'Semua operator'}</button>`).join('')}</div>
+      <label class="muted" style="font-size:.85rem">Ukuran <select id="c-metric" class="btn">${Object.entries(METRICS).map(([k, m]) => `<option value="${k}"${k === cMetric ? ' selected' : ''}>${m[0]}</option>`).join('')}</select></label></div>
+    <div id="c-map" style="height:430px;border-radius:8px;border:1px solid var(--rule)"></div><div class="olegend" id="c-leg"></div></section>
+  <section class="card"><h3>Tabel kabupaten/kota <span id="c-cnt"></span></h3>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px"><select id="c-prov" class="btn"><option value="">Semua provinsi</option>${provs.map(p => `<option${p === cProv ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>
+      <input id="c-q" class="btn" type="search" placeholder="cari kab/kota" value="${esc(cQ)}" style="min-width:200px"></div>
+    <div class="tw" style="max-height:520px;overflow-y:auto"><table id="c-tab"></table></div>
+    <p class="onote">Operator dipetakan dari kode MNC 510-xx (penomoran publik): Indosat 01/21, Telkomsel 10, XL Axiata 11/08, Tri 89, Smartfren 09/28.</p></section>`;
+  const colors = ['#F1F4F6', '#D6E4F0', '#A9C6E0', '#6E9CC7', '#3F72A6', '#1F4C7A'];
+  const drawMap = () => {
+    if(cmap){ cmap.remove(); cmap = null; }
+    if(!window.L) return;
+    const [lab, fn, dg] = METRICS[cMetric], vals = K.map(fn).filter(v => v != null && v > 0).sort((a, b) => a - b);
+    const q = [.2, .4, .6, .8, .95].map(p => vals[Math.floor(p * (vals.length - 1))] || 0);
+    const col = v => v == null || v <= 0 ? colors[0] : colors[1 + q.slice(0, 4).filter(t => v > t).length];
+    cmap = L.map('c-map', {preferCanvas: true, scrollWheelZoom: false}).setView([-2.5, 118], 4.6);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 11, attribution: '&copy; OpenStreetMap · sel: OpenCelliD (CC BY-SA 4.0) · batas: cahyadsn/wilayah'}).addTo(cmap);
+    L.geoJSON(g, {style: f => { const k = byK[f.properties.k]; return {weight: .4, color: '#8FA1AC', fillOpacity: .8, fillColor: col(k ? fn(k) : null)}; },
+      onEachFeature: (f, ly) => { const k = byK[f.properties.k]; if(!k) return;
+        ly.bindTooltip(`<b>${esc(k.nama)}</b>, ${esc(k.prov)}<br>${lab}: ${fmt(fn(k), dg)}<br>${fmt(val(k))} sel${cOp ? ' ' + esc(cOp) : ''}`); }}).addTo(cmap);
+    document.getElementById('c-leg').innerHTML = `<span>${lab}${cOp ? ' · ' + esc(cOp) : ''}:</span>` + colors.map((c2, i) =>
+      `<span><i style="background:${c2};border-radius:2px"></i>${i === 0 ? 'tidak ada data' : i === 1 ? '≤ ' + fmt(q[0], dg) : i === 5 ? '> ' + fmt(q[3], dg) : fmt(q[i - 2], dg) + '–' + fmt(q[i - 1], dg)}</span>`).join('');
+  };
+  const COLS = [['nama', 'Kab/kota'], ['prov', 'Provinsi'], ['total', 'Sel', 1], ...c.ops.filter(o => o !== 'Lainnya').map(o => ['op:' + o, o, 1]),
+    ['r:2G', '2G', 1], ['r:3G', '3G', 1], ['r:4G', '4G', 1], ['r:5G', '5G', 1], ['pop', 'Per 100 rb penduduk', 1], ['recent', 'Terlihat 12 bln', 1]];
+  const v = (k, key) => key.startsWith('op:') ? (k.op[key.slice(3)] || 0) : key.startsWith('r:') ? (k.radio[key.slice(2)] || 0)
+    : key === 'pop' ? (k.pend ? k.total / k.pend * 1e5 : -1) : key === 'recent' ? (k.total ? k.recent / k.total : -1) : k[key];
+  const drawTable = () => {
+    const ql = cQ.toLowerCase(), list = K.filter(k => (!cProv || k.prov === cProv) && (!ql || k.nama.toLowerCase().includes(ql)));
+    const [sk, sd] = cSort; list.sort((a, b) => { const x = v(a, sk), y = v(b, sk); return (x > y ? 1 : x < y ? -1 : 0) * sd; });
+    document.getElementById('c-cnt').textContent = `${list.length} wilayah`;
+    const t = document.getElementById('c-tab');
+    t.innerHTML = `<thead><tr>${COLS.map(([k, l, n]) => `<th class="${n ? 'r' : ''}" data-k="${esc(k)}" style="cursor:pointer"${k === sk ? ` aria-sort="${sd < 0 ? 'descending' : 'ascending'}"` : ''}>${esc(l)}</th>`).join('')}</tr></thead><tbody>
+      ${list.map(k => `<tr><td><b>${esc(k.nama)}</b></td><td class="muted">${esc(k.prov)}</td><td class="r">${fmt(k.total)}</td>
+        ${c.ops.filter(o => o !== 'Lainnya').map(o => `<td class="r">${fmt(k.op[o] || 0)}</td>`).join('')}
+        ${['2G', '3G', '4G', '5G'].map(r => `<td class="r">${fmt(k.radio[r] || 0)}</td>`).join('')}
+        <td class="r">${k.pend ? fmt(k.total / k.pend * 1e5, 1) : '–'}</td><td class="r">${k.total ? fmt(k.recent / k.total * 100) + '%' : '–'}</td></tr>`).join('')}</tbody>`;
+    t.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const k = th.dataset.k; cSort = [k, cSort[0] === k ? -cSort[1] : (k === 'nama' || k === 'prov' ? 1 : -1)]; drawTable(); });
+  };
+  el.querySelectorAll('.pub-chip[data-cop]').forEach(b => b.onclick = () => { cOp = b.dataset.cop;
+    el.querySelectorAll('.pub-chip[data-cop]').forEach(x => x.setAttribute('aria-pressed', x.dataset.cop === cOp)); drawMap(); });
+  document.getElementById('c-metric').onchange = e => { cMetric = e.target.value; drawMap(); };
+  document.getElementById('c-prov').onchange = e => { cProv = e.target.value; drawTable(); };
+  let qt; document.getElementById('c-q').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { cQ = e.target.value; drawTable(); }, 200); };
+  drawMap(); drawTable();
+}
+
 window.PUB_VIEWS = {
   has: v => v in VIEWS,
   render(v, el){
-    charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; }
+    charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; } if(cmap){ cmap.remove(); cmap = null; }
     document.querySelectorAll('.synthetic, main > footer').forEach(n => n.hidden = true);
     el.innerHTML = '<div class="empty">Memuat data Cloudflare Radar…</div>';
+    if(v === 'pub-cells'){ VIEWS[v](null, el); const sn = document.getElementById('snap'); if(sn) sn.textContent = 'Data nyata · OpenCelliD (CC BY-SA 4.0) · diperbarui mingguan'; return; }
     load().then(d => { if(window.PUB_VIEWS.current !== v) return; const sn = document.getElementById('snap'); if(sn) sn.textContent = window.PUB_VIEWS.snapText(); VIEWS[v](d, el); }).catch(e => {
       el.innerHTML = `<div class="ointro"><strong>Data publik belum tersedia</strong> (${esc(e.message)}). Snapshot dibuat oleh GitHub Actions setelah secret
         <code>CF_RADAR_TOKEN</code> diisi; coba lagi beberapa saat lagi.</div>`; });
   },
-  leave(){ charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; } document.querySelectorAll('.synthetic, main > footer').forEach(n => n.hidden = false); },
+  leave(){ charts.splice(0).forEach(c => c.destroy()); if(lmap){ lmap.remove(); lmap = null; } if(cmap){ cmap.remove(); cmap = null; } document.querySelectorAll('.synthetic, main > footer').forEach(n => n.hidden = false); },
   snapText: () => data ? `Data nyata · Cloudflare Radar (CC BY-NC 4.0) · snapshot ${tgl(data.generated_at)}` : 'Data nyata · Cloudflare Radar (CC BY-NC 4.0)'
 };
 })();

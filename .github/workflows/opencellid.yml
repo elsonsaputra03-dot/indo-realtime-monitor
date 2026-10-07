@@ -1,0 +1,36 @@
+# Sebaran sel seluler Indonesia dari OpenCelliD (CC BY-SA 4.0), diringkas per kab/kota dan disimpan di repo.
+# Mingguan saja: unduhan file OpenCelliD dibatasi per hari per token, dan datanya tidak berubah cepat.
+name: OpenCelliD cells
+
+on:
+  schedule:
+    - cron: "41 20 * * 0"        # Minggu 20:41 UTC = Senin 03:41 WIB
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: opencellid
+  cancel-in-progress: false
+
+jobs:
+  cells:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12"}
+      - run: pip install shapely==2.0.6 numpy
+      - name: Download and aggregate
+        env:
+          OPENCELLID_KEY: ${{ secrets.OPENCELLID_KEY }}
+        run: python scripts/opencellid_snapshot.py --out site/data
+      - name: Commit if changed
+        run: |
+          git add -f site/data/cells_id.json site/data/kabkota_id.geojson 2>/dev/null || true   # site/data/ di-.gitignore; dua file ini sengaja disimpan
+          if git diff --cached --quiet; then echo "tidak ada perubahan"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Data: OpenCelliD cells per kab/kota ($(date -u +%F))"
+          git push
