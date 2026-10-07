@@ -177,3 +177,38 @@ def test_rule_route(q, expect):
 
 def test_tri_bukan_substring():
     assert "internet_operator" not in A.rule_route("Harga beras di Nusa Tenggara Timur")["alat"]
+
+
+# ---------- orkestrasi: pertanyaan lanjutan & pemangkasan alat (LLM dipalsukan)
+def _fake_llm(monkeypatch, router_tools):
+    def chat(client, system, user, schema, temperature):
+        if schema:
+            return json.dumps({"alat": router_tools, "lokasi": "", "hari": 3, "min_magnitudo": 0, "komoditas": "",
+                               "topik": "", "kata_kunci": ""})
+        return "jawaban"
+    monkeypatch.setattr(A, "_chat", chat)
+
+
+def test_followup_memakai_alat_sebelumnya(snapdir, monkeypatch):
+    _fake_llm(monkeypatch, ["kualitas_udara", "harga_pangan", "cuaca"])     # tebakan LLM yang salah (kejadian nyata)
+    r = A.ask(None, "kalau di Kalimantan Tengah?", client=object(), context="Berapa BTS Telkomsel di DKI Jakarta?")
+    assert [t["nama"] for t in r["tools"]] == ["sebaran_sel"] and r["router"]["lanjutan"]
+    assert "30 sel Telkomsel" in r["facts"][0]
+
+
+def test_bts_dengan_nama_operator_tanpa_internet_operator(snapdir, monkeypatch):
+    _fake_llm(monkeypatch, ["sebaran_sel", "internet_operator"])
+    r = A.ask(None, "Berapa BTS Telkomsel di Kalimantan Tengah?", client=object())
+    assert [t["nama"] for t in r["tools"]] == ["sebaran_sel"]
+
+
+def test_trafik_provinsi_tanpa_angka_nasional(snapdir):
+    r = run("internet_operator", "bagaimana trafik internet di kalimantan tengah", "Kalimantan Tengah")
+    f = " ".join(r["fakta"])
+    assert "hanya tersedia secara nasional" in f and "Mbps" not in f and "Telkomsel" not in f
+
+
+@pytest.mark.parametrize("q,yes", [("kalau di Jawa Barat?", True), ("Yang di Riau?", True),
+                                   ("Bagaimana trafik internet di Jawa Timur?", False), ("Kalau harga beras di provinsi yang paling murah di Indonesia mana?", False)])
+def test_is_followup(q, yes):
+    assert A.is_followup(q) is yes

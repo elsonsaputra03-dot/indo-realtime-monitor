@@ -90,6 +90,15 @@ RULE_TOOLS = [
 ]
 
 
+NET_GENERIC = ["internet", "kecepatan", "trafik", "traffic", "latensi", "re:\\bping\\b", "re:\\bbgp\\b", "rpki", "mbps", "speed"]
+FOLLOWUP = re.compile(r"^\s*(kalau|kalo|klo|bagaimana dengan|gimana dengan|terus|lalu|trus|dan|yang)\b", re.I)
+
+
+def is_followup(question: str) -> bool:
+    """Pertanyaan lanjutan pendek ("kalau di Jawa Barat?", "yang di Riau?") yang bergantung pada pertanyaan sebelumnya."""
+    return bool(FOLLOWUP.match(question)) and len(question.split()) <= 6
+
+
 def _kw_hit(ql: str, kws: list[str]) -> bool:
     return any(re.search(k[3:], ql) if k.startswith("re:") else k in ql for k in kws)
 RULE_TOPICS = [("kebakaran", ["karhutla", "kebakaran", "titik panas"]), ("banjir_longsor", ["banjir", "longsor"]),
@@ -744,19 +753,22 @@ def tool_internet_operator(ch, a: dict) -> dict:
         dl, ul, lat = _num(x.get("bandwidthDownload")), _num(x.get("bandwidthUpload")), _num(x.get("latencyIdle"))
         tabel.append({"operator": _label(d, o[1]), "unduh_mbps": dl, "unggah_mbps": ul, "latensi_ms": lat})
     tabel.sort(key=lambda r: -(r["unduh_mbps"] or 0))
-    if tabel:
+    local_only = bool(place) and not named      # "trafik di Jawa Timur": hanya fakta provinsi
+    if local_only:
+        fakta.append("Kecepatan dan penurunan trafik per operator hanya tersedia secara nasional, bukan per provinsi.")
+    if tabel and not local_only:
         if named:
             fakta += [f"{r['operator']}: median unduh {_f(r['unduh_mbps'])} Mbps, unggah {_f(r['unggah_mbps'])} Mbps, "
                       f"latensi {_f(r['latensi_ms'], 0)} ms (speed test pengguna Cloudflare, 90 hari)." for r in tabel]
         else:
             fakta.append("Median kecepatan unduh per operator (speed test pengguna Cloudflare, 90 hari): "
                          + ", ".join(f"{r['operator']} {_f(r['unduh_mbps'])} Mbps" for r in tabel) + ".")
-    if nat:
+    if nat and not local_only:
         fakta.append(f"Rata-rata Indonesia (semua jaringan): unduh {_f(_num(nat.get('bandwidthDownload')))} Mbps, "
                      f"latensi {_f(_num(nat.get('latencyIdle')), 0)} ms.")
     # penurunan trafik
     since = now - timedelta(days=hari)
-    for o in ops[:5] if named else ops:
+    for o in [] if local_only else ops:
         tr = (d.get("traffic") or {}).get(o[1]) or {}
         s, src = (tr.get("netflows"), "NetFlows") if tr.get("netflows") else (tr.get("http"), "HTTP")
         r = _series_drops(s, since)
@@ -766,12 +778,13 @@ def tool_internet_operator(ch, a: dict) -> dict:
         if r["jam_turun"]:
             lo = r["terendah"]
             fakta.append(f"Trafik {nm} ({src}) turun di bawah 60% dari normal selama {r['jam_turun']} jam dalam {_hari(hari)}; "
-                         f"terendah {_wib(lo[0].isoformat())} ({_f(lo[1] * 100, 0)}% dari normal).")
+                         f"terendah {_wib(lo[0].isoformat())} ({_f(lo[1] * 100, 0)}% dari normal"
+                         + ("; trafik hampir nol, bisa gangguan atau data yang tidak terlihat Cloudflare)." if lo[1] < 0.05 else ")."))
         elif named:
             fakta.append(f"Trafik {nm} ({src}) tidak menunjukkan penurunan tidak normal dalam {_hari(hari)}.")
         if r["jam_celah"] and named:
             fakta.append(f"{nm}: {r['jam_celah']} jam tanpa data (celah data, tidak dihitung sebagai gangguan).")
-    if not named:
+    if not named and not local_only:
         turun = [f for f in fakta if f.startswith("Trafik ")]
         if not turun:
             fakta.append(f"Tidak ada operator dengan penurunan trafik tidak normal dalam {_hari(hari)}.")
@@ -848,6 +861,8 @@ def tool_sebaran_sel(ch, a: dict) -> dict:
                          + (f"; {_f(val(k) / k['pend'] * 1e5)} sel per 100 ribu penduduk." if k.get("pend") else "."))
             if not op and k["total"]:
                 fakta.append(mix([k]))
+            if k.get("approx"):
+                fakta.append(f"Batas wilayah {k['nama']} di data sumber tidak akurat, jadi dipakai batas perkiraan (lingkaran seluas wilayah resmi).")
     elif place:
         ks = [k for k in kab if k.get("prov_k") == place["prov_kode"]]
         prov: dict[str, int] = {}
@@ -911,7 +926,7 @@ def ask(ch, question: str, client: httpx.Client | None = None, context: str = ""
         rules = rule_route(question)
         llm_tools = [t for t in llm_plan.get("alat", []) if t in TOOL_FUNCS]
         followup = False
-        if context and not rules["alat"] and not llm_tools:
+        if context and not rules["alat"] and (not llm_tools or is_followup(question)):
             # pertanyaan lanjutan ("kalau di Riau?"): alat & topik dari pertanyaan sebelumnya,
             # lokasi/waktu dari pertanyaan sekarang bila disebut
             prev = rule_route(context)
@@ -921,7 +936,11 @@ def ask(ch, question: str, client: httpx.Client | None = None, context: str = ""
                 if rules["_explicit"]["hari"]:
                     keep["hari"] = rules["hari"]
                 rules = {**prev, **keep, "_explicit": {**prev["_explicit"], "hari": rules["_explicit"]["hari"] or prev["_explicit"]["hari"]}}
+        if followup:
+            llm_tools = []                    # "kalau di Jawa Barat?": alat ikut pertanyaan sebelumnya, bukan tebakan LLM
         tools = list(dict.fromkeys(llm_tools + rules["alat"]))[:3]      # LLM dulu, aturan melengkapi
+        if "sebaran_sel" in tools and "internet_operator" in tools and not _kw_hit(question.lower(), NET_GENERIC):
+            tools.remove("internet_operator")  # "BTS Telkomsel di X": nama operator saja bukan pertanyaan trafik/kecepatan
         explicit = rules.pop("_explicit")
         dropped = [k for k in ("lokasi", "komoditas", "kata_kunci")
                    if llm_plan.get(k) and not grounded(question, str(llm_plan[k]))]
@@ -931,7 +950,7 @@ def ask(ch, question: str, client: httpx.Client | None = None, context: str = ""
                   for k in ("lokasi", "hari", "min_magnitudo", "komoditas", "topik", "kata_kunci")}
         calls = [{"nama": t, **params} for t in tools]
         for c in calls:
-            c["_q"] = question.lower()
+            c["_q"] = (f"{context} {question}" if followup else question).lower()   # operator/"besok" dari pertanyaan sebelumnya
             c["_hari_explicit"] = bool(explicit.get("hari"))
         router_debug = {"llm": llm_plan, "aturan": rules, "parameter_llm_dibuang": dropped, "lanjutan": followup}
         results, sources, focus = [], [], None

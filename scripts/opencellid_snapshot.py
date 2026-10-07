@@ -64,29 +64,50 @@ def rows(gz: bytes):
             yield dict(zip(COLS, r))
 
 
-def simplify_geojson(src: Path, dst: Path, tol: float = 0.02) -> None:
-    """Salinan batas kab/kota yang lebih ringan untuk peta di browser (cukup untuk peta tematik)."""
-    from shapely.geometry import mapping, shape
-    gj = json.loads(src.read_text(encoding="utf-8"))
-    feats = []
-    for f in gj["features"]:
-        g = shape(f["geometry"]).simplify(tol, preserve_topology=True)
-        m = json.loads(json.dumps(mapping(g)), parse_float=lambda x: round(float(x), 3))
+def qc_boundaries(boundary: Path, gazetteer: Path) -> tuple[list[str], list, set[str]]:
+    """Poligon kab/kota + QC (sama dengan app/api/ask.py): sebagian poligon sumber salah (luas menyimpang >3x dari luas resmi,
+    ibu kota >40 km dari poligonnya, atau pusat kota di luar poligon kota itu sendiri, mis. Kota Semarang, Kota Palangkaraya).
+    Poligon seperti itu diganti lingkaran perkiraan seluas luas resmi di sekitar ibu kota."""
+    import math
+    from shapely.geometry import Point, shape
+    gaz = {r["kode"]: r for r in csv.DictReader(open(gazetteer, encoding="utf-8"))}
+    feats = json.loads(boundary.read_text(encoding="utf-8"))["features"]
+    kodes, geoms, approx = [], [], set()
+    for f in feats:
         kode = f["properties"].get("kode") or f["properties"].get("k")
-        feats.append({"type": "Feature", "properties": {"k": kode}, "geometry": m})
+        g, row = shape(f["geometry"]).buffer(0), gaz.get(kode, {})
+        if row.get("lat"):
+            luas = float(row["luas_km2"]) if row.get("luas_km2") else None
+            area, cap = g.area * 111.0 ** 2, Point(float(row["lng"]), float(row["lat"]))
+            dist = g.distance(cap) * 111.0
+            bad = g.is_empty or (luas and not 1 / 3 <= area / luas <= 3) or dist > 40 or (row.get("jenis") == "kota" and dist > 1)
+            if bad:
+                g = cap.buffer(math.sqrt((luas or max(area, 100.0)) / math.pi) / 111.0, 32)
+                approx.add(kode)
+        kodes.append(kode); geoms.append(g)
+    return kodes, geoms, approx
+
+
+def simplify_geojson(boundary: Path, gazetteer: Path, dst: Path, tol: float = 0.02) -> None:
+    """Salinan batas kab/kota (sudah di-QC) yang lebih ringan untuk peta di browser (cukup untuk peta tematik)."""
+    from shapely.geometry import mapping
+    kodes, geoms, approx = qc_boundaries(boundary, gazetteer)
+    feats = []
+    for kode, g in zip(kodes, geoms):
+        m = json.loads(json.dumps(mapping(g.simplify(tol, preserve_topology=True))), parse_float=lambda x: round(float(x), 3))
+        feats.append({"type": "Feature", "properties": {"k": kode, **({"approx": 1} if kode in approx else {})}, "geometry": m})
     dst.write_text(json.dumps({"type": "FeatureCollection", "features": feats}, separators=(",", ":")), encoding="utf-8")
 
 
 def aggregate(records, boundary: Path, gazetteer: Path) -> dict:
     import numpy as np
     import shapely
-    from shapely.geometry import shape
+
 
     gaz = {r["kode"]: r for r in csv.DictReader(open(gazetteer, encoding="utf-8"))}
-    feats = json.loads(boundary.read_text(encoding="utf-8"))["features"]
-    kodes = [f["properties"].get("kode") or f["properties"].get("k") for f in feats]
-    geoms = [shape(f["geometry"]).buffer(0) for f in feats]
+    kodes, geoms, approx = qc_boundaries(boundary, gazetteer)
     tree = shapely.STRtree(geoms)
+    areas = np.array([g.area for g in geoms])
 
     lon, lat, op, radio, upd = [], [], [], [], []
     now = time.time()
@@ -111,7 +132,10 @@ def aggregate(records, boundary: Path, gazetteer: Path) -> dict:
     pts = shapely.points(np.array(lon), np.array(lat))
     pi, gi = tree.query(pts, predicate="within") if len(pts) else (np.array([], int), np.array([], int))
     owner = np.full(len(pts), -1)
-    owner[pi] = gi                                            # titik di perbatasan: poligon terakhir menang (cukup untuk agregasi)
+    # titik yang masuk >1 wilayah (lingkaran perkiraan tumpang tindih tetangga): wilayah terkecil menang,
+    # sehingga kota enklave (mis. Kota Blitar di dalam Kabupaten Blitar) tidak tertelan kabupaten di sekitarnya
+    order = np.argsort(-areas[gi], kind="stable")
+    owner[pi[order]] = gi[order]
     recent_cut = now - 365 * 86400
 
     kab = defaultdict(lambda: {"total": 0, "op": Counter(), "radio": Counter(), "recent": 0, "op_radio": Counter()})
@@ -133,12 +157,12 @@ def aggregate(records, boundary: Path, gazetteer: Path) -> dict:
                         "lat": float(g["lat"]) if g.get("lat") else None, "lng": float(g["lng"]) if g.get("lng") else None,
                         "total": a["total"] if a else 0, "recent": a["recent"] if a else 0,
                         "op": dict(a["op"]) if a else {}, "radio": dict(a["radio"]) if a else {},
-                        "op_radio": dict(a["op_radio"]) if a else {}})
+                        "op_radio": dict(a["op_radio"]) if a else {}, **({"approx": 1} if kode in approx else {})})
     tot = Counter(); trad = Counter()
     for k in out_kab:
         tot.update(k["op"]); trad.update(k["radio"])
     return {"rows_in_file": total_rows, "cells_indonesia": len(pts), "outside_boundaries": outside, "skipped": skipped,
-            "by_op": dict(tot), "by_radio": dict(trad), "kab": out_kab}
+            "by_op": dict(tot), "by_radio": dict(trad), "approx_boundaries": len(approx), "kab": out_kab}
 
 
 def main() -> int:
@@ -164,9 +188,7 @@ def main() -> int:
     snap = {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "attribution": ATTRIBUTION,
             "ops": OPS, "mnc": MNC, **agg}
     (out / "cells_id.json").write_text(json.dumps(snap, separators=(",", ":")), encoding="utf-8")
-    geo = out / "kabkota_id.geojson"
-    if not geo.exists():
-        simplify_geojson(Path(a.boundary), geo)
+    simplify_geojson(Path(a.boundary), Path(a.gazetteer), out / "kabkota_id.geojson")
     print(f"opencellid: {agg['cells_indonesia']:,} sel Indonesia dari {agg['rows_in_file']:,} baris, "
           f"{agg['outside_boundaries']:,} di luar batas, per operator {agg['by_op']}, per teknologi {agg['by_radio']}")
     return 0
