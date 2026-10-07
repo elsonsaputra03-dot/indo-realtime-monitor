@@ -137,6 +137,20 @@ def collect(radar: Radar) -> dict:
     return out
 
 
+def write_status(path: Path) -> None:
+    """Ringkasan kecil di samping snapshot (jumlah per bagian + error), untuk pemantauan tanpa membuka file besar."""
+    try:
+        snap = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return
+    st = {"generated_at": snap.get("generated_at"), "api_calls": snap.get("api_calls"), "errors": snap.get("errors", []),
+          "counts": {k: len(snap.get(k) or []) for k in ("outages", "anomalies", "speed", "bgp", "hijacks", "leaks")},
+          "traffic": {k: {"http": len((v.get("http") or {}).get("t", [])), "netflows": len((v.get("netflows") or {}).get("t", []))}
+                      for k, v in (snap.get("traffic") or {}).items()},
+          "asns": {k: v.get("label") for k, v in (snap.get("asns") or {}).items()}}
+    path.with_name("radar_status.json").write_text(json.dumps(st, indent=1), encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="site/data")
@@ -148,7 +162,7 @@ def main() -> int:
         try:
             age = (datetime.now(timezone.utc) - datetime.fromisoformat(json.loads(path.read_text())["generated_at"])).total_seconds() / 3600
             if age < a.max_age_hours:
-                print(f"radar: snapshot {age:.1f} jam, dilewati"); return 0
+                print(f"radar: snapshot {age:.1f} jam, dilewati"); write_status(path); return 0
         except Exception:  # noqa: BLE001
             pass
     if not token:
@@ -163,6 +177,7 @@ def main() -> int:
           f"{len(snap['bgp'])} BGP, {len(snap['hijacks'])} hijack, {len(snap['leaks'])} leak, {snap['api_calls']} call, {len(snap['errors'])} error")
     for e in snap["errors"]:
         print("  error:", e, file=sys.stderr)
+    write_status(path)
     return 0
 
 
