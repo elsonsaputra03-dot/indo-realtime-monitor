@@ -19,6 +19,8 @@ import json
 import os
 import smtplib
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -35,15 +37,68 @@ def window(hours: int, now: datetime | None = None) -> tuple[datetime, datetime]
 
 
 class GoatCounter:
-    def __init__(self, code: str, token: str, opener=urllib.request.urlopen):
+    """Klien API GoatCounter dengan jeda antarpermintaan dan retry.
+
+    API GoatCounter dibatasi ~4 permintaan/detik per token. collect() memanggil satu permintaan per halaman yang dikunjungi,
+    jadi pada hari dengan banyak halaman dibuka, rentetan permintaan tanpa jeda bisa kena HTTP 429 dan job gagal dalam
+    hitungan detik (run 8 Okt 2026). Kini: jeda minimal antarpermintaan, retry untuk 429/5xx/timeout dengan menghormati
+    header X-Rate-Limit-Reset / Retry-After, dan pesan error yang menyebut status serta isi respons.
+    """
+    RETRY_STATUS = {429, 500, 502, 503, 504}
+
+    def __init__(self, code: str, token: str, opener=urllib.request.urlopen, sleep=time.sleep, clock=time.monotonic,
+                 min_interval: float = 0.35, retries: int = 4):
         self.base, self.token, self.opener = f"https://{code}.goatcounter.com/api/v0", token, opener
+        self.sleep, self.clock, self.min_interval, self.retries = sleep, clock, min_interval, retries
+        self._last = None
+
+    def _throttle(self) -> None:
+        if self._last is not None:
+            wait = self.min_interval - (self.clock() - self._last)
+            if wait > 0:
+                self.sleep(wait)
+        self._last = self.clock()
+
+    @staticmethod
+    def _retry_after(err: urllib.error.HTTPError, attempt: int) -> float:
+        for h in ("X-Rate-Limit-Reset", "Retry-After"):
+            v = err.headers.get(h) if err.headers else None
+            try:
+                if v is not None:
+                    return min(max(float(v), 1.0), 30.0)
+            except ValueError:
+                pass
+        return min(2 ** attempt, 30)
 
     def get(self, path: str, start: datetime, end: datetime, **params) -> dict:
         q = urllib.parse.urlencode({"start": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"), **params})
         req = urllib.request.Request(f"{self.base}{path}?{q}", headers={"Authorization": f"Bearer {self.token}",
                                                                          "Content-Type": "application/json"})
-        with self.opener(req, timeout=30) as r:
-            return json.loads(r.read().decode("utf-8"))
+        for attempt in range(self.retries + 1):
+            self._throttle()
+            try:
+                with self.opener(req, timeout=30) as r:
+                    return json.loads(r.read().decode("utf-8"))
+            except urllib.error.HTTPError as e:
+                if e.code in self.RETRY_STATUS and attempt < self.retries:
+                    wait = self._retry_after(e, attempt)
+                    print(f"GoatCounter {path}: HTTP {e.code}, coba lagi dalam {wait:.0f} dtk ({attempt + 1}/{self.retries})")
+                    self.sleep(wait)
+                    continue
+                detail = ""
+                try:
+                    detail = e.read().decode("utf-8", "replace")[:300]
+                except Exception:
+                    pass
+                raise RuntimeError(f"GoatCounter {path}: HTTP {e.code} {e.reason} {detail}".strip()) from e
+            except (urllib.error.URLError, TimeoutError) as e:
+                if attempt < self.retries:
+                    wait = min(2 ** attempt, 30)
+                    print(f"GoatCounter {path}: {e}, coba lagi dalam {wait} dtk ({attempt + 1}/{self.retries})")
+                    self.sleep(wait)
+                    continue
+                raise RuntimeError(f"GoatCounter {path}: {e}") from e
+        raise AssertionError("unreachable")
 
 
 # Kunjungan tanpa informasi asal: alamat diketik / bookmark, atau dibuka dari aplikasi yang menyembunyikan asal
