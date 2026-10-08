@@ -105,12 +105,13 @@ class GoatCounter:
 # (WhatsApp, Telegram, aplikasi email, aplikasi LinkedIn, CV PDF). Pakai ?ref= di tautan supaya asalnya tetap terbaca.
 NO_REF = "tanpa asal (langsung, WhatsApp, email, PDF)"
 AI_EVENT = "ask-portfolio"
+HOME = "halaman utama"
 
 
 def collect(gc: GoatCounter, start: datetime, end: datetime) -> dict:
     total = gc.get("/stats/total", start, end).get("total", 0)
     if not total:
-        return {"total": 0, "entries": 0, "ai_questions": 0, "pages": [], "refs": [], "locations": []}
+        return {"total": 0, "page_views": 0, "entries": 0, "ai_questions": 0, "pages": [], "refs": [], "locations": []}
     hits = gc.get("/stats/hits", start, end, limit=100).get("hits", [])
     pages = [{"path": h["path"], "title": h.get("title", ""), "count": h["count"], "path_id": h["path_id"]}
              for h in hits if h.get("count") and not h.get("event")]
@@ -134,7 +135,10 @@ def collect(gc: GoatCounter, start: datetime, end: datetime) -> dict:
     for p in pages:
         merged[short(p["path"])] = merged.get(short(p["path"]), 0) + p["count"]
     pages = [{"path": k, "count": v} for k, v in sorted(merged.items(), key=lambda x: -x[1])]
-    return {"total": sum(p["count"] for p in pages), "entries": sum(r["count"] for r in refs), "ai_questions": ai_questions,
+    # Angka utama = jumlah orang yang membuka halaman utama (GoatCounter: unik per halaman per hari). Halaman lain hanya
+    # rincian, tidak dijumlahkan, karena satu orang yang menjelajah 15 halaman sebelumnya terhitung 15.
+    home = sum(p["count"] for p in pages if p["path"] == HOME)
+    return {"total": home, "page_views": sum(p["count"] for p in pages), "entries": sum(r["count"] for r in refs), "ai_questions": ai_questions,
             "pages": pages, "refs": refs, "locations": locs}
 
 
@@ -154,11 +158,11 @@ def compose(d: dict, start: datetime, end: datetime) -> tuple[str, str, str]:
     period = f"{start.astimezone(WIB):%d %b %H:%M} – {end.astimezone(WIB):%d %b %H:%M} WIB"
     ai = d.get("ai_questions", 0)
     top = ", ".join(f"{r['name'].split(' (')[0]} {r['count']}" for r in d["refs"][:3])
-    if d["total"] or ai:
-        subject = f"Portofolio: {d['total']} kunjungan halaman" + (f" ({top})" if top else "") + (f", {ai} tanya AI" if ai else "")
+    if d["total"] or d.get("page_views") or ai:
+        subject = f"Portofolio: {d['total']} orang masuk" + (f" ({top})" if top else "") + (f", {ai} tanya AI" if ai else "")
     else:
         subject = "Portofolio: tidak ada kunjungan"
-    summary = f"{d['total']} kunjungan halaman, {d.get('entries', 0)} kali masuk dari luar situs" + (f", {ai} pertanyaan ke chatbot" if ai else "")
+    summary = f"{d['total']} orang membuka halaman utama, {d.get('page_views', 0)} halaman dibuka total" + (f", {ai} pertanyaan ke chatbot" if ai else "")
     lines = [f"Kunjungan portofolio {period}", summary, ""]
     if d["refs"]:
         lines.append("Masuk dari (asal kunjungan):")
@@ -168,7 +172,7 @@ def compose(d: dict, start: datetime, end: datetime) -> tuple[str, str, str]:
                 lines.append(f"      {short(path)} ({n})")
         lines.append("")
     if d["pages"]:
-        lines.append("Halaman yang dibuka:")
+        lines.append("Halaman yang dibuka (rincian, tidak dijumlahkan ke angka utama):")
         lines += [f"  - {short(p['path'])}: {p['count']}" for p in d["pages"]]
         lines.append("")
     if ai:
@@ -182,10 +186,10 @@ def compose(d: dict, start: datetime, end: datetime) -> tuple[str, str, str]:
                    f"<td style='padding:4px 10px;color:#5D6D78'>{e(', '.join(f'{short(p)} ({n})' for p, n in r['pages']))}</td></tr>" for r in d["refs"])
     pages = "".join(f"<li>{e(short(p['path']))}: {p['count']}</li>" for p in d["pages"])
     body = f"""<div style="font-family:Arial,sans-serif;font-size:14px;color:#1D2A33">
-<p style="font-size:16px"><b>{d['total']} kunjungan halaman</b> ke portofolio, {e(period)}<br>
-<span style="font-size:14px;color:#5D6D78">{d.get('entries', 0)} kali masuk dari luar situs{f' · <b>{ai} pertanyaan ke chatbot</b>' if ai else ''}</span></p>
+<p style="font-size:16px"><b>{d['total']} orang masuk</b> ke portofolio (membuka halaman utama), {e(period)}<br>
+<span style="font-size:14px;color:#5D6D78">{d.get('page_views', 0)} halaman dibuka total{f' · <b>{ai} pertanyaan ke chatbot</b>' if ai else ''}</span></p>
 {f'<p><b>Masuk dari</b></p><table style="border-collapse:collapse">{rows}</table>' if rows else ''}
-{f'<p><b>Halaman yang dibuka</b></p><ul>{pages}</ul>' if pages else ''}
+{f'<p><b>Halaman yang dibuka</b> <span style="color:#5D6D78">(rincian)</span></p><ul>{pages}</ul>' if pages else ''}
 {f'<p><b>Tanya AI:</b> {ai} pertanyaan ke chatbot portofolio</p>' if ai else ''}
 {f'<p>Negara{" (termasuk pertanyaan ke chatbot)" if ai else ""}: {e(", ".join(f"{l["name"]} {l["count"]}" for l in d["locations"]))}</p>' if d["locations"] else ''}
 <p style="color:#5D6D78;font-size:12px">{e(NOTE)}<br>
@@ -228,7 +232,7 @@ def main() -> int:
     d = collect(GoatCounter(os.environ["GOATCOUNTER_CODE"], os.environ["GOATCOUNTER_TOKEN"]), start, end)
     subject, text, body = compose(d, start, end)
     print(subject); print(text)
-    if not d["total"] and not d.get("ai_questions") and os.getenv("SEND_EMPTY", "0") != "1":
+    if not d["total"] and not d.get("page_views") and not d.get("ai_questions") and os.getenv("SEND_EMPTY", "0") != "1":
         print("tidak ada kunjungan: email tidak dikirim"); return 0
     if os.getenv("DRY_RUN", "0") == "1":
         print("DRY_RUN: email tidak dikirim"); return 0
