@@ -198,8 +198,8 @@
   <header>
     <div class="brand"><div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 1.8 1.8.7-1.8.7L5 20l-.7-1.8-1.8-.7 1.8-.7z"/></svg></div>
       <div><h1>Ask the Data <small>Tanya Data</small></h1>
-      <p class="sub">LLM lokal yang dijaga guardrail, menjawab hanya dari data Indonesia Realtime Monitor</p>
-      <div class="chips-h"><span class="chip-h">qwen2.5:3b</span><span class="chip-h">Ollama · GPU laptop 4 GB</span><span class="chip-h">10 tools, tanpa text-to-SQL</span><span class="chip-h">facts dihitung kode</span></div></div>
+      <p class="sub" id="sub">LLM yang dijaga guardrail, menjawab hanya dari data Indonesia Realtime Monitor</p>
+      <div class="chips-h"><span class="chip-h" id="chip-model">qwen2.5:3b</span><span class="chip-h" id="chip-run">Ollama · GPU laptop 4 GB</span><span class="chip-h">10 tools, tanpa text-to-SQL</span><span class="chip-h">facts dihitung kode</span></div></div>
     </div>
     <div class="spacer"></div>
     <span class="pill" id="pill" role="status">Memeriksa server AI…</span>
@@ -251,6 +251,10 @@
           <li class="llm"><b>Jawaban</b>LLM hanya merangkai kalimat dari facts, tidak menambah angka.</li>
         </ol>
         <p class="guard">AI bisa keliru merangkai kalimat. Untuk angka yang pasti, klik <strong>Cek angka</strong> di bawah setiap jawaban.</p>
+        <p class="guard" id="public-note" hidden><strong>Versi publik.</strong> Pertanyaan dikirim ke Google Gemini untuk merangkai kalimat dan
+          tidak disimpan situs ini; angka dihitung kode dari snapshot data per jam. Versi lengkap memakai model lokal (Ollama, qwen2.5:3b)
+          di atas ClickHouse, lihat <a href="https://github.com/elsonsaputra03-dot/indo-realtime-monitor" target="_blank" rel="noopener noreferrer">repository</a>.
+          Jangan masukkan data pribadi.</p>
       </div>
     </aside>
   </div>
@@ -281,8 +285,11 @@ const STORE = 'irm-tanya-v1';
 const API = (() => {
   const q = new URLSearchParams(location.search).get('api');
   if(q && /^(https:\/\/|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)/.test(q)) return q.replace(/\/$/, '');
+  // versi publik (GitHub Pages): Cloudflare Worker + Gemini atas snapshot per jam; versi lokal: FastAPI same-origin
+  if(/github\.io$/.test(location.hostname)) return 'https://portfolio-chat.elsonsaputra.workers.dev';
   return '';
 })();
+let MODE = 'local';
 let ONLINE = false;
 
 // Contoh percakapan NYATA dari versi lokal (qwen2.5:3b via Ollama), direkam saat pengujian 28 Sep dan 8 Okt 2026.
@@ -537,7 +544,11 @@ function setOnline(on){
   pill.textContent = on ? 'AI online' : 'AI offline';
   pill.className = 'pill ' + (on ? 'on' : 'off');
   $('q').disabled = !on;
-  $('q').placeholder = on ? 'Tanyakan tentang gempa, titik panas, kualitas udara, harga pangan, atau berita…'
+  if(on && MODE === 'public'){
+    $('chip-model').textContent = 'Gemini 2.5 Flash'; $('chip-run').textContent = 'Cloudflare Worker · snapshot per jam';
+    $('public-note').hidden = false;
+  }
+  $('q').placeholder = on ? 'Tanyakan tentang gempa, titik panas, udara, harga pangan, cuaca, internet, atau BTS…'
                           : 'Tanya Data offline di versi publik. Lihat contoh percakapan di atas.';
   updateCount(); render();
   if(!on){ const f = EXAMPLES_REAL[0].res.focus; if(f) showFocus(f); }
@@ -546,7 +557,10 @@ async function checkHealth(){
   try{
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 4000);
     const r = await fetch(`${API}/api/health`, {signal: ctl.signal}); clearTimeout(t);
-    return r.ok && (await r.json()).status === 'ok';
+    if(!r.ok) return false;
+    const d = await r.json();
+    MODE = d.mode === 'public-snapshot' ? 'public' : 'local';
+    return d.status === 'ok';
   }catch(e){ return false; }
 }
 checkHealth().then(on => { setOnline(on); if(on && preset) send(preset); if(on) $('q').focus(); });

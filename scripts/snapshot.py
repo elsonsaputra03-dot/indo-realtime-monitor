@@ -314,6 +314,21 @@ def main() -> int:
     meta["sources"]["risiko"] = info
     print(f"{'risiko':15} {info['status']:6} n={info['count']:<6} {info['ms']:>6}ms {info['note']}")
 
+    # ---- indeks untuk Ask the Data versi publik (Worker): titik panas/gempa per wilayah + gazetteer
+    t0 = time.monotonic()
+    info = {"label": "Indeks Ask the Data", "status": "ok", "count": 0, "note": "", "ms": 0}
+    try:
+        import ask_index
+        idx = ask_index.build_index(a.out, "reference/batas_kabkota.geojson", os.environ["GAZETTEER_CSV"])
+        info["bytes"] = write(a.out, "ask_index.json", idx)
+        write(a.out, "ask_gazetteer.json", ask_index.build_gazetteer())
+        info["count"] = sum(v["total"] for v in idx["hotspots"].values()) + len(idx["quakes"])
+    except Exception as exc:  # noqa: BLE001
+        info.update(status="error", note=redact(f"{type(exc).__name__}: {exc}")[:200])
+    info["ms"] = int((time.monotonic() - t0) * 1000)
+    meta["sources"]["ask_index"] = info
+    print(f"{'ask_index':15} {info['status']:6} n={info['count']:<6} {info['ms']:>6}ms {info['note']}")
+
     write(a.out, "meta.json", meta)
     run_alerts(a.out, meta)
     ok = sum(s["status"] == "ok" for s in meta["sources"].values())
