@@ -229,7 +229,9 @@ def check_env() -> None:
 
 def main() -> int:
     check_env()
-    start, end = window(int(os.getenv("HOURS", "24")))
+    end_env = os.getenv("END_UTC", "").strip()          # uji ulang rentang tertentu, mis. 2026-10-09T04:00:00Z
+    start, end = window(int(os.getenv("HOURS", "24")),
+                        datetime.fromisoformat(end_env.replace("Z", "+00:00")) if end_env else None)
     d = collect(GoatCounter(os.environ["GOATCOUNTER_CODE"], os.environ["GOATCOUNTER_TOKEN"]), start, end)
     subject, text, body = compose(d, start, end)
     print(subject); print(text)

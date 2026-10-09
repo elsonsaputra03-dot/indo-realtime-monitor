@@ -7,6 +7,12 @@ on:
       send_empty:
         description: "Kirim email walaupun tidak ada kunjungan (untuk uji)"
         default: "0"
+      end_utc:
+        description: "Uji ulang rentang 24 jam yang berakhir pada jam ini (UTC, mis. 2026-10-09T04:00:00Z); kosong = sekarang"
+        default: ""
+      dry_run:
+        description: "1 = jangan kirim email"
+        default: "0"
 jobs:
   report:
     runs-on: ubuntu-24.04
@@ -24,3 +30,5 @@ jobs:
           # penerima: REPORT_TO bila ada, jika tidak alamat alert yang sudah dipakai Indonesia Realtime Monitor
           REPORT_TO: ${{ secrets.REPORT_TO || vars.REPORT_TO || secrets.ALERT_EMAIL_TO }}
           SEND_EMPTY: ${{ github.event.inputs.send_empty || '0' }}
+          END_UTC: ${{ github.event.inputs.end_utc || '' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
