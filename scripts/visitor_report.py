@@ -47,7 +47,7 @@ class GoatCounter:
     RETRY_STATUS = {429, 500, 502, 503, 504}
 
     def __init__(self, code: str, token: str, opener=urllib.request.urlopen, sleep=time.sleep, clock=time.monotonic,
-                 min_interval: float = 0.35, retries: int = 4):
+                 min_interval: float = 0.35, retries: int = 6):
         self.base, self.token, self.opener = f"https://{code}.goatcounter.com/api/v0", token, opener
         self.sleep, self.clock, self.min_interval, self.retries = sleep, clock, min_interval, retries
         self._last = None
@@ -65,10 +65,12 @@ class GoatCounter:
             v = err.headers.get(h) if err.headers else None
             try:
                 if v is not None:
-                    return min(max(float(v), 1.0), 30.0)
+                    # header bisa menyebut 1 detik padahal batasnya belum pulih (run terjadwal 9 Okt gagal dalam 5 detik):
+                    # pakai yang lebih lama antara header dan backoff eksponensial
+                    return min(max(float(v), 2.0 ** (attempt + 1)), 60.0)
             except ValueError:
                 pass
-        return min(2 ** attempt, 30)
+        return min(2.0 ** (attempt + 1), 60.0)
 
     def get(self, path: str, start: datetime, end: datetime, **params) -> dict:
         q = urllib.parse.urlencode({"start": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"), **params})
@@ -93,7 +95,7 @@ class GoatCounter:
                 raise RuntimeError(f"GoatCounter {path}: HTTP {e.code} {e.reason} {detail}".strip()) from e
             except (urllib.error.URLError, TimeoutError) as e:
                 if attempt < self.retries:
-                    wait = min(2 ** attempt, 30)
+                    wait = min(2 ** (attempt + 1), 60)
                     print(f"GoatCounter {path}: {e}, coba lagi dalam {wait} dtk ({attempt + 1}/{self.retries})")
                     self.sleep(wait)
                     continue
