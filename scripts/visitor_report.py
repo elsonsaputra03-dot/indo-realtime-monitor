@@ -220,6 +220,7 @@ def check_env() -> None:
     kosong menghasilkan host '.goatcounter.com' dan error 'label empty or too long' yang membingungkan (terjadi di run pertama)."""
     missing = [k for k in REQUIRED if not os.getenv(k, "").strip()]
     if missing:
+        print("::error title=visitor-report::secret belum diisi: " + ", ".join(missing))
         sys.exit("secret belum diisi: " + ", ".join(missing) + " (GitHub: Settings -> Secrets and variables -> Actions)")
     code = os.environ["GOATCOUNTER_CODE"].strip()
     if not code.replace("-", "").isalnum() or code != code.lower():
@@ -242,4 +243,14 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001 - tulis penyebab ke annotation GitHub (log job tidak selalu bisa dibuka)
+        import traceback
+        traceback.print_exc()
+        where = traceback.extract_tb(exc.__traceback__)[-1]
+        msg = f"{type(exc).__name__}: {exc} (baris {where.lineno}, {where.name})".replace("\n", " ")[:900]
+        print(f"::error title=visitor-report::{msg}")
+        sys.exit(1)
