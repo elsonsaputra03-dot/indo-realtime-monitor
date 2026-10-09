@@ -282,12 +282,13 @@
 
       <article class="project" id="ai-project" style="margin-top:22px">
         <div class="project-top">
-          <span class="status">Runs locally on a laptop GPU · the public page shows recorded answers</span>
+          <span class="status">Live on this site (Gemini over hourly snapshots) · full version runs locally on a laptop GPU</span>
           <h3>Ask the Data: a guarded LLM assistant</h3>
           <p class="summary">A question-answering assistant over the Indonesia Realtime Monitor data, in plain Indonesian, running a 3B model
             locally with Ollama on a 4 GB laptop GPU. The model never writes SQL and never supplies the numbers: it picks from ten predefined
             tools, the system runs parameterized queries and computes the facts, and the model only phrases the answer. The same local model
-            classifies and geotags the news feeding the platform.</p>
+            classifies and geotags the news feeding the platform. The public page runs the same ten tools in a Cloudflare Worker over
+            the hourly snapshots, with Gemini phrasing the answer; when its quota runs out, visitors still get the computed facts.</p>
         </div>
         <div class="highlights">
           <div class="hl"><h4>Tools, not text-to-SQL</h4>
