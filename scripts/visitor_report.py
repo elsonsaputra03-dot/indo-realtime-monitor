@@ -44,7 +44,9 @@ class GoatCounter:
     hitungan detik (run 8 Okt 2026). Kini: jeda minimal antarpermintaan, retry untuk 429/5xx/timeout dengan menghormati
     header X-Rate-Limit-Reset / Retry-After, dan pesan error yang menyebut status serta isi respons.
     """
-    RETRY_STATUS = {429, 500, 502, 503, 504}
+    # 404 ikut dicoba ulang: endpoint /stats/total valid, tetapi run terjadwal 11 Okt mendapat 404 {"error":"not found"}
+    # sementara run manual 5 menit kemudian (rentang waktu sama, 9 Okt) berhasil -> gangguan sesaat di sisi GoatCounter
+    RETRY_STATUS = {404, 429, 500, 502, 503, 504}
 
     def __init__(self, code: str, token: str, opener=urllib.request.urlopen, sleep=time.sleep, clock=time.monotonic,
                  min_interval: float = 0.35, retries: int = 6):
